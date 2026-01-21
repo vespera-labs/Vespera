@@ -1,5 +1,5 @@
 #![no_std]
-use soroban_sdk::{contract, contractimpl, contracterror, contractevent, Address, Env, String};
+use soroban_sdk::{contract, contractimpl, contracterror, contractevent, vec, Address, Env, String, Vec};
 
 mod types;
 use types::{AgreementStatus, DataKey, RentAgreement};
@@ -25,6 +25,10 @@ pub struct Contract;
 
 #[contractimpl]
 impl Contract {
+    pub fn hello(env: Env, to: String) -> Vec<String> {
+        vec![&env, String::from_str(&env, "Hello"), to]
+    }
+
     /// Creates a new rent agreement and stores it on-chain.
     ///
     /// Authorization:
