@@ -1,99 +1,116 @@
 #![no_std]
-use soroban_sdk::{contract, contractimpl, symbol_short, token, Address, Env, String};
+use soroban_sdk::{contract, contractimpl, contracterror, contractevent, vec, Address, Env, String, Vec};
 
-use crate::types::{AgreementStatus, DataKey, Error, RentAgreement};
+mod types;
+use types::{AgreementStatus, DataKey, RentAgreement};
+
+#[contracterror]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
+#[repr(u32)]
+pub enum Error {
+    AgreementAlreadyExists = 4,
+    InvalidAmount = 5,
+    InvalidDate = 6,
+    InvalidCommissionRate = 7,
+}
+
+#[contractevent]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct AgreementCreatedEvent {
+    pub agreement_id: String,
+}
 
 #[contract]
-pub struct ChiomaContract;
+pub struct Contract;
 
 #[contractimpl]
-impl ChiomaContract {
-    /// Initializes the protocol with an admin address and resets all counters.
-    /// Can only be called once.
-    pub fn initialize(env: Env, admin: Address) -> Result<(), Error> {
-        if env.storage().instance().has(&DataKey::Admin) {
-            return Err(Error::AlreadyInitialized);
-        }
-
-        // Persist admin
-        env.storage().instance().set(&DataKey::Admin, &admin);
-
-        // Initialize counters to 0
-        env.storage()
-            .instance()
-            .set(&DataKey::AgreementCount, &0u32);
-        env.storage().instance().set(&DataKey::PaymentCount, &0u32);
-        env.storage().instance().set(&DataKey::DisputeCount, &0u32);
-
-        Ok(())
+impl Contract {
+    pub fn hello(env: Env, to: String) -> Vec<String> {
+        vec![&env, String::from_str(&env, "Hello"), to]
     }
 
-    /// Returns the current protocol version for auditing and tooling.
-    pub fn version(env: Env) -> String {
-        String::from_str(&env, "1.0.0")
-    }
-
-    /// Internally helper to check if contract is initialized (for future use)
-    fn check_initialized(env: &Env) -> Result<(), Error> {
-        if !env.storage().instance().has(&DataKey::Admin) {
-            return Err(Error::NotInitialized);
-        }
-        Ok(())
-    }
-
-    /// Deposits security deposit and activates the agreement.
-    pub fn deposit_security(
+    /// Creates a new rent agreement and stores it on-chain.
+    ///
+    /// Authorization:
+    /// - Tenant MUST authorize creation (prevents landlord-only spoofing)
+    pub fn create_agreement(
         env: Env,
         agreement_id: String,
-        token: Address,
-        amount: i128,
+        landlord: Address,
+        tenant: Address,
+        agent: Option<Address>,
+        monthly_rent: i128,
+        security_deposit: i128,
+        start_date: u64,
+        end_date: u64,
+        agent_commission_rate: u32,
     ) -> Result<(), Error> {
-        ChiomaContract::check_initialized(&env)?;
+        // Tenant MUST authorize creation
+        tenant.require_auth();
 
-        let key = DataKey::Agreement(agreement_id.clone());
-        let mut agreement: RentAgreement = env
-            .storage()
-            .instance()
-            .get(&key)
-            .ok_or(Error::AgreementNotFound)?;
+        // Validate inputs
+        Self::validate_agreement_params(
+            &monthly_rent,
+            &security_deposit,
+            &start_date,
+            &end_date,
+            &agent_commission_rate,
+        )?;
 
-        if agreement.status != AgreementStatus::Draft {
-            return Err(Error::InvalidStatus);
+        // Check for duplicate agreement_id
+        if env.storage().persistent().has(&DataKey::Agreement(agreement_id.clone())) {
+            return Err(Error::AgreementAlreadyExists);
         }
 
-        if amount != agreement.security_deposit {
+        // Initialize agreement
+        let agreement = RentAgreement {
+            agreement_id: agreement_id.clone(),
+            landlord,
+            tenant,
+            agent,
+            monthly_rent,
+            security_deposit,
+            start_date,
+            end_date,
+            agent_commission_rate,
+            status: AgreementStatus::Draft,
+        };
+
+        // Store agreement
+        env.storage().persistent().set(&DataKey::Agreement(agreement_id.clone()), &agreement);
+
+        // Update counter
+        let mut count: u32 = env.storage().instance().get(&DataKey::AgreementCount).unwrap_or(0);
+        count += 1;
+        env.storage().instance().set(&DataKey::AgreementCount, &count);
+
+        // Emit event
+        AgreementCreatedEvent { agreement_id }.publish(&env);
+
+        Ok(())
+    }
+
+    fn validate_agreement_params(
+        monthly_rent: &i128,
+        security_deposit: &i128,
+        start_date: &u64,
+        end_date: &u64,
+        agent_commission_rate: &u32,
+    ) -> Result<(), Error> {
+        if *monthly_rent <= 0 || *security_deposit < 0 {
             return Err(Error::InvalidAmount);
         }
 
-        agreement.tenant.require_auth();
+        if *start_date >= *end_date {
+            return Err(Error::InvalidDate);
+        }
 
-        let client = token::Client::new(&env, &token);
-        client.transfer(&agreement.tenant, &env.current_contract_address(), &amount);
-
-        agreement.status = AgreementStatus::Active;
-        agreement.escrow_balance = amount;
-
-        env.storage().instance().set(&key, &agreement);
-
-        env.events()
-            .publish((symbol_short!("activate"), agreement_id), amount);
+        if *agent_commission_rate > 100 {
+            return Err(Error::InvalidCommissionRate);
+        }
 
         Ok(())
     }
 }
 
-#[contractimpl]
-#[cfg(any(test, feature = "testutils"))]
-impl ChiomaContract {
-    pub fn test_set_agreement(env: Env, agreement: RentAgreement) {
-        let key = DataKey::Agreement(agreement.agreement_id.clone());
-        env.storage().instance().set(&key, &agreement);
-    }
-
-    pub fn test_get_agreement(env: Env, agreement_id: String) -> RentAgreement {
-        let key = DataKey::Agreement(agreement_id);
-        env.storage().instance().get(&key).unwrap()
-    }
-}
 mod test;
-mod types;
