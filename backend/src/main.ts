@@ -7,6 +7,11 @@ import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
+  // Set global prefix for API routes (health endpoint will be available at /health)
+  app.setGlobalPrefix('api', {
+    exclude: ['health', 'health/detailed'], // Exclude health endpoints from prefix
+  });
+
   app.use(express.json());
 
   app.use(new LoggerMiddleware().use);
