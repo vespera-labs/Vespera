@@ -1,6 +1,8 @@
 import Navbar from "@/components/Navbar";
 import Hero from "@/components/Hero";
 import AudienceCards from "@/components/sections/AudienceCards";
+import StepsCard from "@/components/sections/StepsCard";
+
 import SecurityFeatures from "@/components/sections/SecurityFeatures";
 
 export default function Home() {
@@ -13,6 +15,7 @@ export default function Home() {
 			<div className='bg-white'>
 				<AudienceCards />
 			</div>
+      <StepsCard />
 			<SecurityFeatures />
 
 			<footer className='py-12 border-t border-white/10 text-center text-white/40 text-sm'>
