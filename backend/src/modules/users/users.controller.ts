@@ -1,111 +1,115 @@
 import {
   Controller,
   Get,
+  Put,
   Post,
-  Body,
-  Patch,
-  Param,
   Delete,
+  Body,
+  UseGuards,
+  HttpCode,
+  HttpStatus,
   UseInterceptors,
-  Request,
+  ClassSerializerInterceptor,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
 import { UsersService } from './users.service';
-import { CreateUserDto } from './dto/create-user.dto';
-import { UpdateUserDto } from './dto/update-user.dto';
+import {
+  UpdateProfileDto,
+  ChangeEmailDto,
+  ChangePasswordDto,
+} from './dto/update-user.dto';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { User } from './entities/user.entity';
-import { AuditLogInterceptor } from '../audit/interceptors/audit-log.interceptor';
 
 @ApiTags('Users')
 @Controller('users')
-@UseInterceptors(AuditLogInterceptor)
+@UseGuards(JwtAuthGuard)
+@ApiBearerAuth('JWT-auth')
+@UseInterceptors(ClassSerializerInterceptor)
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
-  @Post()
-  @ApiOperation({ summary: 'Create a new user' })
-  @ApiResponse({
-    status: 201,
-    description: 'User created successfully',
-    type: User,
-  })
-  async create(@Body() createUserDto: CreateUserDto, @Request() req: any) {
-    return this.usersService.create(createUserDto, req.user?.id);
-  }
-
-  @Get()
-  @ApiOperation({ summary: 'Get all users' })
+  @Get('me')
+  @ApiOperation({ summary: 'Get current user profile' })
   @ApiResponse({
     status: 200,
-    description: 'Users retrieved successfully',
-    type: [User],
+    description: 'User profile retrieved successfully',
   })
-  async findAll() {
-    return this.usersService.findAll();
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async getProfile(@CurrentUser() user: User) {
+    return user;
   }
 
-  @Get(':id')
-  @ApiOperation({ summary: 'Get a user by ID' })
-  @ApiResponse({
-    status: 200,
-    description: 'User retrieved successfully',
-    type: User,
-  })
-  async findOne(@Param('id') id: string) {
-    return this.usersService.findOne(id);
-  }
-
-  @Patch(':id')
-  @ApiOperation({ summary: 'Update a user' })
-  @ApiResponse({
-    status: 200,
-    description: 'User updated successfully',
-    type: User,
-  })
-  async update(
-    @Param('id') id: string,
-    @Body() updateUserDto: UpdateUserDto,
-    @Request() req: any,
+  @Put('me')
+  @ApiOperation({ summary: 'Update current user profile' })
+  @ApiResponse({ status: 200, description: 'Profile updated successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid input' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async updateProfile(
+    @CurrentUser() user: User,
+    @Body() updateProfileDto: UpdateProfileDto,
   ) {
-    return this.usersService.update(id, updateUserDto, req.user?.id);
+    return this.usersService.updateProfile(user.id, updateProfileDto);
   }
 
-  @Patch(':id/permissions')
-  @ApiOperation({ summary: 'Update user permissions' })
-  @ApiResponse({
-    status: 200,
-    description: 'User permissions updated successfully',
-    type: User,
-  })
-  async updatePermissions(
-    @Param('id') id: string,
-    @Body() permissions: any,
-    @Request() req: any,
+  @Post('me/email')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Change email address' })
+  @ApiResponse({ status: 200, description: 'Email changed successfully' })
+  @ApiResponse({ status: 400, description: 'Email already in use' })
+  @ApiResponse({ status: 401, description: 'Invalid password' })
+  async changeEmail(
+    @CurrentUser() user: User,
+    @Body() changeEmailDto: ChangeEmailDto,
   ) {
-    return this.usersService.updatePermissions(id, permissions, req.user?.id);
+    return this.usersService.changeEmail(user.id, changeEmailDto);
   }
 
-  @Delete(':id')
-  @ApiOperation({ summary: 'Delete a user' })
-  @ApiResponse({
-    status: 200,
-    description: 'User deleted successfully',
-  })
-  async remove(@Param('id') id: string, @Request() req: any) {
-    return this.usersService.remove(id, req.user?.id);
-  }
-
-  @Post(':id/change-password')
-  @ApiOperation({ summary: 'Change user password' })
-  @ApiResponse({
-    status: 200,
-    description: 'Password changed successfully',
-  })
+  @Post('me/password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Change password' })
+  @ApiResponse({ status: 200, description: 'Password changed successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid input' })
+  @ApiResponse({ status: 401, description: 'Invalid current password' })
   async changePassword(
-    @Param('id') id: string,
-    @Body('password') password: string,
-    @Request() req: any,
+    @CurrentUser() user: User,
+    @Body() changePasswordDto: ChangePasswordDto,
   ) {
-    return this.usersService.changePassword(id, password, req.user?.id);
+    return this.usersService.changePassword(user.id, changePasswordDto);
+  }
+
+  @Delete('me')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Delete user account' })
+  @ApiResponse({ status: 200, description: 'Account deleted successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async deleteAccount(@CurrentUser() user: User) {
+    return this.usersService.deleteAccount(user.id);
+  }
+
+  @Post('me/deactivate')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Deactivate user account' })
+  @ApiResponse({ status: 200, description: 'Account deactivated successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async deactivateAccount(@CurrentUser() user: User) {
+    return this.usersService.deactivateAccount(user.id);
+  }
+
+  @Get('me/activity')
+  @ApiOperation({ summary: 'Get user activity history' })
+  @ApiResponse({
+    status: 200,
+    description: 'Activity history retrieved successfully',
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async getUserActivity(@CurrentUser() user: User) {
+    return this.usersService.getUserActivity(user.id);
   }
 }

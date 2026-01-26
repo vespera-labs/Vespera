@@ -1,6 +1,13 @@
-import { Module, ValidationPipe, MiddlewareConsumer, NestModule } from '@nestjs/common';
+import {
+  Module,
+  ValidationPipe,
+  MiddlewareConsumer,
+  NestModule,
+} from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { APP_GUARD } from '@nestjs/core';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AgreementsModule } from './modules/agreements/agreements.module';
@@ -17,6 +24,12 @@ import { AuthRateLimitMiddleware } from './modules/auth/middleware/rate-limit.mi
     ConfigModule.forRoot({
       isGlobal: true,
     }),
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60000,
+        limit: 20,
+      },
+    ]),
     TypeOrmModule.forRoot({
       type: 'postgres',
       host: process.env.DB_HOST || 'localhost',
@@ -43,6 +56,10 @@ import { AuthRateLimitMiddleware } from './modules/auth/middleware/rate-limit.mi
     {
       provide: 'APP_PIPE',
       useClass: ValidationPipe,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
     },
   ],
 })

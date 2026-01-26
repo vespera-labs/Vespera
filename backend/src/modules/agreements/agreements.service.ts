@@ -1,7 +1,14 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { RentAgreement, AgreementStatus } from '../rent/entities/rent-contract.entity';
+import {
+  RentAgreement,
+  AgreementStatus,
+} from '../rent/entities/rent-contract.entity';
 import { Payment, PaymentStatus } from '../rent/entities/payment.entity';
 import { CreateAgreementDto } from './dto/create-agreement.dto';
 import { UpdateAgreementDto } from './dto/update-agreement.dto';
@@ -62,26 +69,48 @@ export class AgreementsService {
   /**
    * Find all agreements with filtering, pagination, and sorting
    */
-  async findAll(query: QueryAgreementsDto): Promise<{ data: RentAgreement[]; total: number; page: number; limit: number }> {
-    const { page = 1, limit = 10, sortBy = 'createdAt', sortOrder = 'DESC', ...filters } = query;
+  async findAll(query: QueryAgreementsDto): Promise<{
+    data: RentAgreement[];
+    total: number;
+    page: number;
+    limit: number;
+  }> {
+    const {
+      page = 1,
+      limit = 10,
+      sortBy = 'createdAt',
+      sortOrder = 'DESC',
+      ...filters
+    } = query;
 
-    const queryBuilder = this.agreementRepository.createQueryBuilder('agreement');
+    const queryBuilder =
+      this.agreementRepository.createQueryBuilder('agreement');
 
     // Apply filters
     if (filters.status) {
-      queryBuilder.andWhere('agreement.status = :status', { status: filters.status });
+      queryBuilder.andWhere('agreement.status = :status', {
+        status: filters.status,
+      });
     }
     if (filters.landlordId) {
-      queryBuilder.andWhere('agreement.landlordId = :landlordId', { landlordId: filters.landlordId });
+      queryBuilder.andWhere('agreement.landlordId = :landlordId', {
+        landlordId: filters.landlordId,
+      });
     }
     if (filters.tenantId) {
-      queryBuilder.andWhere('agreement.tenantId = :tenantId', { tenantId: filters.tenantId });
+      queryBuilder.andWhere('agreement.tenantId = :tenantId', {
+        tenantId: filters.tenantId,
+      });
     }
     if (filters.agentId) {
-      queryBuilder.andWhere('agreement.agentId = :agentId', { agentId: filters.agentId });
+      queryBuilder.andWhere('agreement.agentId = :agentId', {
+        agentId: filters.agentId,
+      });
     }
     if (filters.propertyId) {
-      queryBuilder.andWhere('agreement.propertyId = :propertyId', { propertyId: filters.propertyId });
+      queryBuilder.andWhere('agreement.propertyId = :propertyId', {
+        propertyId: filters.propertyId,
+      });
     }
 
     // Apply sorting
@@ -140,9 +169,9 @@ export class AgreementsService {
     };
 
     // Validate dates if both are provided
-    if ((updateAgreementDto as any).startDate && (updateAgreementDto as any).endDate) {
-      const startDate = new Date((updateAgreementDto as any).startDate);
-      const endDate = new Date((updateAgreementDto as any).endDate);
+    if (updateAgreementDto.startDate && updateAgreementDto.endDate) {
+      const startDate = new Date(updateAgreementDto.startDate);
+      const endDate = new Date(updateAgreementDto.endDate);
 
       if (endDate <= startDate) {
         throw new BadRequestException('End date must be after start date');
@@ -199,7 +228,9 @@ export class AgreementsService {
     const agreement = await this.findOne(agreementId);
 
     if (agreement.status === AgreementStatus.TERMINATED) {
-      throw new BadRequestException('Cannot record payment for a terminated agreement');
+      throw new BadRequestException(
+        'Cannot record payment for a terminated agreement',
+      );
     }
 
     const oldTotalPaid = agreement.totalPaid;
@@ -220,12 +251,17 @@ export class AgreementsService {
     const savedPayment = await this.paymentRepository.save(payment);
 
     // Update agreement balances
-    agreement.totalPaid = Number(agreement.totalPaid) + Number(recordPaymentDto.amount);
-    agreement.escrowBalance = Number(agreement.escrowBalance) + Number(recordPaymentDto.amount);
+    agreement.totalPaid =
+      Number(agreement.totalPaid) + Number(recordPaymentDto.amount);
+    agreement.escrowBalance =
+      Number(agreement.escrowBalance) + Number(recordPaymentDto.amount);
     agreement.lastPaymentDate = new Date(recordPaymentDto.paymentDate);
 
     // Update status to active if it's the first payment
-    if (agreement.status === AgreementStatus.DRAFT || agreement.status === AgreementStatus.PENDING_DEPOSIT) {
+    if (
+      agreement.status === AgreementStatus.DRAFT ||
+      agreement.status === AgreementStatus.PENDING_DEPOSIT
+    ) {
       agreement.status = AgreementStatus.ACTIVE;
     }
 
