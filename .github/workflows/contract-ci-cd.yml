@@ -19,7 +19,7 @@ on:
 env:
   CARGO_TERM_COLOR: always
   WORKING_DIR: contract
-  SOROBAN_RPC_URL: "https://soroban-testnet.stellar.org" # Default to testnet
+  SOROBAN_RPC_URL: "https://soroban-testnet.stellar.org"
   SOROBAN_NETWORK_PASSPHRASE: "Test SDF Network ; September 2015"
 
 jobs:
@@ -31,33 +31,21 @@ jobs:
         working-directory: ${{ env.WORKING_DIR }}
     steps:
       - uses: actions/checkout@v4
-
-      - name: Set up Rust
-        uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@stable
         with:
           targets: wasm32-unknown-unknown
           components: rustfmt, clippy
-
-      - name: Cache Cargo registry
-        uses: actions/cache@v4
+      - uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
             target
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-
-      - name: Rustfmt
-        run: cargo fmt --all -- --check
-
-      - name: Clippy
-        run: cargo clippy --all-targets -- -D warnings
-
-      - name: Install cargo-audit
-        run: cargo install cargo-audit || true
-
-      - name: Security Audit
-        run: cargo audit
+      - run: cargo fmt --all -- --check
+      - run: cargo clippy --all-targets -- -D warnings
+      - run: cargo install cargo-audit || true
+      - run: cargo audit
 
   test:
     name: Test
@@ -68,23 +56,17 @@ jobs:
         working-directory: ${{ env.WORKING_DIR }}
     steps:
       - uses: actions/checkout@v4
-
-      - name: Set up Rust
-        uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@stable
         with:
           targets: wasm32-unknown-unknown
-
-      - name: Cache Cargo registry
-        uses: actions/cache@v4
+      - uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
             target
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-
-      - name: Run Tests
-        run: cargo test
+      - run: cargo test
 
   build:
     name: Build & Validate
@@ -95,25 +77,17 @@ jobs:
         working-directory: ${{ env.WORKING_DIR }}
     steps:
       - uses: actions/checkout@v4
-
-      - name: Set up Rust
-        uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@stable
         with:
           targets: wasm32-unknown-unknown
-
-      - name: Install Soroban CLI
-        run: cargo install soroban-cli --version 23.0.0 --features opt || true
-
-      - name: Build Contract
-        run: soroban contract build --release
-
+      - run: cargo install soroban-cli --version 23.0.0 --features opt || true
+      - run: soroban contract build
       - name: Check Wasm Size
         run: |
           WASM_FILE=$(find target/wasm32-unknown-unknown/release -name "*.wasm" | head -n 1)
           echo "Found WASM: $WASM_FILE"
           SIZE=$(du -k "$WASM_FILE" | cut -f1)
           echo "Size: ${SIZE}KB"
-          # Soft limit check, adjust as needed (e.g. 64KB)
           if [ "$SIZE" -gt 100 ]; then
             echo "Warning: Contract size is large ($SIZE KB)"
           fi
@@ -126,28 +100,24 @@ jobs:
     defaults:
       run:
         working-directory: ${{ env.WORKING_DIR }}
+    env:
+      SOROBAN_RPC_URL: "https://soroban-testnet.stellar.org"
+      SOROBAN_NETWORK_PASSPHRASE: "Test SDF Network ; September 2015"
+      NETWORK: testnet
     steps:
       - uses: actions/checkout@v4
-
-      - name: Set up Rust
-        uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@stable
         with:
           targets: wasm32-unknown-unknown
-
-      - name: Install Soroban CLI
-        run: cargo install soroban-cli --version 23.0.0 --features opt || true
-
+      - run: cargo install soroban-cli --version 23.0.0 --features opt || true
       - name: Configure Identity
         env:
           SOROBAN_SECRET_KEY: ${{ secrets.SOROBAN_SECRET_KEY }}
-        run: |
-          soroban config identity add --secret deployer-key "$SOROBAN_SECRET_KEY"
-
+        run: soroban config identity add --secret deployer-key "$SOROBAN_SECRET_KEY"
       - name: Deploy Contract
         run: |
-          # Use find to locate the wasm file without hardcoding the name 'chioma' just in case
           WASM_FILE=$(find target/wasm32-unknown-unknown/release -name "*.wasm" | head -n 1)
-          echo "Deploying $WASM_FILE..."
+          echo "Deploying $WASM_FILE to testnet..."
           CONTRACT_ID=$(soroban contract deploy \
             --wasm "$WASM_FILE" \
             --source deployer-key \
@@ -162,30 +132,24 @@ jobs:
     defaults:
       run:
         working-directory: ${{ env.WORKING_DIR }}
+    env:
+      SOROBAN_RPC_URL: "https://soroban-rpc.mainnet.stellar.org"
+      SOROBAN_NETWORK_PASSPHRASE: "Public Global Stellar Network ; September 2015"
+      NETWORK: mainnet
     steps:
       - uses: actions/checkout@v4
-
-      - name: Set up Rust
-        uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@stable
         with:
           targets: wasm32-unknown-unknown
-
-      - name: Install Soroban CLI
-        run: cargo install soroban-cli --version 23.0.0 --features opt || true
-
+      - run: cargo install soroban-cli --version 23.0.0 --features opt || true
       - name: Configure Identity
         env:
           SOROBAN_SECRET_KEY: ${{ secrets.SOROBAN_SECRET_KEY }}
-        run: |
-          soroban config identity add --secret deployer-key "$SOROBAN_SECRET_KEY"
-
+        run: soroban config identity add --secret deployer-key "$SOROBAN_SECRET_KEY"
       - name: Deploy Contract
-        env:
-          SOROBAN_RPC_URL: "https://soroban-rpc.mainnet.stellar.org"
-          SOROBAN_NETWORK_PASSPHRASE: "Public Global Stellar Network ; September 2015"
         run: |
           WASM_FILE=$(find target/wasm32-unknown-unknown/release -name "*.wasm" | head -n 1)
-          echo "Deploying $WASM_FILE to MAINNET..."
+          echo "Deploying $WASM_FILE to mainnet..."
           CONTRACT_ID=$(soroban contract deploy \
             --wasm "$WASM_FILE" \
             --source deployer-key \
