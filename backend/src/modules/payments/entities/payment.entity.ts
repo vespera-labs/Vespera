@@ -10,7 +10,25 @@ import {
 import { User } from '../../users/entities/user.entity';
 import { PaymentMethod } from './payment-method.entity';
 
+export type PaymentMetadata = {
+  chargeId?: string;
+  refundId?: string;
+} & Record<string, unknown>;
+
+export enum PaymentStatus {
+  PENDING = 'pending',
+  COMPLETED = 'completed',
+  FAILED = 'failed',
+  REFUNDED = 'refunded',
+  PARTIAL_REFUND = 'partial_refund',
+}
+
 @Entity('payments')
+@Index('idx_payments_user_id', ['userId'])
+@Index('idx_payments_processed_at', ['processedAt'])
+@Index('uq_payments_user_id_idempotency_key', ['userId', 'idempotencyKey'], {
+  unique: true,
+})
 export class Payment {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -22,7 +40,7 @@ export class Payment {
   userId: string;
 
   @Column({ nullable: true })
-  agreementId: string; // Reference to agreement
+  agreementId: string | null; // Reference to agreement
 
   @Column('decimal', { precision: 12, scale: 2 })
   amount: number;
@@ -36,8 +54,8 @@ export class Payment {
   @Column({ length: 3, default: 'NGN' })
   currency: string;
 
-  @Column({ default: 'pending' })
-  status: string; // pending, completed, failed, refunded, partial_refund
+  @Column({ default: PaymentStatus.PENDING })
+  status: PaymentStatus; // pending, completed, failed, refunded, partial_refund
 
   @ManyToOne(() => PaymentMethod, { nullable: true })
   paymentMethod: PaymentMethod;
@@ -51,6 +69,9 @@ export class Payment {
   @Column({ type: 'timestamp', nullable: true })
   processedAt: Date;
 
+  @Column({ length: 100, nullable: true })
+  idempotencyKey: string | null;
+
   @Column('decimal', { precision: 12, scale: 2, default: 0.0 })
   refundedAmount: number;
 
@@ -58,7 +79,7 @@ export class Payment {
   refundReason: string;
 
   @Column({ type: 'jsonb', nullable: true })
-  metadata: any;
+  metadata: PaymentMetadata | null;
 
   @Column({ type: 'text', nullable: true })
   notes: string;

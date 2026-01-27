@@ -18,6 +18,7 @@ import { HealthModule } from './health/health.module';
 import { PaymentModule } from './modules/payments/payment.module';
 import { AppDataSource } from './database/data-source';
 import { AuthRateLimitMiddleware } from './modules/auth/middleware/rate-limit.middleware';
+import { NotificationsModule } from './modules/notifications/notifications.module';
 
 @Module({
   imports: [
@@ -49,6 +50,7 @@ import { AuthRateLimitMiddleware } from './modules/auth/middleware/rate-limit.mi
     TypeOrmModule.forRoot(AppDataSource.options),
     HealthModule,
     PaymentModule,
+    NotificationsModule,
   ],
   controllers: [AppController],
   providers: [

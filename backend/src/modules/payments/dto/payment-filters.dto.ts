@@ -3,10 +3,6 @@ import { IsOptional, IsString, IsDateString, IsIn } from 'class-validator';
 export class PaymentFiltersDto {
   @IsOptional()
   @IsString()
-  userId?: string;
-
-  @IsOptional()
-  @IsString()
   agreementId?: string;
 
   @IsOptional()

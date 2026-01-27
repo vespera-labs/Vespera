@@ -5,10 +5,14 @@ import {
   ManyToOne,
   CreateDateColumn,
   UpdateDateColumn,
+  Index,
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
 
+export type PaymentMethodMetadata = Record<string, unknown>;
+
 @Entity('payment_methods')
+@Index('idx_payment_methods_user_id', ['userId'])
 export class PaymentMethod {
   @PrimaryGeneratedColumn()
   id: number;
@@ -32,7 +36,10 @@ export class PaymentMethod {
   isDefault: boolean;
 
   @Column({ type: 'jsonb', nullable: true })
-  metadata: any;
+  metadata: PaymentMethodMetadata | null;
+
+  @Column({ type: 'text', nullable: true })
+  encryptedMetadata: string | null;
 
   @CreateDateColumn()
   createdAt: Date;

@@ -8,9 +8,9 @@ import {
 } from 'class-validator';
 
 export class RecordPaymentDto {
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
-  agreementId: string;
+  agreementId?: string;
 
   @IsNumber()
   @Min(0.01)
@@ -31,4 +31,8 @@ export class RecordPaymentDto {
   @IsString()
   @IsOptional()
   notes?: string;
+
+  @IsString()
+  @IsOptional()
+  idempotencyKey?: string;
 }
