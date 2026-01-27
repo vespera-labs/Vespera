@@ -5,7 +5,7 @@ use soroban_sdk::{Address, BytesN, Env, String};
 use super::access::AccessControl;
 use super::errors::EscrowError;
 use super::storage::EscrowStorage;
-use super::types::{Escrow, EscrowStatus};
+use super::types::EscrowStatus;
 
 /// Dispute handling and resolution.
 pub struct DisputeHandler;

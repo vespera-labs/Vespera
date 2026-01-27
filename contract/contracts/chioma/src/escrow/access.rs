@@ -1,5 +1,6 @@
 /// Access control and role-based authorization for the Escrow contract.
 /// Validates that callers have the proper role to perform actions.
+#[allow(unused_imports)]
 use soroban_sdk::{Address, Env};
 
 use super::errors::EscrowError;

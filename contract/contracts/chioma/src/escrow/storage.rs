@@ -12,10 +12,7 @@ impl EscrowStorage {
     /// Returns None if escrow doesn't exist.
     pub fn get(env: &Env, id: &BytesN<32>) -> Option<Escrow> {
         let key = DataKey::Escrow(id.clone());
-        match env.storage().persistent().get::<_, Escrow>(&key) {
-            Some(escrow) => Some(escrow),
-            None => None,
-        }
+        env.storage().persistent().get::<_, Escrow>(&key)
     }
 
     /// Save or update an escrow.
@@ -57,14 +54,10 @@ impl EscrowStorage {
 
     /// Get the current count of escrows created.
     pub fn get_count(env: &Env) -> u32 {
-        match env
+        env
             .storage()
             .instance()
-            .get::<_, u32>(&DataKey::EscrowCount)
-        {
-            Some(count) => count,
-            None => 0,
-        }
+            .get::<_, u32>(&DataKey::EscrowCount).unwrap_or_default()
     }
 
     /// Increment escrow counter.
