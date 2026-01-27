@@ -54,10 +54,10 @@ impl EscrowStorage {
 
     /// Get the current count of escrows created.
     pub fn get_count(env: &Env) -> u32 {
-        env
-            .storage()
+        env.storage()
             .instance()
-            .get::<_, u32>(&DataKey::EscrowCount).unwrap_or_default()
+            .get::<_, u32>(&DataKey::EscrowCount)
+            .unwrap_or_default()
     }
 
     /// Increment escrow counter.
