@@ -1,24 +1,11 @@
 #![no_std]
 #![allow(clippy::too_many_arguments)]
-use soroban_sdk::{
-    contract, contracterror, contractevent, contractimpl, vec, Address, Env, String, Vec,
-};
+use soroban_sdk::{contract, contractevent, contractimpl, vec, Address, Env, String, Vec};
 
 mod types;
-use types::{AgreementStatus, DataKey, PaymentRecord, RentAgreement};
+use types::{AgreementStatus, DataKey, Error, PaymentRecord, RentAgreement};
 
 pub mod escrow;
-
-#[contracterror]
-#[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
-#[repr(u32)]
-pub enum Error {
-    AgreementAlreadyExists = 4,
-    InvalidAmount = 5,
-    InvalidDate = 6,
-    InvalidCommissionRate = 7,
-    PaymentNotFound = 11,
-}
 
 #[contractevent]
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -86,6 +73,8 @@ impl Contract {
             end_date,
             agent_commission_rate,
             status: AgreementStatus::Draft,
+            total_rent_paid: 0,
+            payment_count: 0,
         };
 
         // Store agreement
@@ -210,5 +199,9 @@ impl Contract {
         }
     }
 }
-
+mod payment;
 mod test;
+
+// Only compile the payment tests during `cargo test`
+#[cfg(test)]
+mod payment_tests;
