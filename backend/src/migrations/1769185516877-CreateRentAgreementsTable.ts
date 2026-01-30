@@ -1,15 +1,50 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class CreateRentAgreementsTable1737816000000 implements MigrationInterface {
-  name = 'CreateRentAgreementsTable1737816000000';
+export class CreateRentAgreementsTable1769185516877 implements MigrationInterface {
+  name = 'CreateRentAgreementsTable1769185516877';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
-    // Rename rent_contracts to rent_agreements
-    await queryRunner.query(
-      `ALTER TABLE "rent_contracts" RENAME TO "rent_agreements"`,
-    );
+    // Check if rent_contracts exists, if so rename it, otherwise create rent_agreements
+    const rentContractsExists = await queryRunner.hasTable('rent_contracts');
 
-    // Add new columns to rent_agreements table
+    if (rentContractsExists) {
+      // Rename rent_contracts to rent_agreements
+      await queryRunner.query(
+        `ALTER TABLE "rent_contracts" RENAME TO "rent_agreements"`,
+      );
+    } else {
+      // Create rent_agreements table from scratch
+      await queryRunner.query(`
+        CREATE TABLE IF NOT EXISTS "rent_agreements" (
+          "id" uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+          "agreement_number" VARCHAR(50) UNIQUE,
+          "property_id" VARCHAR(255),
+          "landlord_id" VARCHAR(255),
+          "tenant_id" VARCHAR(255),
+          "agent_id" VARCHAR(255),
+          "landlord_stellar_pub_key" VARCHAR(56),
+          "tenant_stellar_pub_key" VARCHAR(56),
+          "agent_stellar_pub_key" VARCHAR(56),
+          "escrow_account_pub_key" VARCHAR(56),
+          "monthly_rent" DECIMAL(12,2) NOT NULL DEFAULT 0,
+          "security_deposit" DECIMAL(12,2) NOT NULL DEFAULT 0,
+          "agent_commission_rate" DECIMAL(5,2) DEFAULT 10.00,
+          "escrow_balance" DECIMAL(12,2) DEFAULT 0.00,
+          "total_paid" DECIMAL(12,2) DEFAULT 0.00,
+          "start_date" TIMESTAMP,
+          "end_date" TIMESTAMP,
+          "last_payment_date" TIMESTAMP,
+          "status" VARCHAR(50) DEFAULT 'draft',
+          "termination_date" TIMESTAMP,
+          "termination_reason" TEXT,
+          "terms_and_conditions" TEXT,
+          "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          "updated_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+    }
+
+    // Add new columns to rent_agreements table (if they don't exist from rename scenario)
     await queryRunner.query(`
             ALTER TABLE "rent_agreements"
             ADD COLUMN IF NOT EXISTS "agreement_number" VARCHAR(50) UNIQUE,

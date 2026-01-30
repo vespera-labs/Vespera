@@ -1,7 +1,7 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class CreateDisputeTables1738250000000 implements MigrationInterface {
-  name = 'CreateDisputeTables1738250000000';
+export class CreateDisputeTables1769185716878 implements MigrationInterface {
+  name = 'CreateDisputeTables1769185716878';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     // Create disputes table
@@ -9,14 +9,14 @@ export class CreateDisputeTables1738250000000 implements MigrationInterface {
       CREATE TABLE IF NOT EXISTS disputes (
         id SERIAL PRIMARY KEY,
         dispute_id VARCHAR(36) NOT NULL UNIQUE,
-        agreement_id INTEGER NOT NULL REFERENCES rent_agreements(id) ON DELETE CASCADE,
-        initiated_by INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        agreement_id uuid NOT NULL REFERENCES rent_agreements(id) ON DELETE CASCADE,
+        initiated_by uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         dispute_type VARCHAR(50) NOT NULL,
         requested_amount DECIMAL(12,2),
         description TEXT NOT NULL,
         status VARCHAR(20) NOT NULL DEFAULT 'OPEN',
         resolution TEXT,
-        resolved_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        resolved_by uuid REFERENCES users(id) ON DELETE SET NULL,
         created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
         resolved_at TIMESTAMP,
@@ -29,7 +29,7 @@ export class CreateDisputeTables1738250000000 implements MigrationInterface {
       CREATE TABLE IF NOT EXISTS dispute_evidence (
         id SERIAL PRIMARY KEY,
         dispute_id INTEGER NOT NULL REFERENCES disputes(id) ON DELETE CASCADE,
-        uploaded_by INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        uploaded_by uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         file_url TEXT NOT NULL,
         file_name TEXT NOT NULL,
         file_type VARCHAR(100) NOT NULL,
@@ -44,7 +44,7 @@ export class CreateDisputeTables1738250000000 implements MigrationInterface {
       CREATE TABLE IF NOT EXISTS dispute_comments (
         id SERIAL PRIMARY KEY,
         dispute_id INTEGER NOT NULL REFERENCES disputes(id) ON DELETE CASCADE,
-        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         content TEXT NOT NULL,
         is_internal BOOLEAN DEFAULT false,
         created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,

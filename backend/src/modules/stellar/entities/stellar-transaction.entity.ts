@@ -57,7 +57,7 @@ export class StellarTransaction {
   @JoinColumn({ name: 'to_account_id' })
   toAccount: StellarAccount;
 
-  @Column({ name: 'asset_type', length: 16 })
+  @Column({ name: 'asset_type', type: 'varchar', length: 16 })
   assetType: AssetType;
 
   @Column({ name: 'asset_code', type: 'varchar', length: 12, nullable: true })
@@ -75,10 +75,10 @@ export class StellarTransaction {
   @Column({ type: 'text', nullable: true })
   memo: string | null;
 
-  @Column({ name: 'memo_type', length: 10, nullable: true })
+  @Column({ name: 'memo_type', type: 'varchar', length: 10, nullable: true })
   memoType: MemoType | null;
 
-  @Column({ length: 20 })
+  @Column({ type: 'varchar', length: 20 })
   status: TransactionStatus;
 
   @Column({ type: 'integer', nullable: true })
