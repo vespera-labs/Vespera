@@ -1,5 +1,4 @@
 //! Tests for the Chioma/Rental contract.
-#![cfg(test)]
 
 use super::*;
 use soroban_sdk::{

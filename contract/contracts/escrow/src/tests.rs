@@ -1,5 +1,4 @@
 //! Tests for the Escrow contract.
-#![cfg(test)]
 
 use soroban_sdk::testutils::Address as _;
 use soroban_sdk::{Address, BytesN, Env};

@@ -1,5 +1,4 @@
 //! Tests for the Payment contract.
-#![cfg(test)]
 
 use crate::payment_impl::*;
 use crate::types::*;
