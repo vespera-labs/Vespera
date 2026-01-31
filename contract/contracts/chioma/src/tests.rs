@@ -45,8 +45,8 @@ fn test_successful_initialization() {
     assert_eq!(state.admin, admin);
     assert_eq!(state.config.fee_bps, 100);
     assert_eq!(state.config.fee_collector, fee_collector);
-    assert_eq!(state.config.paused, false);
-    assert_eq!(state.initialized, true);
+    assert!(!state.config.paused);
+    assert!(state.initialized);
 }
 
 #[test]
