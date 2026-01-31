@@ -1,11 +1,6 @@
 #![no_std]
 #![allow(clippy::too_many_arguments)]
 
-//! Chioma Rental Agreement Contract
-//!
-//! Manages rental agreements between landlords, tenants, and agents.
-//! Handles agreement creation, signing, and status management.
-
 use soroban_sdk::{contract, contractimpl, vec, Address, Env, String, Vec};
 
 mod agreement;
@@ -17,7 +12,6 @@ mod types;
 #[cfg(test)]
 mod tests;
 
-// Re-export public APIs
 pub use agreement::{
     create_agreement, get_agreement, get_agreement_count, get_payment_split, has_agreement,
     sign_agreement, validate_agreement_params,
@@ -25,7 +19,7 @@ pub use agreement::{
 pub use errors::RentalError;
 pub use events::{AgreementCreatedEvent, AgreementSigned};
 pub use storage::DataKey;
-pub use types::{AgreementStatus, PaymentSplit, RentAgreement};
+pub use types::{AgreementStatus, Config, ContractState, PaymentSplit, RentAgreement};
 
 #[contract]
 pub struct Contract;
@@ -33,15 +27,48 @@ pub struct Contract;
 #[allow(clippy::too_many_arguments)]
 #[contractimpl]
 impl Contract {
-    /// Simple hello function for testing
     pub fn hello(env: Env, to: String) -> Vec<String> {
         vec![&env, String::from_str(&env, "Hello"), to]
     }
 
-    /// Creates a new rent agreement and stores it on-chain.
+    /// Initialize the contract with an admin and configuration.
     ///
-    /// Authorization:
-    /// - Tenant MUST authorize creation (prevents landlord-only spoofing)
+    /// # Arguments
+    /// * `admin` - The address that will have admin privileges
+    /// * `config` - Initial configuration parameters
+    ///
+    /// # Errors
+    /// * `AlreadyInitialized` - If the contract has already been initialized
+    /// * `InvalidConfig` - If the configuration parameters are invalid
+    pub fn initialize(env: Env, admin: Address, config: Config) -> Result<(), RentalError> {
+        if env.storage().instance().has(&DataKey::State) {
+            return Err(RentalError::AlreadyInitialized);
+        }
+
+        admin.require_auth();
+
+        if config.fee_bps > 10_000 {
+            return Err(RentalError::InvalidConfig);
+        }
+
+        let state = ContractState {
+            admin: admin.clone(),
+            config,
+            initialized: true,
+        };
+
+        env.storage().instance().set(&DataKey::State, &state);
+        env.storage().instance().extend_ttl(500000, 500000);
+
+        events::contract_initialized(&env, admin);
+
+        Ok(())
+    }
+
+    pub fn get_state(env: Env) -> Option<ContractState> {
+        env.storage().instance().get(&DataKey::State)
+    }
+
     #[allow(clippy::too_many_arguments)]
     pub fn create_agreement(
         env: Env,
@@ -71,11 +98,6 @@ impl Contract {
         )
     }
 
-    /// Allows a tenant to sign and accept a rental agreement.
-    /// Transitions the agreement from Pending to Active state.
-    ///
-    /// Authorization:
-    /// - Tenant MUST authorize the signing
     pub fn sign_agreement(
         env: Env,
         tenant: Address,
@@ -84,22 +106,18 @@ impl Contract {
         agreement::sign_agreement(&env, tenant, agreement_id)
     }
 
-    /// Retrieves a rent agreement by its unique identifier.
     pub fn get_agreement(env: Env, agreement_id: String) -> Option<RentAgreement> {
         agreement::get_agreement(&env, agreement_id)
     }
 
-    /// Checks whether a rent agreement exists for the given identifier.
     pub fn has_agreement(env: Env, agreement_id: String) -> bool {
         agreement::has_agreement(&env, agreement_id)
     }
 
-    /// Returns the total number of rent agreements created.
     pub fn get_agreement_count(env: Env) -> u32 {
         agreement::get_agreement_count(&env)
     }
 
-    /// Get payment details for a specific month
     pub fn get_payment_split(
         env: Env,
         agreement_id: String,
