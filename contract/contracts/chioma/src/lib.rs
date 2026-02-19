@@ -1,7 +1,7 @@
 #![no_std]
 #![allow(clippy::too_many_arguments)]
 
-use soroban_sdk::{contract, contractimpl, vec, Address, Env, String, Vec};
+use soroban_sdk::{contract, contractimpl, Address, Env, String, Vec};
 
 mod agreement;
 mod errors;
@@ -27,10 +27,6 @@ pub struct Contract;
 #[allow(clippy::too_many_arguments)]
 #[contractimpl]
 impl Contract {
-    pub fn hello(env: Env, to: String) -> Vec<String> {
-        vec![&env, String::from_str(&env, "Hello"), to]
-    }
-
     /// Initialize the contract with an admin and configuration.
     ///
     /// # Arguments
