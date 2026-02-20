@@ -29,9 +29,11 @@ import { RequestSizeLimitMiddleware } from './common/middleware/request-size-lim
 import { CsrfMiddleware } from './common/middleware/csrf.middleware';
 import { CacheModule } from '@nestjs/cache-manager';
 import { redisStore } from 'cache-manager-redis-yet';
+import { SentryModule } from '@sentry/nestjs/setup';
 
 @Module({
   imports: [
+    SentryModule.forRoot(),
     ConfigModule.forRoot({
       isGlobal: true,
     }),
