@@ -11,15 +11,15 @@ import { NextRequest, NextResponse } from 'next/server';
  * component provides the second (client-side) layer.
  */
 export function middleware(request: NextRequest) {
-    const authToken = request.cookies.get('chioma_auth_token')?.value;
+  const authToken = request.cookies.get('chioma_auth_token')?.value;
 
-    if (!authToken) {
-        const loginUrl = new URL('/login', request.url);
-        loginUrl.searchParams.set('callbackUrl', request.nextUrl.pathname);
-        return NextResponse.redirect(loginUrl);
-    }
+  if (!authToken) {
+    const loginUrl = new URL('/login', request.url);
+    loginUrl.searchParams.set('callbackUrl', request.nextUrl.pathname);
+    return NextResponse.redirect(loginUrl);
+  }
 
-    return NextResponse.next();
+  return NextResponse.next();
 }
 
 /**
@@ -27,5 +27,5 @@ export function middleware(request: NextRequest) {
  * Public pages (/, /properties, /login, /signup, etc.) are NOT affected.
  */
 export const config = {
-    matcher: ['/landlords/:path*', '/agents/:path*'],
+  matcher: ['/landlords/:path*', '/agents/:path*'],
 };

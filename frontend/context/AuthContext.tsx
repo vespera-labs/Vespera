@@ -33,11 +33,7 @@ interface AuthContextType extends AuthState {
     password: string,
   ) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
-  setTokens: (
-    accessToken: string,
-    refreshToken: string,
-    user: User,
-  ) => void;
+  setTokens: (accessToken: string, refreshToken: string, user: User) => void;
 }
 
 // ─── Constants ───────────────────────────────────────────────────────────────
