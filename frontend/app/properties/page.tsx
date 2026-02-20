@@ -16,7 +16,7 @@ import {
   Minus,
   Compass,
 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
 export default function PropertyListing() {
   const [, setSelectedFilter] = useState('Property Type');
@@ -111,33 +111,6 @@ export default function PropertyListing() {
     { price: '₦15,000,000', top: '65%', left: '55%' },
     { price: '₦800,000', top: '80%', left: '50%' },
   ];
-const token = "hsdhjdhshjdshjshjds78743743hjdsjhhjdshhjds"
-const getAll = async () => {
-  try {
-    const response = await fetch(
-      "https://local-food-finder-backend.onrender.com/api/user/currentUser",
-      {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          // If protected route:
-          Authorization: `Bearer ${token}`
-        },
-      }
-    );
-
-    const data = await response.json();
-    console.log(token);
-    
-    console.log(data, 'hjdhjsdh');
-  } catch (error) {
-    console.error("Error fetching current user:", error);
-  }
-};
-
-useEffect(()=>{
-getAll()
-},[])
 
   return (
     <>
