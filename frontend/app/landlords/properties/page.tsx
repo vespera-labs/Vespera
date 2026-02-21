@@ -50,6 +50,11 @@ export default function PropertiesPage() {
     };
 
     fetchProperties();
+    // Simulate loading
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 1500);
+    return () => clearTimeout(timer);
   }, []);
 
   return (
