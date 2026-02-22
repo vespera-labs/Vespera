@@ -69,11 +69,11 @@ import { SentryModule } from '@sentry/nestjs/setup';
     ]),
     TypeOrmModule.forRoot({
       type: 'postgres',
-      host: process.env.DB_HOST || 'localhost',
+      host: process.env.DB_HOST,
       port: parseInt(process.env.DB_PORT || '5432'),
-      username: process.env.DB_USERNAME || 'postgres',
-      password: process.env.DB_PASSWORD || 'password123',
-      database: process.env.DB_NAME || 'chioma_db',
+      username: process.env.DB_USERNAME,
+      password: process.env.DB_PASSWORD, // Remove fallback
+      database: process.env.DB_NAME,
       namingStrategy: new SnakeNamingStrategy(),
       entities: [__dirname + '/modules/**/*.entity{.ts,.js}'],
       migrations: [__dirname + '/migrations/*{.ts,.js}'],

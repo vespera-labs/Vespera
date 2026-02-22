@@ -42,7 +42,7 @@ export class AuthService {
     private jwtService: JwtService,
     private configService: ConfigService,
     private passwordPolicyService: PasswordPolicyService,
-  ) { }
+  ) {}
 
   async register(registerDto: RegisterDto): Promise<AuthResponseDto> {
     const { email, password, firstName, lastName, role } = registerDto;
@@ -346,7 +346,7 @@ export class AuthService {
   private getJwtSecret(): string {
     const secret = this.configService.get<string>('JWT_SECRET');
     if (!secret) {
-      throw new Error('JWT_SECRET is required');
+      throw new Error('JWT_SECRET environment variable is required');
     }
     return secret;
   }
@@ -354,7 +354,7 @@ export class AuthService {
   private getJwtRefreshSecret(): string {
     const secret = this.configService.get<string>('JWT_REFRESH_SECRET');
     if (!secret) {
-      throw new Error('JWT_REFRESH_SECRET is required');
+      throw new Error('JWT_REFRESH_SECRET environment variable is required');
     }
     return secret;
   }
@@ -472,8 +472,7 @@ export class AuthService {
         type: 'access',
       },
       {
-        secret:
-          this.configService.get<string>('JWT_SECRET') || 'your-secret-key',
+        secret: this.getJwtSecret(),
         expiresIn: '15m',
       },
     );
@@ -486,9 +485,7 @@ export class AuthService {
         type: 'refresh',
       },
       {
-        secret:
-          this.configService.get<string>('JWT_REFRESH_SECRET') ||
-          'your-refresh-secret-key',
+        secret: this.getJwtRefreshSecret(),
         expiresIn: '7d',
       },
     );
