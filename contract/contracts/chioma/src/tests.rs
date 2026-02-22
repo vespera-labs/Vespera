@@ -854,7 +854,7 @@ fn test_contract_paused_operations() {
         &10,
         &payment_token,
     );
-    assert_eq!(res, Err(Ok(RentalError::ContractPaused.into())));
+    assert_eq!(res, Err(Ok(RentalError::ContractPaused)));
 
     // Unpause
     let unpaused_config = Config {
@@ -897,7 +897,7 @@ fn test_contract_paused_operations() {
 
     // Try sign agreement (should fail)
     let res_sign = client.try_sign_agreement(&tenant, &agreement_id);
-    assert_eq!(res_sign, Err(Ok(RentalError::ContractPaused.into())));
+    assert_eq!(res_sign, Err(Ok(RentalError::ContractPaused)));
 
     // Unpause and verify success
     client.update_config(&unpaused_config);
