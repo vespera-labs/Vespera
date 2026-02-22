@@ -261,8 +261,10 @@ fn test_create_agreement_success() {
 
     let events = env.events().all();
     assert_eq!(events.len(), 1);
+    // Event structure: (contract_id, topics, data)
+    // Topics now include: ["agr_created", tenant, landlord]
     let event = events.last().unwrap();
-    assert_eq!(event.1.len(), 1);
+    assert_eq!(event.1.len(), 3); // 3 topics: event name + tenant + landlord
 }
 
 #[test]
@@ -337,6 +339,33 @@ fn test_negative_rent_rejected() {
         &tenant,
         &None,
         &-100,
+        &1000,
+        &100,
+        &200,
+        &0,
+        &Address::generate(&env),
+    );
+}
+
+#[test]
+#[should_panic(expected = "Error(Contract, #5)")]
+fn test_zero_monthly_rent_rejected() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let client = create_contract(&env);
+
+    let tenant = Address::generate(&env);
+    let landlord = Address::generate(&env);
+
+    let agreement_id = String::from_str(&env, "ZERO_RENT");
+
+    client.create_agreement(
+        &agreement_id,
+        &landlord,
+        &tenant,
+        &None,
+        &0,
         &1000,
         &100,
         &200,
