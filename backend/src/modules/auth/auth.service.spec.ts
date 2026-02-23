@@ -6,7 +6,11 @@ import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { AuthService } from './auth.service';
 import { User, UserRole } from '../users/entities/user.entity';
-import { MfaDevice } from './entities/mfa-device.entity';
+import {
+  MfaDevice,
+  MfaDeviceStatus,
+  MfaDeviceType,
+} from './entities/mfa-device.entity';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
@@ -17,6 +21,10 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { PasswordPolicyService } from './services/password-policy.service';
+import {
+  AuthSuccessResponseDto,
+  MfaRequiredResponseDto,
+} from './dto/auth-response.dto';
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -53,6 +61,11 @@ describe('AuthService', () => {
     update: jest.fn(),
   };
 
+  const mockMfaDeviceRepository = {
+    findOne: jest.fn(),
+    save: jest.fn(),
+  };
+
   const mockJwtService = {
     sign: jest.fn(),
     verify: jest.fn(),
@@ -80,7 +93,7 @@ describe('AuthService', () => {
         },
         {
           provide: getRepositoryToken(MfaDevice),
-          useValue: { findOne: jest.fn(), save: jest.fn() },
+          useValue: mockMfaDeviceRepository,
         },
         {
           provide: JwtService,
@@ -107,6 +120,7 @@ describe('AuthService', () => {
 
   afterEach(() => {
     jest.clearAllMocks();
+    jest.restoreAllMocks();
   });
 
   describe('register', () => {
@@ -212,6 +226,88 @@ describe('AuthService', () => {
       );
     });
 
+    it('should return generic error for inactive account (prevent user enumeration)', async () => {
+      const loginDto: LoginDto = {
+        email: 'test@example.com',
+        password: 'Password123!',
+      };
+
+      mockUserRepository.findOne.mockResolvedValue({
+        ...mockUser,
+        isActive: false,
+      });
+
+      await expect(service.login(loginDto)).rejects.toThrow(
+        new UnauthorizedException('Invalid email or password'),
+      );
+    });
+
+    it('should return generic error for locked account (prevent user enumeration)', async () => {
+      const loginDto: LoginDto = {
+        email: 'test@example.com',
+        password: 'Password123!',
+      };
+
+      mockUserRepository.findOne.mockResolvedValue({
+        ...mockUser,
+        accountLockedUntil: new Date(Date.now() + 30 * 60 * 1000),
+      });
+
+      await expect(service.login(loginDto)).rejects.toThrow(
+        new UnauthorizedException('Invalid email or password'),
+      );
+    });
+
+    it('should return MfaRequiredResponseDto when MFA is enabled', async () => {
+      const loginDto: LoginDto = {
+        email: 'test@example.com',
+        password: 'password123',
+      };
+
+      const mockMfaDevice: Partial<MfaDevice> = {
+        id: 'device-id',
+        userId: 'test-user-id',
+        type: MfaDeviceType.TOTP,
+        status: MfaDeviceStatus.ACTIVE,
+      };
+
+      mockUserRepository.findOne.mockResolvedValue(mockUser);
+      mockUserRepository.save.mockResolvedValue(mockUser);
+      jest.spyOn(bcrypt, 'compare').mockResolvedValue(true as never);
+      mockMfaDeviceRepository.findOne.mockResolvedValue(mockMfaDevice);
+      mockJwtService.sign.mockReturnValueOnce('mock-mfa-token');
+
+      const result = await service.login(loginDto);
+
+      expect(result.mfaRequired).toBe(true);
+      expect((result as MfaRequiredResponseDto).mfaToken).toBe('mock-mfa-token');
+      expect(result.user.email).toBe(mockUser.email);
+      // AuthSuccessResponseDto fields must NOT be present
+      expect((result as AuthSuccessResponseDto).accessToken).toBeUndefined();
+    });
+
+    it('should return AuthSuccessResponseDto when MFA is not enabled', async () => {
+      const loginDto: LoginDto = {
+        email: 'test@example.com',
+        password: 'password123',
+      };
+
+      mockUserRepository.findOne.mockResolvedValue(mockUser);
+      mockUserRepository.save.mockResolvedValue(mockUser);
+      jest.spyOn(bcrypt, 'compare').mockResolvedValue(true as never);
+      jest.spyOn(bcrypt, 'hash').mockResolvedValue('hashed-token' as never);
+      mockMfaDeviceRepository.findOne.mockResolvedValue(null);
+      mockJwtService.sign
+        .mockReturnValueOnce('mock-access-token')
+        .mockReturnValueOnce('mock-refresh-token');
+
+      const result = await service.login(loginDto);
+
+      expect(result.mfaRequired).toBe(false);
+      expect((result as AuthSuccessResponseDto).accessToken).toBe('mock-access-token');
+      expect((result as AuthSuccessResponseDto).refreshToken).toBe('mock-refresh-token');
+    });
+
     it('should throw UnauthorizedException for inactive account', async () => {
       const loginDto: LoginDto = {
         email: 'test@example.com',
@@ -220,7 +316,7 @@ describe('AuthService', () => {
 
       mockUserRepository.findOne.mockResolvedValue({
         ...mockUser,
-        status: 'inactive',
+        isActive: false,
       });
 
       await expect(service.login(loginDto)).rejects.toThrow(
@@ -236,8 +332,7 @@ describe('AuthService', () => {
 
       const lockedUser = {
         ...mockUser,
-        accountLocked: true,
-        lockedUntil: new Date(Date.now() + 30 * 60 * 1000),
+        accountLockedUntil: new Date(Date.now() + 30 * 60 * 1000),
       };
 
       mockUserRepository.findOne.mockResolvedValue(lockedUser);
