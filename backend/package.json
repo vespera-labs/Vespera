@@ -47,7 +47,7 @@
     "@nestjs/websockets": "^11.1.14",
     "@sentry/nestjs": "^10.39.0",
     "@stellar/stellar-sdk": "^12.2.0",
-    "axios": "^1.6.7",
+    "axios": "^1.13.5",
     "bcrypt": "^5.1.1",
     "cache-manager": "^7.2.8",
     "cache-manager-redis-yet": "^5.1.5",
@@ -144,6 +144,12 @@
       "@swc/core",
       "bcrypt",
       "sqlite3"
-    ]
+    ],
+    "overrides": {
+      "axios": "1.13.5",
+      "tar": "7.5.8",
+      "@isaacs/brace-expansion": "5.0.1",
+      "minimatch": "10.2.4"
+    }
   }
 }
