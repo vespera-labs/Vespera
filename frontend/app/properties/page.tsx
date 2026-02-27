@@ -1,6 +1,7 @@
 'use client';
 
 import Image from 'next/image';
+import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import Footer from '@/components/Footer';
 import Navbar from '@/components/Navbar';
@@ -338,16 +339,17 @@ export default function PropertyListing() {
                   ) : (
                     // Show actual property cards when loaded
                     properties.map((property) => (
-                      <div
+                      <Link
                         key={property.id}
-                        className="border border-gray-200 rounded-2xl overflow-hidden hover:shadow-lg transition-shadow bg-white"
+                        href={`/properties/${property.id}`}
+                        className="block border border-gray-200 rounded-2xl overflow-hidden hover:shadow-lg transition-shadow bg-white group"
                       >
                         {/* Image */}
                         <div className="relative h-60 sm:h-56 bg-gray-200 overflow-hidden">
                           <Image
                             src={property.image || '/placeholder.svg'}
                             alt={property.title}
-                            className="w-full h-full object-cover"
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                             width={40}
                             height={40}
                           />
@@ -369,7 +371,14 @@ export default function PropertyListing() {
                             </div>
                           )}
                           {/* Wishlist Heart */}
-                          <button className="absolute top-4 right-4 bg-white rounded-full p-2 hover:bg-gray-100 transition shadow">
+                          <button
+                            className="absolute top-4 right-4 bg-white rounded-full p-2 hover:bg-gray-100 transition shadow"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              // Handle wishlist functionality here
+                            }}
+                          >
                             <Heart className="w-5 h-5 text-gray-400 hover:text-red-500" />
                           </button>
                           {/* Lease Badge */}
@@ -389,7 +398,7 @@ export default function PropertyListing() {
                           </p>
 
                           {/* Title */}
-                          <h3 className="font-bold text-gray-900 mb-2 text-sm sm:text-base">
+                          <h3 className="font-bold text-gray-900 mb-2 text-sm sm:text-base group-hover:text-blue-600 transition-colors">
                             {property.title}
                           </h3>
 
@@ -426,7 +435,7 @@ export default function PropertyListing() {
                             </p>
                           </div>
                         </div>
-                      </div>
+                      </Link>
                     ))
                   )}
                 </div>
