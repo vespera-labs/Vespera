@@ -9,7 +9,6 @@ import {
   User,
 } from 'lucide-react';
 
-
 export const dashboardNavItems: navItems[] = [
   {
     name: 'Overview',

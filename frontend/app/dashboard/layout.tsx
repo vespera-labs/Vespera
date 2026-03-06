@@ -16,7 +16,11 @@ export default function TenantDashboardLayout({
   return (
     <div className="min-h-screen bg-neutral-50 font-sans text-neutral-900 flex flex-col lg:flex-row">
       {/* Sidebar Component */}
-      <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} navItems={dashboardNavItems} />
+      <Sidebar
+        isOpen={isSidebarOpen}
+        onClose={() => setIsSidebarOpen(false)}
+        navItems={dashboardNavItems}
+      />
 
       {/* Main Content Area */}
       <div className="flex-1 lg:ml-64 flex flex-col min-w-0">

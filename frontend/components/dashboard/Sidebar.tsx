@@ -3,20 +3,14 @@
 import React, { ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import {
-  LogOut,
-} from 'lucide-react';
+import { LogOut } from 'lucide-react';
 import { navItems } from '@/types/sidebar-items';
-
-
 
 interface SidebarProps {
   isOpen: boolean;
   onClose: () => void;
-  navItems: navItems[]
+  navItems: navItems[];
 }
-
-
 
 export const Sidebar = ({ isOpen, onClose, navItems }: SidebarProps) => {
   const pathname = usePathname();

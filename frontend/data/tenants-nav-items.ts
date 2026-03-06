@@ -1,6 +1,5 @@
 import { navItems } from '@/types/sidebar-items';
 import {
-
   Construction,
   Contact,
   Home,
@@ -8,8 +7,6 @@ import {
   Settings,
   Wallet,
 } from 'lucide-react';
-
-
 
 export const tenantNavItems: navItems[] = [
   {
