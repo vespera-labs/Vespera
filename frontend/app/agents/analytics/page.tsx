@@ -471,7 +471,10 @@ export default function AgentAnalyticsPage() {
                       <div className="h-2.5 bg-neutral-100 rounded-full overflow-hidden">
                         <div
                           className="h-full rounded-full transition-all duration-700"
-                          style={{ width: `${pct}%`, backgroundColor: item.fill }}
+                          style={{
+                            width: `${pct}%`,
+                            backgroundColor: item.fill,
+                          }}
                         />
                       </div>
                     </div>
