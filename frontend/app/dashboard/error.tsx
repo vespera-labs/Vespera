@@ -4,13 +4,7 @@ import { useEffect } from 'react';
 import ErrorFallback from '@/components/error/ErrorFallback';
 import { classifyUnknownError, logError } from '@/lib/errors';
 
-/**
- * Dashboard Error Boundary — app/landlords/error.tsx
- *
- * Shown when an unhandled error occurs inside any landlord dashboard page.
- * Scoped to the /landlords segment so the rest of the app stays functional.
- */
-export default function DashboardError({
+export default function DashboardRouteError({
   error,
   reset,
 }: {
@@ -18,9 +12,9 @@ export default function DashboardError({
   reset: () => void;
 }) {
   const appError = classifyUnknownError(error, {
-    source: 'app/landlords/error.tsx',
-    action: 'render-landlords-error',
-    route: '/landlords',
+    source: 'app/dashboard/error.tsx',
+    action: 'render-dashboard-error',
+    route: '/dashboard',
   });
 
   useEffect(() => {
@@ -29,12 +23,12 @@ export default function DashboardError({
 
   return (
     <ErrorFallback
-      title="Landlord dashboard error"
+      title="Dashboard section failed"
       description={appError.userMessage}
       error={error}
       retry={reset}
       severity={appError.severity}
-      homeHref="/landlords"
+      homeHref="/dashboard"
     />
   );
 }
