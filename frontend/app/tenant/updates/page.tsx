@@ -17,14 +17,14 @@ export default function PropertyUpdatesPage() {
       id: 'announcements' as ViewTab,
       label: 'Announcements',
       icon: Bell,
-      description: 'Updates from your landlord'
+      description: 'Updates from your landlord',
     },
     {
       id: 'maintenance' as ViewTab,
       label: 'Maintenance',
       icon: Wrench,
-      description: 'Track your maintenance requests'
-    }
+      description: 'Track your maintenance requests',
+    },
   ];
 
   return (
@@ -36,7 +36,8 @@ export default function PropertyUpdatesPage() {
             Property Updates & Maintenance
           </h1>
           <p className="text-gray-600">
-            Stay informed with announcements and manage your maintenance requests
+            Stay informed with announcements and manage your maintenance
+            requests
           </p>
         </div>
 
@@ -80,31 +81,37 @@ export default function PropertyUpdatesPage() {
                     <Bell className="text-blue-600" size={20} />
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-gray-600">New Announcements</p>
+                    <p className="text-sm font-medium text-gray-600">
+                      New Announcements
+                    </p>
                     <p className="text-2xl font-bold text-gray-900">3</p>
                   </div>
                 </div>
               </div>
-              
+
               <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-amber-50 rounded-lg">
                     <Wrench className="text-amber-600" size={20} />
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-gray-600">Open Requests</p>
+                    <p className="text-sm font-medium text-gray-600">
+                      Open Requests
+                    </p>
                     <p className="text-2xl font-bold text-gray-900">2</p>
                   </div>
                 </div>
               </div>
-              
+
               <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-emerald-50 rounded-lg">
                     <Wrench className="text-emerald-600" size={20} />
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-gray-600">Resolved This Month</p>
+                    <p className="text-sm font-medium text-gray-600">
+                      Resolved This Month
+                    </p>
                     <p className="text-2xl font-bold text-gray-900">5</p>
                   </div>
                 </div>
@@ -117,7 +124,7 @@ export default function PropertyUpdatesPage() {
               <div>
                 <AnnouncementsFeed />
               </div>
-              
+
               {/* Maintenance Column */}
               <div>
                 <TenantMaintenanceTracker />
@@ -159,13 +166,13 @@ export default function PropertyUpdatesPage() {
                       Property Announcements
                     </h2>
                     <p className="text-gray-600">
-                      {tabs.find(t => t.id === 'announcements')?.description}
+                      {tabs.find((t) => t.id === 'announcements')?.description}
                     </p>
                   </div>
                   <AnnouncementsFeed />
                 </div>
               )}
-              
+
               {activeTab === 'maintenance' && (
                 <div>
                   <div className="mb-6">
@@ -173,7 +180,7 @@ export default function PropertyUpdatesPage() {
                       Maintenance Requests
                     </h2>
                     <p className="text-gray-600">
-                      {tabs.find(t => t.id === 'maintenance')?.description}
+                      {tabs.find((t) => t.id === 'maintenance')?.description}
                     </p>
                   </div>
                   <TenantMaintenanceTracker />
