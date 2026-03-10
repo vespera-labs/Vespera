@@ -74,18 +74,16 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Run Trivy vulnerability scanner
-        id: trivy
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: 'fs'
           scan-ref: './backend'
           format: 'sarif'
-          output: '${{ github.workspace }}/trivy-results.sarif'
-        continue-on-error: true
+          output: 'trivy-results.sarif'
 
       - name: Upload Trivy results to GitHub Security
         uses: github/codeql-action/upload-sarif@v4
-        if: always() && hashFiles('trivy-results.sarif') != ''
+        if: always()
         with:
           sarif_file: 'trivy-results.sarif'
           category: 'trivy-backend-deploy'
