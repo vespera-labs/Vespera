@@ -56,9 +56,9 @@ export default function LandlordDisputesPage() {
           Review and respond to dispute cases from the landlord dashboard
         </h1>
         <p className="mt-3 max-w-2xl text-sm text-slate-600">
-          This surface closes the frontend gap around dispute tracking by
-          giving landlords a single place to watch case status, evidence volume,
-          and outstanding response load.
+          This surface closes the frontend gap around dispute tracking by giving
+          landlords a single place to watch case status, evidence volume, and
+          outstanding response load.
         </p>
 
         <div className="mt-6 grid gap-4 md:grid-cols-3">
@@ -146,7 +146,9 @@ export default function LandlordDisputesPage() {
                     Updated {format(new Date(dispute.updatedAt), 'MMM d, yyyy')}
                   </span>
                   {typeof dispute.requestedAmount === 'number' ? (
-                    <span>Requested {formatCurrency(dispute.requestedAmount)}</span>
+                    <span>
+                      Requested {formatCurrency(dispute.requestedAmount)}
+                    </span>
                   ) : null}
                 </div>
 

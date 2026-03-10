@@ -440,7 +440,9 @@ export async function loadLandlordDisputes(): Promise<DashboardDispute[]> {
   }
 }
 
-export async function loadReviewWorkspace(role: 'tenant' | 'landlord'): Promise<{
+export async function loadReviewWorkspace(
+  role: 'tenant' | 'landlord',
+): Promise<{
   targets: ReviewTarget[];
   reviews: DashboardReview[];
 }> {
@@ -530,13 +532,16 @@ function mapDisputeRecord(
     evidenceCount: dispute.evidence?.length ?? 0,
     commentCount: dispute.comments?.length ?? 0,
     createdAt: dispute.createdAt ?? new Date().toISOString(),
-    updatedAt: dispute.updatedAt ?? dispute.createdAt ?? new Date().toISOString(),
+    updatedAt:
+      dispute.updatedAt ?? dispute.createdAt ?? new Date().toISOString(),
   };
 }
 
-function formatPersonName(
-  person?: { firstName?: string; lastName?: string; name?: string },
-) {
+function formatPersonName(person?: {
+  firstName?: string;
+  lastName?: string;
+  name?: string;
+}) {
   if (!person) return null;
   if (person.name) return person.name;
 

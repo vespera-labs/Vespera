@@ -1,11 +1,6 @@
 'use client';
 
-import {
-  useEffect,
-  useState,
-  type FormEvent,
-  type ReactNode,
-} from 'react';
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { format } from 'date-fns';
 import {
   AlertCircle,
@@ -196,9 +191,7 @@ export default function TenantDisputesPage() {
                         value={dispute.disputeType.replace('_', ' ')}
                       />
                       <MiniStat
-                        icon={
-                          <FilePlus2 className="h-4 w-4 text-amber-600" />
-                        }
+                        icon={<FilePlus2 className="h-4 w-4 text-amber-600" />}
                         label="Evidence"
                         value={`${dispute.evidenceCount}`}
                       />
@@ -214,7 +207,8 @@ export default function TenantDisputesPage() {
 
                   <div className="mt-4 flex flex-wrap items-center gap-4 text-xs text-slate-500">
                     <span>
-                      Opened {format(new Date(dispute.createdAt), 'MMM d, yyyy')}
+                      Opened{' '}
+                      {format(new Date(dispute.createdAt), 'MMM d, yyyy')}
                     </span>
                     <span>
                       Last updated{' '}

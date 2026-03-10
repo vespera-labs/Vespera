@@ -73,9 +73,9 @@ export default function TenantReviewsPage() {
           Publish lease and maintenance feedback from the tenant portal
         </h1>
         <p className="mt-3 max-w-2xl text-sm text-slate-600">
-          Review workflows are now surfaced directly in the dashboard so
-          tenants can rate landlords and service interactions instead of losing
-          that feedback loop after checkout or issue resolution.
+          Review workflows are now surfaced directly in the dashboard so tenants
+          can rate landlords and service interactions instead of losing that
+          feedback loop after checkout or issue resolution.
         </p>
 
         <div className="mt-6 grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
