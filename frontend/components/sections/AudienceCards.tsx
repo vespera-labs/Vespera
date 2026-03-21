@@ -32,11 +32,11 @@ const audiences = [
     description:
       'Faster closings and transparent commission tracking on an immutable ledger.',
     cta: 'Partner with Us',
-    borderColor: 'border-orange-500',
-    iconBg: 'bg-orange-100',
-    iconColor: 'text-orange-500',
-    ctaColor: 'text-orange-500',
-    icon: <Handshake className="w-8 h-8 text-orange-500" strokeWidth={1.5} />,
+    borderColor: 'border-purple-500',
+    iconBg: 'bg-purple-100',
+    iconColor: 'text-purple-500',
+    ctaColor: 'text-purple-500',
+    icon: <Handshake className="w-8 h-8 text-purple-500" strokeWidth={1.5} />,
   },
 ];
 
