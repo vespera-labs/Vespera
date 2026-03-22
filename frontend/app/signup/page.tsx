@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
+import Logo from '@/components/Logo';
 import { useRouter } from 'next/navigation';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -102,16 +103,12 @@ export default function SignupPage() {
       <div className="w-full max-w-md animate-auth-enter relative z-10">
         {/* Logo / Brand */}
         <div className="text-center mb-12">
-          <Link href="/" className="inline-block mb-8 group">
-            <div className="flex items-center justify-center gap-2 mb-2">
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-indigo-600 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-lg">C</span>
-              </div>
-              <span className="text-2xl font-bold bg-gradient-to-r from-blue-300 to-indigo-300 bg-clip-text text-transparent tracking-tight group-hover:from-blue-200 group-hover:to-indigo-200 transition-all">
-                Chioma
-              </span>
-            </div>
-          </Link>
+          <Logo
+            size="lg"
+            href="/"
+            className="inline-flex justify-center mb-8"
+            textClassName="text-2xl font-bold bg-gradient-to-r from-blue-300 to-indigo-300 bg-clip-text text-transparent tracking-tight"
+          />
           <h1 className="text-4xl font-bold text-white mb-2">Create your account</h1>
           <p className="text-blue-200/80 text-base">
             Join thousands managing properties smarter

@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState } from 'react';
-import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard,
@@ -20,6 +19,8 @@ import {
   Home,
 } from 'lucide-react';
 import { NotificationBell } from '@/components/notifications';
+import Logo from '@/components/Logo';
+import Link from 'next/link';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -86,17 +87,8 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
           isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
-        {/* Logo */}
         <div className="h-20 flex items-center px-6 border-b border-white/10">
-          <Link
-            href="/"
-            className="flex items-center space-x-2"
-          >
-            <div className="w-8 h-8 bg-gradient-to-br from-blue-400 to-indigo-600 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-sm">C</span>
-            </div>
-            <span className="text-2xl font-bold bg-gradient-to-r from-blue-300 to-indigo-300 bg-clip-text text-transparent">Chioma</span>
-          </Link>
+          <Logo size="sm" textClassName="text-base font-semibold tracking-tight bg-gradient-to-r from-blue-300 to-indigo-300 bg-clip-text text-transparent" />
         </div>
 
         {/* Navigation */}

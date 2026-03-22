@@ -1,6 +1,5 @@
 import SidebarItem from './SidebarItem';
 import Image from 'next/image';
-import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { FaBuilding, FaChartPie } from 'react-icons/fa';
 import { FaScrewdriverWrench, FaArrowRightFromBracket } from 'react-icons/fa6';
@@ -8,6 +7,7 @@ import { HiSquares2X2, HiUsers } from 'react-icons/hi2';
 import { IoDocumentTextSharp } from 'react-icons/io5';
 import { IoMdSettings, IoMdNotifications } from 'react-icons/io';
 import { MdGavel, MdReviews } from 'react-icons/md';
+import Logo from '@/components/Logo';
 
 export const navItems = [
   { icon: HiSquares2X2, label: 'Dashboard', href: '/landlords' },
@@ -42,15 +42,12 @@ export default function Sidebar() {
     // Tablet (md): collapsed icon-only sidebar
     // Mobile (sm): hidden (mobile drawer is handled by Topbar)
     <aside className="hidden md:flex md:flex-col md:w-20 lg:w-56 h-screen backdrop-blur-xl bg-slate-900/50 border-r border-white/10">
-      <Link
+      <Logo
+        size="lg"
         href="/"
-        className="p-4 lg:p-10 text-2xl lg:text-3xl font-bold flex items-center justify-center lg:justify-start"
-      >
-        <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-indigo-600 rounded-lg flex items-center justify-center lg:mr-2">
-          <span className="text-white font-bold text-lg">C</span>
-        </div>
-        <span className="hidden lg:block bg-gradient-to-r from-blue-300 to-indigo-300 bg-clip-text text-transparent">Chioma</span>
-      </Link>
+        className="justify-center lg:justify-start"
+        textClassName="hidden lg:block text-2xl lg:text-3xl font-bold bg-gradient-to-r from-blue-300 to-indigo-300 bg-clip-text text-transparent"
+      />
 
       <nav className="flex-1">
         {navItems.map((item) => {
