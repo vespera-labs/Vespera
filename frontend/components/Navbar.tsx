@@ -44,7 +44,7 @@ const Navbar = ({ theme = 'dark' }: NavbarProps) => {
     <nav
       className={`top-0 left-0 right-0 z-50 transition-all duration-300 sticky ${
         isScrolled
-          ? 'backdrop-blur-xl bg-slate-900/80 border-b border-white/10 py-3'
+          ? 'backdrop-blur-xl bg-slate-950/95 border-b border-white/20 py-3 shadow-xl shadow-black/20'
           : 'bg-transparent py-6'
       }`}
     >
@@ -111,7 +111,7 @@ const Navbar = ({ theme = 'dark' }: NavbarProps) => {
 
       {/* Mobile Navigation Drawer */}
       {isMobileMenuOpen && (
-        <div className="md:hidden absolute top-full left-0 right-0 backdrop-blur-xl bg-slate-900/95 border-b border-white/10 shadow-lg">
+        <div className="md:hidden absolute top-full left-0 right-0 backdrop-blur-xl bg-slate-950/98 border-b border-white/20 shadow-xl shadow-black/20">
           <div className="flex flex-col p-6 space-y-4">
             {NAV_LINKS.map((link) => {
               const active = isActive(link.href);
