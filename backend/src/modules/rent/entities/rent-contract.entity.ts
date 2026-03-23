@@ -5,6 +5,7 @@ import {
   OneToMany,
   CreateDateColumn,
   UpdateDateColumn,
+  Index,
 } from 'typeorm';
 import { Payment } from './payment.entity';
 
@@ -18,6 +19,7 @@ export enum AgreementStatus {
 }
 
 @Entity('rent_agreements')
+@Index(['propertyId', 'status'])
 export class RentAgreement {
   @PrimaryGeneratedColumn('uuid')
   id: string;

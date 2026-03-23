@@ -5,6 +5,7 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   DeleteDateColumn,
+  Index,
 } from 'typeorm';
 import { Exclude } from 'class-transformer';
 import { KycStatus } from '../../kyc/kyc.entity';
@@ -27,6 +28,7 @@ export class User {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
+  @Index()
   @Column({ type: 'varchar', unique: true })
   email: string;
 
