@@ -18,4 +18,8 @@ pub enum RentalError {
     InvalidState = 15,
     Expired = 16,
     ContractPaused = 17,
+    TokenNotSupported = 19,
+    RateNotFound = 20,
+    ConversionError = 21,
+    InsufficientPayment = 22,
 }

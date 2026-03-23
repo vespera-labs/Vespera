@@ -7,4 +7,8 @@ pub enum DataKey {
     AgreementCount,
     State,
     Initialized,
+    SupportedToken(soroban_sdk::Address),
+    SupportedTokens,
+    ExchangeRate(soroban_sdk::Address, soroban_sdk::Address),
+    AgreementToken(String),
 }
