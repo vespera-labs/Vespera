@@ -430,7 +430,7 @@ pub fn make_payment_with_token(
 
     // Transfer tokens from tenant to contract (escrow)
     let client = soroban_sdk::token::Client::new(env, &token);
-    client.transfer(&agreement.tenant, &env.current_contract_address(), &amount);
+    client.transfer(&agreement.tenant, env.current_contract_address(), &amount);
 
     // Update agreement state
     agreement.total_rent_paid += amount_in_base;
