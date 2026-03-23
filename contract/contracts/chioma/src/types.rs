@@ -58,3 +58,32 @@ pub struct ContractState {
     pub config: Config,
     pub initialized: bool,
 }
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SupportedToken {
+    pub token_address: Address,
+    pub symbol: String,
+    pub decimals: u32,
+    pub enabled: bool,
+    pub min_amount: i128,
+    pub max_amount: i128,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct AgreementWithToken {
+    pub agreement_id: String,
+    pub payment_token: Address,
+    pub rent_amount: i128,
+    pub deposit_amount: i128,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct TokenExchangeRate {
+    pub from_token: Address,
+    pub to_token: Address,
+    pub rate: i128, // Scaled by 10^18
+    pub updated_at: u64,
+}
