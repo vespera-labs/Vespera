@@ -287,9 +287,7 @@ impl TokenizedRentObligationContract {
             .persistent()
             .get(&DataKey::ObligationCount)
             .unwrap_or(0);
-        if count > 0 {
-            count -= 1;
-        }
+        count = count.saturating_sub(1);
         env.storage()
             .persistent()
             .set(&DataKey::ObligationCount, &count);
