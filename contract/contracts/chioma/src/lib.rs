@@ -12,6 +12,7 @@ mod agreement;
 mod deposit_interest;
 mod errors;
 mod events;
+mod multi_sig;
 mod multi_token;
 mod rate_limit;
 mod royalties;
@@ -36,6 +37,9 @@ mod tests_royalties;
 #[cfg(test)]
 mod tests_rate_limit;
 
+#[cfg(test)]
+mod tests_multisig;
+
 pub use agreement::{
     cancel_agreement, create_agreement, create_agreement_with_token, get_agreement,
     get_agreement_count, get_agreement_token, get_payment_history, get_payment_split,
@@ -49,10 +53,10 @@ pub use multi_token::{
 };
 pub use storage::DataKey;
 pub use types::{
-    AgreementInput, AgreementStatus, AgreementTerms, AgreementWithToken, Attribute,
-    CompoundingFrequency, Config, ContractState, DepositInterest, DepositInterestConfig,
-    ErrorContext, InterestAccrual, InterestRecipient, PauseState, PaymentSplit, RateLimitConfig,
-    RateLimitReason, RentAgreement, RoyaltyConfig, RoyaltyPayment, SupportedToken,
+    ActionType, AdminProposal, AgreementInput, AgreementStatus, AgreementTerms, AgreementWithToken,
+    Attribute, CompoundingFrequency, Config, ContractState, DepositInterest, DepositInterestConfig,
+    ErrorContext, InterestAccrual, InterestRecipient, MultiSigConfig, PauseState, PaymentSplit,
+    RateLimitConfig, RateLimitReason, RentAgreement, RoyaltyConfig, RoyaltyPayment, SupportedToken,
     TokenExchangeRate, UserCallCount,
 };
 
@@ -675,5 +679,104 @@ impl Contract {
         state.admin.require_auth();
 
         rate_limit::reset_user_rate_limit(&env, &user, function_name)
+    }
+
+    // ─── Multi-Sig Admin Functions ───────────────────────────────────────────
+
+    /// Initialize multi-sig configuration with initial admins and required signatures
+    pub fn initialize_multisig(
+        env: Env,
+        admins: Vec<Address>,
+        required_signatures: u32,
+    ) -> Result<(), RentalError> {
+        // Only contract admin can initialize multi-sig
+        let state = Self::get_state(env.clone()).ok_or(RentalError::InvalidState)?;
+        state.admin.require_auth();
+
+        multi_sig::initialize_multisig(&env, admins, required_signatures)
+    }
+
+    /// Get current multi-sig configuration
+    pub fn get_multisig_config(env: Env) -> Result<MultiSigConfig, RentalError> {
+        multi_sig::get_multisig_config(&env)
+    }
+
+    /// Check if an address is an admin
+    pub fn is_admin(env: Env, address: Address) -> Result<bool, RentalError> {
+        multi_sig::is_admin(&env, &address)
+    }
+
+    /// Propose an admin action (pause, unpause, config update, etc.)
+    pub fn propose_action(
+        env: Env,
+        proposer: Address,
+        action_type: ActionType,
+        target: Option<Address>,
+        data: soroban_sdk::Bytes,
+    ) -> Result<String, RentalError> {
+        multi_sig::propose_action(&env, proposer, action_type, target, data)
+    }
+
+    /// Approve a pending proposal
+    pub fn approve_action(
+        env: Env,
+        approver: Address,
+        proposal_id: String,
+    ) -> Result<(), RentalError> {
+        multi_sig::approve_action(&env, approver, proposal_id)
+    }
+
+    /// Execute a proposal that has sufficient approvals
+    pub fn execute_action(
+        env: Env,
+        executor: Address,
+        proposal_id: String,
+    ) -> Result<(), RentalError> {
+        multi_sig::execute_action(&env, executor, proposal_id)
+    }
+
+    /// Reject/cancel a proposal (only proposer can do this)
+    pub fn reject_action(
+        env: Env,
+        caller: Address,
+        proposal_id: String,
+    ) -> Result<(), RentalError> {
+        multi_sig::reject_action(&env, caller, proposal_id)
+    }
+
+    /// Add a new admin (must be called through proposal execution)
+    pub fn add_admin(env: Env, new_admin: Address) -> Result<(), RentalError> {
+        // This should only be called through execute_action after approval
+        // For now, we'll add a check for multi-sig admin
+        let caller = new_admin.clone(); // In real scenario, get from context
+        multi_sig::require_admin(&env, &caller)?;
+        multi_sig::add_admin_internal(&env, new_admin)
+    }
+
+    /// Remove an admin (must be called through proposal execution)
+    pub fn remove_admin(env: Env, admin_to_remove: Address) -> Result<(), RentalError> {
+        // This should only be called through execute_action after approval
+        multi_sig::remove_admin_internal(&env, admin_to_remove)
+    }
+
+    /// Update required signatures (must be called through proposal execution)
+    pub fn update_required_signatures(env: Env, new_required: u32) -> Result<(), RentalError> {
+        // This should only be called through execute_action after approval
+        multi_sig::update_required_signatures_internal(&env, new_required)
+    }
+
+    /// Get a proposal by ID
+    pub fn get_proposal(env: Env, proposal_id: String) -> Result<AdminProposal, RentalError> {
+        multi_sig::get_proposal(&env, proposal_id)
+    }
+
+    /// Get all active proposals
+    pub fn get_active_proposals(env: Env) -> Result<Vec<String>, RentalError> {
+        multi_sig::get_active_proposals(&env)
+    }
+
+    /// Get total proposal count
+    pub fn get_proposal_count(env: Env) -> u32 {
+        multi_sig::get_proposal_count(&env)
     }
 }

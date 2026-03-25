@@ -423,3 +423,138 @@ pub(crate) fn rate_limit_config_updated(
     }
     .publish(env);
 }
+
+// ─── Multi-Sig Events ─────────────────────────────────────────────────────────
+
+#[contractevent(topics = ["multisig_init"])]
+pub struct MultiSigInitialized {
+    pub admins: u32,
+    pub required_signatures: u32,
+}
+
+#[contractevent(topics = ["action_proposed"])]
+pub struct ActionProposed {
+    #[topic]
+    pub proposal_id: String,
+    #[topic]
+    pub proposer: Address,
+    pub action_type: crate::types::ActionType,
+}
+
+#[contractevent(topics = ["action_approved"])]
+pub struct ActionApproved {
+    #[topic]
+    pub proposal_id: String,
+    #[topic]
+    pub approver: Address,
+    pub approval_count: u32,
+}
+
+#[contractevent(topics = ["action_executed"])]
+pub struct ActionExecuted {
+    #[topic]
+    pub proposal_id: String,
+    pub action_type: crate::types::ActionType,
+}
+
+#[contractevent(topics = ["action_rejected"])]
+pub struct ActionRejected {
+    #[topic]
+    pub proposal_id: String,
+}
+
+#[contractevent(topics = ["admin_added"])]
+pub struct AdminAdded {
+    #[topic]
+    pub admin: Address,
+    pub total_admins: u32,
+}
+
+#[contractevent(topics = ["admin_removed"])]
+pub struct AdminRemoved {
+    #[topic]
+    pub admin: Address,
+    pub total_admins: u32,
+}
+
+#[contractevent(topics = ["signatures_updated"])]
+pub struct RequiredSignaturesUpdated {
+    pub old_required: u32,
+    pub new_required: u32,
+}
+
+pub(crate) fn multisig_initialized(env: &Env, admins: u32, required_signatures: u32) {
+    MultiSigInitialized {
+        admins,
+        required_signatures,
+    }
+    .publish(env);
+}
+
+pub(crate) fn action_proposed(
+    env: &Env,
+    proposal_id: String,
+    proposer: Address,
+    action_type: crate::types::ActionType,
+) {
+    ActionProposed {
+        proposal_id,
+        proposer,
+        action_type,
+    }
+    .publish(env);
+}
+
+pub(crate) fn action_approved(
+    env: &Env,
+    proposal_id: String,
+    approver: Address,
+    approval_count: u32,
+) {
+    ActionApproved {
+        proposal_id,
+        approver,
+        approval_count,
+    }
+    .publish(env);
+}
+
+pub(crate) fn action_executed(
+    env: &Env,
+    proposal_id: String,
+    action_type: crate::types::ActionType,
+) {
+    ActionExecuted {
+        proposal_id,
+        action_type,
+    }
+    .publish(env);
+}
+
+pub(crate) fn action_rejected(env: &Env, proposal_id: String) {
+    ActionRejected { proposal_id }.publish(env);
+}
+
+pub(crate) fn admin_added(env: &Env, admin: Address, total_admins: u32) {
+    AdminAdded {
+        admin,
+        total_admins,
+    }
+    .publish(env);
+}
+
+pub(crate) fn admin_removed(env: &Env, admin: Address, total_admins: u32) {
+    AdminRemoved {
+        admin,
+        total_admins,
+    }
+    .publish(env);
+}
+
+pub(crate) fn required_signatures_updated(env: &Env, old_required: u32, new_required: u32) {
+    RequiredSignaturesUpdated {
+        old_required,
+        new_required,
+    }
+    .publish(env);
+}

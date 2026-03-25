@@ -1,4 +1,4 @@
-use soroban_sdk::{contracttype, Address, String, Vec};
+use soroban_sdk::{contracttype, Address, Bytes, String, Vec};
 
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -10,6 +10,47 @@ pub enum AgreementStatus {
     Cancelled,
     Terminated,
     Disputed,
+}
+
+// ─── Multi-Sig Types ──────────────────────────────────────────────────────────
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct MultiSigConfig {
+    pub admins: Vec<Address>,
+    pub required_signatures: u32,
+    pub total_admins: u32,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum ActionType {
+    Pause,
+    Unpause,
+    UpdateConfig,
+    UpdateRate,
+    AddAdmin,
+    RemoveAdmin,
+    UpdateRequiredSignatures,
+    EmergencyAction,
+    SetRateLimit,
+    AddToken,
+    RemoveToken,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct AdminProposal {
+    pub id: String,
+    pub proposer: Address,
+    pub action_type: ActionType,
+    pub target: Option<Address>,
+    pub data: Bytes,
+    pub approvals: Vec<Address>,
+    pub approval_count: u32,
+    pub executed: bool,
+    pub created_at: u64,
+    pub expiry: u64,
 }
 
 #[contracttype]
