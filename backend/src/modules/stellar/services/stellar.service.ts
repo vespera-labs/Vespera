@@ -99,7 +99,12 @@ export class StellarService {
   /**
    * Fund an account using Friendbot (testnet only)
    */
-  @Retry({ maxAttempts: 3, delay: 1000, backoff: 'exponential', backoffMultiplier: 2 })
+  @Retry({
+    maxAttempts: 3,
+    delay: 1000,
+    backoff: 'exponential',
+    backoffMultiplier: 2,
+  })
   async fundAccountTestnet(publicKey: string): Promise<boolean> {
     if (this.stellarConfig.network !== 'testnet') {
       throw new BadRequestException(
@@ -176,7 +181,12 @@ export class StellarService {
   /**
    * Get account info from Stellar network
    */
-  @Retry({ maxAttempts: 3, delay: 1000, backoff: 'exponential', backoffMultiplier: 2 })
+  @Retry({
+    maxAttempts: 3,
+    delay: 1000,
+    backoff: 'exponential',
+    backoffMultiplier: 2,
+  })
   async getAccountInfoFromNetwork(
     publicKey: string,
   ): Promise<StellarSdk.Horizon.AccountResponse> {
@@ -201,7 +211,12 @@ export class StellarService {
   /**
    * Sync account data from Stellar network
    */
-  @Retry({ maxAttempts: 3, delay: 1000, backoff: 'exponential', backoffMultiplier: 2 })
+  @Retry({
+    maxAttempts: 3,
+    delay: 1000,
+    backoff: 'exponential',
+    backoffMultiplier: 2,
+  })
   async syncAccountFromNetwork(publicKey: string): Promise<StellarAccount> {
     const account = await this.getAccountByPublicKey(publicKey);
 

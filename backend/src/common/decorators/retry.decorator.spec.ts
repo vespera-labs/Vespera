@@ -1,5 +1,9 @@
 import { Retry } from './retry.decorator';
-import { MaxRetriesExceededError, NetworkError, TimeoutError } from '../errors/retry-errors';
+import {
+  MaxRetriesExceededError,
+  NetworkError,
+  TimeoutError,
+} from '../errors/retry-errors';
 
 jest.useFakeTimers();
 
@@ -60,7 +64,9 @@ describe('@Retry decorator', () => {
 
     const promise = target.call();
     // Attach rejection handler BEFORE advancing timers to avoid unhandled-rejection warnings
-    const assertion = expect(promise).rejects.toBeInstanceOf(MaxRetriesExceededError);
+    const assertion = expect(promise).rejects.toBeInstanceOf(
+      MaxRetriesExceededError,
+    );
     await jest.runAllTimersAsync();
     await assertion;
     expect(impl).toHaveBeenCalledTimes(3);
@@ -109,7 +115,12 @@ describe('@Retry decorator', () => {
     class Service {
       value = 42;
 
-      @Retry({ maxAttempts: 2, delay: 10, backoff: 'exponential', backoffMultiplier: 2 })
+      @Retry({
+        maxAttempts: 2,
+        delay: 10,
+        backoff: 'exponential',
+        backoffMultiplier: 2,
+      })
       async getValue() {
         return this.value;
       }
