@@ -1,10 +1,11 @@
 #![no_std]
 
-use soroban_sdk::{contract, contractimpl, Address, Env, String};
+use soroban_sdk::{contract, contractimpl, Address, Env, String, Vec};
 
 mod dispute;
 mod errors;
 mod events;
+mod rate_limit;
 mod storage;
 mod types;
 
@@ -12,15 +13,17 @@ mod types;
 mod tests;
 
 pub use dispute::{
-    add_arbiter, cancel_appeal, create_appeal, get_appeal, get_arbiter, get_arbiter_count,
-    get_dispute, get_timeout_config, get_vote, raise_dispute, resolve_appeal, resolve_dispute,
-    resolve_dispute_on_timeout, set_timeout_config, vote_on_appeal, vote_on_dispute,
+    add_arbiter, calculate_voting_weight, cancel_appeal, create_appeal, get_appeal, get_arbiter,
+    get_arbiter_count, get_dispute, get_dispute_votes_weighted, get_timeout_config, get_vote,
+    get_voting_weight, raise_dispute, resolve_appeal, resolve_dispute, resolve_dispute_on_timeout,
+    resolve_dispute_weighted, set_arbiter_stats, set_timeout_config, vote_on_appeal,
+    vote_on_dispute, vote_on_dispute_weighted,
 };
 pub use errors::DisputeError;
 pub use storage::DataKey;
 pub use types::{
-    AppealStatus, AppealVote, Arbiter, ContractState, Dispute, DisputeAppeal, DisputeOutcome,
-    TimeoutConfig, Vote,
+    AppealStatus, AppealVote, Arbiter, ArbiterStats, ContractState, Dispute, DisputeAppeal,
+    DisputeOutcome, TimeoutConfig, Vote, VotingWeight, WeightedDisputeVotes, WeightedVote,
 };
 
 #[contract]
@@ -244,5 +247,49 @@ impl DisputeResolutionContract {
 
     pub fn get_appeal(env: Env, appeal_id: String) -> Option<DisputeAppeal> {
         dispute::get_appeal(&env, appeal_id)
+    }
+
+    // ── Weighted Voting ────────────────────────────────────────────────────
+
+    /// Set rating (0-100) and disputes-resolved count for an arbiter (admin only).
+    pub fn set_arbiter_stats(
+        env: Env,
+        admin: Address,
+        arbiter: Address,
+        rating: u32,
+        disputes_resolved: u32,
+    ) -> Result<(), DisputeError> {
+        dispute::set_arbiter_stats(&env, admin, arbiter, rating, disputes_resolved)
+    }
+
+    /// Return the computed voting weight for an arbiter.
+    pub fn get_voting_weight(env: Env, arbiter: Address) -> Result<VotingWeight, DisputeError> {
+        dispute::get_voting_weight(&env, arbiter)
+    }
+
+    /// Cast a weighted vote on an open dispute.
+    pub fn vote_on_dispute_weighted(
+        env: Env,
+        arbiter: Address,
+        dispute_id: String,
+        vote: DisputeOutcome,
+    ) -> Result<(), DisputeError> {
+        dispute::vote_on_dispute_weighted(&env, arbiter, dispute_id, vote)
+    }
+
+    /// Resolve a dispute by weighted vote totals (ties broken by first vote).
+    pub fn resolve_dispute_weighted(
+        env: Env,
+        dispute_id: String,
+    ) -> Result<DisputeOutcome, DisputeError> {
+        dispute::resolve_dispute_weighted(&env, dispute_id)
+    }
+
+    /// Return all weighted votes for a dispute.
+    pub fn get_dispute_votes_weighted(
+        env: Env,
+        dispute_id: String,
+    ) -> Result<Vec<WeightedVote>, DisputeError> {
+        dispute::get_dispute_votes_weighted(&env, dispute_id)
     }
 }

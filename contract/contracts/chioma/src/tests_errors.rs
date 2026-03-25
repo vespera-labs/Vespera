@@ -32,13 +32,13 @@ fn test_error_codes_and_messages() {
     assert_eq!(RentalError::Unauthorized.code(), 18);
 
     // Check new booking/agreement errors
-    assert_eq!(RentalError::BookingNotFound.code(), 1001);
-    assert_eq!(RentalError::BookingAlreadyExists.code(), 1002);
+    assert_eq!(RentalError::AgreementNotFound.code(), 13);
+    assert_eq!(RentalError::AgreementAlreadyExists.code(), 4);
 
     // Check messages
     assert_eq!(
-        RentalError::BookingNotFound.message(&env),
-        String::from_str(&env, "Booking not found. Please check the booking ID.")
+        RentalError::AgreementNotFound.message(&env),
+        String::from_str(&env, "Agreement not found. Please check the ID.")
     );
     assert_eq!(
         RentalError::Unauthorized.message(&env),
@@ -55,13 +55,13 @@ fn test_log_and_get_errors() {
     let op = String::from_str(&env, "create_agreement");
     let details = String::from_str(&env, "Missing ID");
 
-    client.log_error(&RentalError::BookingNotFound, &op, &details);
+    client.log_error(&RentalError::AgreementNotFound, &op, &details);
 
     let logs = client.get_error_logs(&10);
     assert_eq!(logs.len(), 1);
 
     let log = logs.get(0).unwrap();
-    assert_eq!(log.error_code, 1001);
+    assert_eq!(log.error_code, 13);
     assert_eq!(log.operation, op);
     assert_eq!(log.details, details);
     assert!(log.timestamp > 0);

@@ -1,6 +1,7 @@
 import { SelectQueryBuilder } from 'typeorm';
 import { Property } from './entities/property.entity';
 import { QueryPropertyDto } from './dto/query-property.dto';
+import { QueryBuilderUtils } from '../../common/utils';
 
 /**
  * PropertyQueryBuilder - Fluent interface for building property queries
@@ -175,11 +176,12 @@ export class PropertyQueryBuilder {
       'title',
     ];
 
-    const actualSortBy = validSortFields.includes(sortBy)
-      ? sortBy
-      : 'createdAt';
-
-    this.queryBuilder.orderBy(`property.${actualSortBy}`, sortOrder);
+    QueryBuilderUtils.applySorting(
+      this.queryBuilder,
+      sortBy,
+      sortOrder,
+      validSortFields,
+    );
     return this;
   }
 
@@ -187,8 +189,7 @@ export class PropertyQueryBuilder {
    * Apply pagination
    */
   applyPagination(page: number = 1, limit: number = 10): this {
-    const skip = (page - 1) * limit;
-    this.queryBuilder.skip(skip).take(limit);
+    QueryBuilderUtils.applyPagination(this.queryBuilder, page, limit);
     return this;
   }
 

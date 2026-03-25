@@ -31,14 +31,6 @@ pub enum RentalError {
     InterestAlreadyInitialized = 26,
     NoPrincipal = 27,
 
-    // NEW - Booking/Agreement errors
-    BookingNotFound = 1001, // Use user's example numbering
-    BookingAlreadyExists = 1002,
-    BookingInvalidDates = 1003,
-    BookingNotAvailable = 1004,
-    BookingAlreadyCheckedIn = 1005,
-    BookingAlreadyCheckedOut = 1006,
-
     // Payment errors
     PaymentInsufficientFunds = 201,
     PaymentAlreadyProcessed = 202,
@@ -69,6 +61,14 @@ pub enum RentalError {
     CooldownNotMet = 802,
     InternalError = 901,
     NotImplemented = 902,
+
+    // Multi-sig errors (using range 1100-1105 only)
+    MultiSigNotInitialized = 1100,
+    ProposalNotFound = 1101,
+    ProposalAlreadyExecuted = 1102,
+    ProposalExpired = 1103,
+    InsufficientApprovals = 1104,
+    AlreadyApproved = 1105,
 }
 
 impl RentalError {
@@ -110,17 +110,6 @@ impl RentalError {
             }
             RentalError::NoPrincipal => "No security deposit found to accrue interest on.",
 
-            RentalError::BookingNotFound => "Booking not found. Please check the booking ID.",
-            RentalError::BookingAlreadyExists => {
-                "Booking already exists for this property and date range."
-            }
-            RentalError::BookingInvalidDates => "Invalid dates: check-out must be after check-in.",
-            RentalError::BookingNotAvailable => {
-                "The requested property is not available for these dates."
-            }
-            RentalError::BookingAlreadyCheckedIn => "Booking has already been checked in.",
-            RentalError::BookingAlreadyCheckedOut => "Booking has already been checked out.",
-
             RentalError::PaymentInsufficientFunds => {
                 "Insufficient funds. Please ensure you have enough balance."
             }
@@ -154,6 +143,19 @@ impl RentalError {
             RentalError::CooldownNotMet => "Operation cooldown period has not yet met.",
             RentalError::InternalError => "An unexpected internal error occurred.",
             RentalError::NotImplemented => "This feature is not yet implemented.",
+
+            RentalError::MultiSigNotInitialized => {
+                "Multi-sig has not been initialized for this contract."
+            }
+            RentalError::ProposalNotFound => "The specified proposal does not exist.",
+            RentalError::ProposalAlreadyExecuted => "This proposal has already been executed.",
+            RentalError::ProposalExpired => {
+                "The proposal has expired and can no longer be executed."
+            }
+            RentalError::InsufficientApprovals => {
+                "Insufficient approvals to execute this proposal."
+            }
+            RentalError::AlreadyApproved => "You have already approved this proposal.",
         };
         String::from_str(env, msg)
     }

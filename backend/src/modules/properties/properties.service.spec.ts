@@ -15,6 +15,7 @@ import {
 import { PropertyImage } from './entities/property-image.entity';
 import { PropertyAmenity } from './entities/property-amenity.entity';
 import { RentalUnit } from './entities/rental-unit.entity';
+import { PropertyListingDraft } from './entities/property-listing-draft.entity';
 import { User, UserRole, AuthMethod } from '../users/entities/user.entity';
 import { KycStatus } from '../kyc/kyc.entity';
 
@@ -125,6 +126,13 @@ describe('PropertiesService', () => {
       factory(),
     ),
     invalidatePropertyDomainCaches: jest.fn().mockResolvedValue(undefined),
+  };
+
+  const mockPropertyListingDraftRepository = {
+    create: jest.fn(),
+    save: jest.fn(),
+    findOne: jest.fn(),
+    remove: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -644,6 +652,53 @@ describe('PropertiesService', () => {
       expect(
         mockCacheService.invalidatePropertyDomainCaches,
       ).toHaveBeenCalledWith('property-id');
+    });
+  });
+
+  describe('wizard draft', () => {
+    it('starts a wizard draft', async () => {
+      mockPropertyListingDraftRepository.create.mockReturnValue({
+        id: 'draft-1',
+        landlordId: mockOwner.id,
+        data: {},
+        currentStep: 1,
+        completedSteps: [],
+      });
+      mockPropertyListingDraftRepository.save.mockResolvedValue({
+        id: 'draft-1',
+        landlordId: mockOwner.id,
+        data: {},
+        currentStep: 1,
+        completedSteps: [],
+      });
+
+      const result = await service.startWizard(mockOwner.id, {});
+      expect(result.id).toBe('draft-1');
+      expect(mockPropertyListingDraftRepository.save).toHaveBeenCalled();
+    });
+
+    it('updates a wizard step', async () => {
+      mockPropertyListingDraftRepository.findOne.mockResolvedValue({
+        id: 'draft-1',
+        landlordId: mockOwner.id,
+        data: { basicInfo: {} },
+        currentStep: 1,
+        completedSteps: [1],
+      });
+      mockPropertyListingDraftRepository.save.mockResolvedValue({
+        id: 'draft-1',
+        landlordId: mockOwner.id,
+        data: { pricing: { monthlyRent: 1200 } },
+        currentStep: 2,
+        completedSteps: [1, 2],
+      });
+
+      const result = await service.updateWizardStep('draft-1', mockOwner.id, {
+        step: 2,
+        data: { pricing: { monthlyRent: 1200 } },
+        completedSteps: [2],
+      });
+      expect(result.currentStep).toBe(2);
     });
   });
 });
