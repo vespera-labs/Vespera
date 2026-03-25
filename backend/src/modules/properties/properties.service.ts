@@ -19,6 +19,8 @@ import { UpdatePropertyDto } from './dto/update-property.dto';
 import { QueryPropertyDto } from './dto/query-property.dto';
 import { User, UserRole } from '../users/entities/user.entity';
 import { PropertyQueryBuilder } from './property-query-builder';
+import { PropertyListingDraft } from './entities/property-listing-draft.entity';
+import { UpdatePropertyListingWizardStepDto } from './dto/property-listing-wizard.dto';
 
 @Injectable()
 export class PropertiesService {
@@ -34,9 +36,203 @@ export class PropertiesService {
     private readonly amenityRepository: Repository<PropertyAmenity>,
     @InjectRepository(RentalUnit)
     private readonly rentalUnitRepository: Repository<RentalUnit>,
+    @InjectRepository(PropertyListingDraft)
+    private readonly propertyListingDraftRepository: Repository<PropertyListingDraft>,
     @Inject(CACHE_MANAGER)
     private readonly cacheManager: Cache,
   ) {}
+
+  private buildDefaultWizardData(): Record<string, unknown> {
+    return {
+      basicInfo: {},
+      pricing: {},
+      amenities: {},
+      rules: {},
+      photos: [],
+      description: {},
+      availability: {},
+    };
+  }
+
+  private buildWizardExpiryDate(): Date {
+    const expires = new Date();
+    expires.setDate(expires.getDate() + 30);
+    return expires;
+  }
+
+  private normalizeCompletedSteps(steps?: number[]): number[] {
+    if (!steps?.length) return [];
+    return Array.from(new Set(steps.filter((step) => step >= 1 && step <= 8)));
+  }
+
+  private mergeWizardData(
+    currentData: Record<string, unknown>,
+    incomingData: Record<string, unknown>,
+  ): Record<string, unknown> {
+    return {
+      ...currentData,
+      ...incomingData,
+    };
+  }
+
+  async startWizard(
+    landlordId: string,
+    data?: Record<string, unknown>,
+  ): Promise<PropertyListingDraft> {
+    const draft = this.propertyListingDraftRepository.create({
+      landlordId,
+      data: {
+        ...this.buildDefaultWizardData(),
+        ...(data || {}),
+      },
+      currentStep: 1,
+      completedSteps: [],
+      expiresAt: this.buildWizardExpiryDate(),
+    });
+
+    return this.propertyListingDraftRepository.save(draft);
+  }
+
+  async updateWizardStep(
+    draftId: string,
+    landlordId: string,
+    updateDto: UpdatePropertyListingWizardStepDto,
+  ): Promise<PropertyListingDraft> {
+    const draft = await this.propertyListingDraftRepository.findOne({
+      where: { id: draftId, landlordId },
+    });
+
+    if (!draft) {
+      throw new NotFoundException(`Draft with ID ${draftId} not found`);
+    }
+
+    draft.data = this.mergeWizardData(draft.data || {}, updateDto.data || {});
+    draft.currentStep = updateDto.step;
+    draft.completedSteps = this.normalizeCompletedSteps([
+      ...(draft.completedSteps || []),
+      ...(updateDto.completedSteps || []),
+    ]);
+    draft.expiresAt = this.buildWizardExpiryDate();
+
+    return this.propertyListingDraftRepository.save(draft);
+  }
+
+  async getWizardDraft(
+    draftId: string,
+    landlordId: string,
+  ): Promise<PropertyListingDraft> {
+    const draft = await this.propertyListingDraftRepository.findOne({
+      where: { id: draftId, landlordId },
+    });
+
+    if (!draft) {
+      throw new NotFoundException(`Draft with ID ${draftId} not found`);
+    }
+
+    return draft;
+  }
+
+  async deleteWizardDraft(draftId: string, landlordId: string): Promise<void> {
+    const draft = await this.getWizardDraft(draftId, landlordId);
+    await this.propertyListingDraftRepository.remove(draft);
+  }
+
+  private validateWizardForPublish(data: Record<string, any>): void {
+    const basicInfo = data.basicInfo || {};
+    const pricing = data.pricing || {};
+    const photos = Array.isArray(data.photos) ? data.photos : [];
+    const description = data.description || {};
+    const availability = data.availability || {};
+
+    if (!basicInfo.propertyType || !basicInfo.address) {
+      throw new BadRequestException(
+        'Basic information is incomplete. Property type and address are required.',
+      );
+    }
+
+    if (!pricing.monthlyRent || Number(pricing.monthlyRent) <= 0) {
+      throw new BadRequestException(
+        'Pricing is incomplete. Monthly rent must be greater than zero.',
+      );
+    }
+
+    if (photos.length < 3) {
+      throw new BadRequestException(
+        'At least 3 photos are required to publish.',
+      );
+    }
+
+    const descriptionText = String(
+      description.propertyDescription || '',
+    ).trim();
+    if (descriptionText.length < 40) {
+      throw new BadRequestException(
+        'Property description must be at least 40 characters.',
+      );
+    }
+
+    if (!availability.availableFrom) {
+      throw new BadRequestException(
+        'Availability is incomplete. Available from date is required.',
+      );
+    }
+  }
+
+  async publishWizardDraft(
+    draftId: string,
+    landlordId: string,
+  ): Promise<Property> {
+    const draft = await this.getWizardDraft(draftId, landlordId);
+    const data = (draft.data || {}) as Record<string, any>;
+    this.validateWizardForPublish(data);
+
+    const basicInfo = data.basicInfo || {};
+    const pricing = data.pricing || {};
+    const description = data.description || {};
+    const amenities = data.amenities || {};
+    const rules = data.rules || {};
+    const photos = Array.isArray(data.photos) ? data.photos : [];
+
+    const createdProperty = await this.create(
+      {
+        title:
+          String(basicInfo.title || '').trim() ||
+          `${basicInfo.propertyType || 'Property'} in ${basicInfo.city || 'City'}`,
+        description: String(description.propertyDescription || '').trim(),
+        type: basicInfo.propertyType || 'apartment',
+        address: basicInfo.address,
+        city: basicInfo.city,
+        state: basicInfo.state,
+        postalCode: basicInfo.postalCode,
+        country: basicInfo.country,
+        price: Number(pricing.monthlyRent),
+        currency: pricing.currency || 'USD',
+        bedrooms: basicInfo.bedrooms ? Number(basicInfo.bedrooms) : undefined,
+        bathrooms: basicInfo.bathrooms
+          ? Number(basicInfo.bathrooms)
+          : undefined,
+        area: basicInfo.squareFootage
+          ? Number(basicInfo.squareFootage)
+          : undefined,
+        isFurnished: Boolean(amenities.furnished),
+        hasParking: Boolean(amenities.parking),
+        petsAllowed: Boolean(rules.petsAllowed),
+        metadata: {
+          wizardData: data,
+          moveInDate: pricing.moveInDate,
+          leaseTermMonths: pricing.leaseTermMonths,
+          photos,
+        },
+      },
+      landlordId,
+    );
+
+    createdProperty.status = ListingStatus.PUBLISHED;
+    const published = await this.propertyRepository.save(createdProperty);
+    await this.propertyListingDraftRepository.remove(draft);
+    await this.clearPropertiesCache();
+    return published;
+  }
 
   private async clearPropertiesCache(): Promise<void> {
     const store = (this.cacheManager as any).store;

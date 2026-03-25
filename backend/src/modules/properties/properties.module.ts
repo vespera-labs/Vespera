@@ -6,6 +6,7 @@ import { Property } from './entities/property.entity';
 import { PropertyImage } from './entities/property-image.entity';
 import { PropertyAmenity } from './entities/property-amenity.entity';
 import { RentalUnit } from './entities/rental-unit.entity';
+import { PropertyListingDraft } from './entities/property-listing-draft.entity';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { RentalUnit } from './entities/rental-unit.entity';
       PropertyImage,
       PropertyAmenity,
       RentalUnit,
+      PropertyListingDraft,
     ]),
   ],
   controllers: [PropertiesController],

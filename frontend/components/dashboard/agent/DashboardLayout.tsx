@@ -234,10 +234,13 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
             />
 
             {/* CTA */}
-            <button className="flex items-center gap-2 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white px-5 py-2.5 rounded-xl text-sm font-bold transition-all shadow-lg shadow-blue-500/20">
+            <Link
+              href="/agents/properties/new"
+              className="flex items-center gap-2 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white px-5 py-2.5 rounded-xl text-sm font-bold transition-all shadow-lg shadow-blue-500/20"
+            >
               <Plus size={18} />
               <span>Create New Listing</span>
-            </button>
+            </Link>
           </div>
         </header>
 
