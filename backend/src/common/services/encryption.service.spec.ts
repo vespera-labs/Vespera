@@ -85,11 +85,13 @@ describe('EncryptionService', () => {
 
     describe('rotateKey', () => {
         it('should add new key to front', () => {
-            const newKeyB64 = Buffer.from('fedcba9876543210fedcba9876543210', 'utf8').toString('base64');
+            const newKeyHex = 'fedcba9876543210fedcba9876543210';
+            const newKey = Buffer.from(newKeyHex, 'hex');
+            const newKeyB64 = newKey.toString('base64');
             service.rotateKey(newKeyB64);
 
             // @ts-ignore
-            expect(service['keys'][0].toString('hex')).toBe('fedcba9876543210fedcba9876543210');
+            expect(service['keys'][0].toString('hex')).toBe(newKeyHex);
         });
 
         it('should reject invalid key length', () => {
