@@ -50,7 +50,7 @@ export class DataSyncQueueProcessor {
           break;
 
         default:
-          throw new Error(`Unknown data sync type: ${job.data.type}`);
+          throw new Error(`Unknown data sync type: ${String(job.data.type)}`);
       }
 
       this.logger.log(`Data sync job ${job.id} completed successfully`);

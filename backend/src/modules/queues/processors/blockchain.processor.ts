@@ -6,12 +6,12 @@ import { PaymentProcessingService } from '../../stellar/services/payment-process
 
 export interface BlockchainJobData {
   type:
-  | 'send-payment'
-  | 'create-escrow'
-  | 'release-escrow'
-  | 'mint-nft'
-  | 'sync-transaction'
-  | 'process-anchor-transaction';
+    | 'send-payment'
+    | 'create-escrow'
+    | 'release-escrow'
+    | 'mint-nft'
+    | 'sync-transaction'
+    | 'process-anchor-transaction';
   transactionId?: string;
   agreementId?: string;
   paymentId?: string;
@@ -25,7 +25,7 @@ export class BlockchainQueueProcessor {
   constructor(
     private stellarService: StellarService,
     private paymentProcessingService: PaymentProcessingService,
-  ) { }
+  ) {}
 
   @Process()
   async handleBlockchainJob(job: Job<BlockchainJobData>): Promise<void> {
@@ -58,7 +58,7 @@ export class BlockchainQueueProcessor {
           break;
 
         default:
-          throw new Error(`Unknown blockchain type: ${job.data.type}`);
+          throw new Error(`Unknown blockchain type: ${String(job.data.type)}`);
       }
 
       this.logger.log(`Blockchain job ${job.id} completed successfully`);

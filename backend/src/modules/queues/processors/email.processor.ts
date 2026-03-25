@@ -58,7 +58,7 @@ export class EmailQueueProcessor {
           break;
 
         default:
-          throw new Error(`Unknown email type: ${job.data.type}`);
+          throw new Error(`Unknown email type: ${String(job.data.type)}`);
       }
 
       this.logger.log(`Email job ${job.id} completed successfully`);

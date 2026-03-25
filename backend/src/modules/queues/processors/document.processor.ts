@@ -47,7 +47,7 @@ export class DocumentQueueProcessor {
           break;
 
         default:
-          throw new Error(`Unknown document type: ${job.data.type}`);
+          throw new Error(`Unknown document type: ${String(job.data.type)}`);
       }
 
       this.logger.log(`Document job ${job.id} completed successfully`);
