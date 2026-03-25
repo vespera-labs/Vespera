@@ -1,4 +1,4 @@
-use soroban_sdk::{contracttype, Address, Map, String, Vec};
+use soroban_sdk::{contracttype, Address, String, Vec};
 
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -10,6 +10,13 @@ pub enum AgreementStatus {
     Cancelled,
     Terminated,
     Disputed,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Attribute {
+    pub trait_type: String,
+    pub value: String,
 }
 
 #[contracttype]
@@ -30,7 +37,8 @@ pub struct RentAgreement {
     pub signed_at: Option<u64>,
     pub payment_token: Address,
     pub next_payment_due: u64,
-    pub payment_history: Map<u32, PaymentSplit>,
+    pub metadata_uri: String,
+    pub attributes: Vec<Attribute>,
 }
 
 #[contracttype]
@@ -200,6 +208,14 @@ pub struct UserCallCount {
     pub last_call_block: u64,
     pub daily_count: u32,
     pub daily_reset_block: u64,
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct AgreementTerms {
+    pub monthly_rent: i128,
+    pub security_deposit: i128,
+    pub start_date: u64,
+    pub end_date: u64,
+    pub agent_commission_rate: u32,
 }
 
 #[contracttype]
@@ -208,4 +224,13 @@ pub enum RateLimitReason {
     BlockLimitExceeded,
     DailyLimitExceeded,
     CooldownNotMet,
+pub struct AgreementInput {
+    pub agreement_id: String,
+    pub landlord: Address,
+    pub tenant: Address,
+    pub agent: Option<Address>,
+    pub terms: AgreementTerms,
+    pub payment_token: Address,
+    pub metadata_uri: String,
+    pub attributes: Vec<Attribute>,
 }

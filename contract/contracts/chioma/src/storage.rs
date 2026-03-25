@@ -21,4 +21,5 @@ pub enum DataKey {
     RateLimitConfig,
     UserCallCount(soroban_sdk::Address, String), // (user, function_name)
     BlockCallCount(u64, String),                 // (block_number, function_name)
+    PaymentRecord(String, u32),
 }
