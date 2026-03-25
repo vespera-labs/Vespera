@@ -386,11 +386,14 @@ export class UpdateKycEncryptionSchema1774292331248 implements MigrationInterfac
     await queryRunner.query(
       `ALTER TABLE "file_metadata" ADD "updated_at" TIMESTAMP NOT NULL DEFAULT now()`,
     );
+    await queryRunner.query(`
+      DO $$ BEGIN
+        CREATE TYPE "public"."users_kyc_status_enum" AS ENUM('PENDING', 'APPROVED', 'REJECTED', 'NEEDS_INFO');
+      EXCEPTION WHEN duplicate_object THEN null;
+      END $$;
+    `);
     await queryRunner.query(
-      `CREATE TYPE "public"."users_kyc_status_enum" AS ENUM('PENDING', 'APPROVED', 'REJECTED', 'NEEDS_INFO')`,
-    );
-    await queryRunner.query(
-      `ALTER TABLE "users" ADD "kyc_status" "public"."users_kyc_status_enum" NOT NULL DEFAULT 'PENDING'`,
+      `ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "kyc_status" "public"."users_kyc_status_enum" NOT NULL DEFAULT 'PENDING'`,
     );
     await queryRunner.query(
       `ALTER TABLE "users" ADD "wallet_address" character varying`,
@@ -404,7 +407,9 @@ export class UpdateKycEncryptionSchema1774292331248 implements MigrationInterfac
     await queryRunner.query(
       `ALTER TABLE "users" ADD "auth_method" "public"."users_auth_method_enum" NOT NULL DEFAULT 'password'`,
     );
-    await queryRunner.query(`ALTER TABLE "users" ADD "deleted_at" TIMESTAMP`);
+    await queryRunner.query(
+      `ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "deleted_at" TIMESTAMP`,
+    );
     await queryRunner.query(
       `ALTER TABLE "stellar_escrows" ADD "blockchain_escrow_id" character varying(64)`,
     );
