@@ -32,7 +32,12 @@ describe('RetryService', () => {
         .mockRejectedValueOnce(new NetworkError())
         .mockResolvedValue('success');
 
-      const promise = service.execute(fn, { maxAttempts: 3, delay: 100, backoff: 'exponential', backoffMultiplier: 2 });
+      const promise = service.execute(fn, {
+        maxAttempts: 3,
+        delay: 100,
+        backoff: 'exponential',
+        backoffMultiplier: 2,
+      });
       // Advance past the first retry delay (100ms * 2^0 = 100ms)
       await jest.runAllTimersAsync();
       const result = await promise;
@@ -45,9 +50,16 @@ describe('RetryService', () => {
       const err = new NetworkError('boom');
       const fn = jest.fn().mockRejectedValue(err);
 
-      const promise = service.execute(fn, { maxAttempts: 3, delay: 10, backoff: 'exponential', backoffMultiplier: 2 });
+      const promise = service.execute(fn, {
+        maxAttempts: 3,
+        delay: 10,
+        backoff: 'exponential',
+        backoffMultiplier: 2,
+      });
       // Attach rejection handler BEFORE advancing timers to avoid unhandled-rejection warnings
-      const assertion = expect(promise).rejects.toBeInstanceOf(MaxRetriesExceededError);
+      const assertion = expect(promise).rejects.toBeInstanceOf(
+        MaxRetriesExceededError,
+      );
       await jest.runAllTimersAsync();
       await assertion;
       expect(fn).toHaveBeenCalledTimes(3);
@@ -57,7 +69,12 @@ describe('RetryService', () => {
       const fn = jest.fn().mockRejectedValue(new Error('validation error'));
       // No timers involved — error is non-retryable so the promise rejects in the same microtask
       await expect(
-        service.execute(fn, { maxAttempts: 3, delay: 10, backoff: 'exponential', backoffMultiplier: 2 }),
+        service.execute(fn, {
+          maxAttempts: 3,
+          delay: 10,
+          backoff: 'exponential',
+          backoffMultiplier: 2,
+        }),
       ).rejects.toBeInstanceOf(MaxRetriesExceededError);
       expect(fn).toHaveBeenCalledTimes(1);
     });
@@ -68,10 +85,13 @@ describe('RetryService', () => {
         .mockRejectedValueOnce(new TimeoutError())
         .mockResolvedValue('done');
 
-      const promise = service.execute(
-        fn,
-        { maxAttempts: 3, delay: 10, backoff: 'linear', backoffMultiplier: 1, retryableErrors: [TimeoutError] },
-      );
+      const promise = service.execute(fn, {
+        maxAttempts: 3,
+        delay: 10,
+        backoff: 'linear',
+        backoffMultiplier: 1,
+        retryableErrors: [TimeoutError],
+      });
       await jest.runAllTimersAsync();
       const result = await promise;
 
@@ -82,7 +102,13 @@ describe('RetryService', () => {
     it('does not retry when error class is not in retryableErrors', async () => {
       const fn = jest.fn().mockRejectedValue(new NetworkError());
       await expect(
-        service.execute(fn, { maxAttempts: 3, delay: 10, backoff: 'exponential', backoffMultiplier: 2, retryableErrors: [TimeoutError] }),
+        service.execute(fn, {
+          maxAttempts: 3,
+          delay: 10,
+          backoff: 'exponential',
+          backoffMultiplier: 2,
+          retryableErrors: [TimeoutError],
+        }),
       ).rejects.toBeInstanceOf(MaxRetriesExceededError);
       expect(fn).toHaveBeenCalledTimes(1);
     });
@@ -116,7 +142,12 @@ describe('RetryService', () => {
         .mockRejectedValueOnce(new NetworkError())
         .mockResolvedValue('ok');
 
-      const promise = service.execute(fn, { maxAttempts: 3, delay: 10, backoff: 'exponential', backoffMultiplier: 2 });
+      const promise = service.execute(fn, {
+        maxAttempts: 3,
+        delay: 10,
+        backoff: 'exponential',
+        backoffMultiplier: 2,
+      });
       await jest.runAllTimersAsync();
       await promise;
 
@@ -130,11 +161,15 @@ describe('RetryService', () => {
 
   describe('isRetryable', () => {
     it('returns true for NetworkError when listed in retryableErrors', () => {
-      expect(service.isRetryable(new NetworkError(), [NetworkError])).toBe(true);
+      expect(service.isRetryable(new NetworkError(), [NetworkError])).toBe(
+        true,
+      );
     });
 
     it('returns false when error class not in retryableErrors list', () => {
-      expect(service.isRetryable(new NetworkError(), [TimeoutError])).toBe(false);
+      expect(service.isRetryable(new NetworkError(), [TimeoutError])).toBe(
+        false,
+      );
     });
 
     it('returns false for a plain Error with no code and no retryableErrors filter', () => {

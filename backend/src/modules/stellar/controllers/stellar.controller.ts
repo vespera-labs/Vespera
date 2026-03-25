@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
 import { StellarService } from '../services/stellar.service';
+import { EscrowContractService } from '../services/escrow-contract.service';
 import {
   CreateAccountDto,
   AccountResponseDto,
@@ -25,6 +26,17 @@ import {
   EscrowResponseDto,
   ListEscrowsDto,
 } from '../dto';
+import {
+  CreateMultiSigEscrowDto,
+  AddSignatureDto,
+  ReleaseWithSignaturesDto,
+  CreateTimeLockedEscrowDto,
+  CheckTimeLockConditionsDto,
+  CreateConditionalEscrowDto,
+  ValidateConditionsDto,
+  IntegrateWithDisputeDto,
+  ReleaseOnDisputeResolutionDto,
+} from '../dto/escrow-enhanced.dto';
 import { StellarAccount } from '../entities/stellar-account.entity';
 import { StellarTransaction } from '../entities/stellar-transaction.entity';
 import { StellarEscrow } from '../entities/stellar-escrow.entity';
@@ -32,7 +44,10 @@ import { StellarEscrow } from '../entities/stellar-escrow.entity';
 @ApiTags('Stellar')
 @Controller('stellar')
 export class StellarController {
-  constructor(private readonly stellarService: StellarService) {}
+  constructor(
+    private readonly stellarService: StellarService,
+    private readonly escrowContractService: EscrowContractService,
+  ) {}
 
   // ==================== Account Endpoints ====================
 
@@ -267,6 +282,163 @@ export class StellarController {
       total,
       limit: dto.limit || 20,
       offset: dto.offset || 0,
+    };
+  }
+
+  // ==================== Enhanced Escrow Endpoints ====================
+
+  /**
+   * Create a multi-signature escrow
+   */
+  @Post('escrow/multi-sig')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: 'Create a multi-signature escrow' })
+  @ApiResponse({ status: 201, description: 'Multi-sig escrow created' })
+  async createMultiSigEscrow(
+    @Body() dto: CreateMultiSigEscrowDto,
+  ): Promise<{ escrowId: string; message: string }> {
+    const escrowId = await this.escrowContractService.createMultiSigEscrow(dto);
+    return {
+      escrowId,
+      message: `Multi-sig escrow created with ${dto.requiredSignatures}/${dto.participants.length} required signatures`,
+    };
+  }
+
+  /**
+   * Add signature to multi-sig escrow
+   */
+  @Post('escrow/signature')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Add signature to multi-sig escrow' })
+  @ApiResponse({ status: 200, description: 'Signature added' })
+  async addSignature(
+    @Body() dto: AddSignatureDto,
+  ): Promise<{ message: string }> {
+    const message = await this.escrowContractService.addSignature(dto);
+    return { message };
+  }
+
+  /**
+   * Release escrow with collected signatures
+   */
+  @Post('escrow/release-with-signatures')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Release escrow with multi-signatures' })
+  @ApiResponse({ status: 200, description: 'Escrow released' })
+  async releaseWithSignatures(
+    @Body() dto: ReleaseWithSignaturesDto,
+  ): Promise<{ transactionHash: string; message: string }> {
+    const txHash = await this.escrowContractService.releaseWithSignatures(
+      dto.escrowId,
+      dto.signatures,
+    );
+    return {
+      transactionHash: txHash,
+      message: 'Escrow released successfully',
+    };
+  }
+
+  /**
+   * Create a time-locked escrow
+   */
+  @Post('escrow/time-locked')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: 'Create a time-locked escrow' })
+  @ApiResponse({ status: 201, description: 'Time-locked escrow created' })
+  async createTimeLockedEscrow(
+    @Body() dto: CreateTimeLockedEscrowDto,
+  ): Promise<{ escrowId: string; releaseTime: number; message: string }> {
+    const escrowId =
+      await this.escrowContractService.createTimeLockedEscrow(dto);
+    return {
+      escrowId,
+      releaseTime: dto.releaseTime,
+      message: `Time-locked escrow created. Funds will be available at ${new Date(dto.releaseTime * 1000).toISOString()}`,
+    };
+  }
+
+  /**
+   * Check time-lock conditions
+   */
+  @Get('escrow/:escrowId/time-lock-status')
+  @ApiOperation({ summary: 'Check if time-lock conditions are met' })
+  @ApiResponse({ status: 200, description: 'Time-lock status' })
+  async checkTimeLockConditions(
+    @Param('escrowId') escrowId: string,
+  ): Promise<{ isUnlocked: boolean; message: string }> {
+    const isUnlocked =
+      await this.escrowContractService.checkTimeLockConditions(escrowId);
+    return {
+      isUnlocked,
+      message: isUnlocked
+        ? 'Time-lock has expired, funds can be released'
+        : 'Time-lock is still active',
+    };
+  }
+
+  /**
+   * Create a conditional escrow
+   */
+  @Post('escrow/conditional')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: 'Create a conditional escrow' })
+  @ApiResponse({ status: 201, description: 'Conditional escrow created' })
+  async createConditionalEscrow(
+    @Body() dto: CreateConditionalEscrowDto,
+  ): Promise<{ escrowId: string; conditions: number; message: string }> {
+    const escrowId =
+      await this.escrowContractService.createConditionalEscrow(dto);
+    return {
+      escrowId,
+      conditions: dto.conditions.length,
+      message: `Conditional escrow created with ${dto.conditions.length} conditions`,
+    };
+  }
+
+  /**
+   * Validate escrow conditions
+   */
+  @Get('escrow/:escrowId/conditions')
+  @ApiOperation({ summary: 'Validate all escrow conditions' })
+  @ApiResponse({ status: 200, description: 'Condition validation results' })
+  async validateConditions(@Param('escrowId') escrowId: string) {
+    return await this.escrowContractService.validateConditions(escrowId);
+  }
+
+  /**
+   * Integrate escrow with dispute
+   */
+  @Post('escrow/integrate-dispute')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Integrate escrow with dispute resolution' })
+  @ApiResponse({ status: 200, description: 'Escrow integrated with dispute' })
+  async integrateWithDispute(
+    @Body() dto: IntegrateWithDisputeDto,
+  ): Promise<{ message: string }> {
+    const message = await this.escrowContractService.integrateWithDispute(
+      dto.escrowId,
+      dto.disputeId,
+    );
+    return { message };
+  }
+
+  /**
+   * Release escrow based on dispute resolution
+   */
+  @Post('escrow/release-dispute-resolution')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Release escrow based on dispute outcome' })
+  @ApiResponse({ status: 200, description: 'Escrow released' })
+  async releaseOnDisputeResolution(
+    @Body() dto: ReleaseOnDisputeResolutionDto,
+  ): Promise<{ transactionHash: string; message: string }> {
+    const txHash = await this.escrowContractService.releaseOnDisputeResolution(
+      dto.escrowId,
+      dto.disputeOutcome,
+    );
+    return {
+      transactionHash: txHash,
+      message: `Escrow released based on dispute outcome: ${dto.disputeOutcome}`,
     };
   }
 

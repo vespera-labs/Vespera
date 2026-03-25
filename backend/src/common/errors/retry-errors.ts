@@ -20,9 +20,7 @@ export class MaxRetriesExceededError extends Error {
     public readonly attempts: number,
     public readonly cause: Error,
   ) {
-    super(
-      `Operation failed after ${attempts} attempt(s): ${cause.message}`,
-    );
+    super(`Operation failed after ${attempts} attempt(s): ${cause.message}`);
     this.name = 'MaxRetriesExceededError';
   }
 }

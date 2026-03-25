@@ -285,7 +285,8 @@ export class PaymentGatewayService {
 
         return {
           success: true,
-          refundId: response.data?.data?.id?.toString() || `refund_${Date.now()}`,
+          refundId:
+            response.data?.data?.id?.toString() || `refund_${Date.now()}`,
         };
       },
       { retryableErrors: [NetworkError, TimeoutError] },

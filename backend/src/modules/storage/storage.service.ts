@@ -190,7 +190,12 @@ export class StorageService {
     return getSignedUrl(this.s3, command, { expiresIn });
   }
 
-  @Retry({ maxAttempts: 3, delay: 500, backoff: 'exponential', backoffMultiplier: 2 })
+  @Retry({
+    maxAttempts: 3,
+    delay: 500,
+    backoff: 'exponential',
+    backoffMultiplier: 2,
+  })
   async deleteFile(key: string, ownerId: string): Promise<void> {
     const file = await this.fileMetadataRepo.findOne({
       where: { s3Key: key, ownerId },
@@ -216,7 +221,12 @@ export class StorageService {
     return file;
   }
 
-  @Retry({ maxAttempts: 3, delay: 500, backoff: 'exponential', backoffMultiplier: 2 })
+  @Retry({
+    maxAttempts: 3,
+    delay: 500,
+    backoff: 'exponential',
+    backoffMultiplier: 2,
+  })
   private async putObject(
     key: string,
     buffer: Buffer,

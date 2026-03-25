@@ -39,7 +39,13 @@ function isRetryable(
   const code = (error as NodeJS.ErrnoException).code;
   if (
     code &&
-    ['ECONNRESET', 'ETIMEDOUT', 'ENOTFOUND', 'ECONNREFUSED', 'ECONNABORTED'].includes(code)
+    [
+      'ECONNRESET',
+      'ETIMEDOUT',
+      'ENOTFOUND',
+      'ECONNREFUSED',
+      'ECONNABORTED',
+    ].includes(code)
   ) {
     return true;
   }
@@ -68,7 +74,9 @@ export function Retry(options: Partial<RetryOptions> = {}): MethodDecorator {
     propertyKey: string | symbol,
     descriptor: PropertyDescriptor,
   ) => {
-    const originalMethod = descriptor.value as (...args: unknown[]) => Promise<unknown>;
+    const originalMethod = descriptor.value as (
+      ...args: unknown[]
+    ) => Promise<unknown>;
     const methodName = String(propertyKey);
 
     descriptor.value = async function (...args: unknown[]) {

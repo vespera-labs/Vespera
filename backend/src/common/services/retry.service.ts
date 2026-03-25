@@ -117,7 +117,13 @@ export class RetryService {
     const code = (error as NodeJS.ErrnoException).code;
     if (
       code &&
-      ['ECONNRESET', 'ETIMEDOUT', 'ENOTFOUND', 'ECONNREFUSED', 'ECONNABORTED'].includes(code)
+      [
+        'ECONNRESET',
+        'ETIMEDOUT',
+        'ENOTFOUND',
+        'ECONNREFUSED',
+        'ECONNABORTED',
+      ].includes(code)
     ) {
       return true;
     }
