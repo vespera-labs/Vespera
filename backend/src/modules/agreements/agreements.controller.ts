@@ -10,7 +10,6 @@ import {
   HttpCode,
   HttpStatus,
   UseInterceptors,
-  Request,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -28,6 +27,8 @@ import { RecordPaymentDto } from './dto/record-payment.dto';
 import { TerminateAgreementDto } from './dto/terminate-agreement.dto';
 import { QueryAgreementsDto } from './dto/query-agreements.dto';
 import { AuditLogInterceptor } from '../audit/interceptors/audit-log.interceptor';
+import { AuditLog } from '../audit/decorators/audit-log.decorator';
+import { AuditAction, AuditLevel } from '../audit/entities/audit-log.entity';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 @ApiTags('Rent Agreements')
@@ -81,6 +82,12 @@ export class AgreementsController {
   @ApiResponse({
     status: 403,
     description: 'Forbidden - insufficient permissions',
+  })
+  @AuditLog({
+    action: AuditAction.CREATE,
+    entityType: 'RentAgreement',
+    level: AuditLevel.INFO,
+    includeNewValues: true,
   })
   async create(@Body() createAgreementDto: CreateAgreementDto) {
     return await this.agreementsService.create(createAgreementDto);
@@ -248,6 +255,13 @@ export class AgreementsController {
     status: 401,
     description: 'Unauthorized - JWT token required',
   })
+  @AuditLog({
+    action: AuditAction.UPDATE,
+    entityType: 'RentAgreement',
+    level: AuditLevel.INFO,
+    includeOldValues: true,
+    includeNewValues: true,
+  })
   async update(
     @Param('id') id: string,
     @Body() updateAgreementDto: UpdateAgreementDto,
@@ -289,6 +303,13 @@ export class AgreementsController {
   @ApiResponse({
     status: 401,
     description: 'Unauthorized - JWT token required',
+  })
+  @AuditLog({
+    action: AuditAction.UPDATE,
+    entityType: 'RentAgreement',
+    level: AuditLevel.WARN,
+    includeOldValues: true,
+    includeNewValues: true,
   })
   async terminate(
     @Param('id') id: string,
@@ -336,6 +357,12 @@ export class AgreementsController {
   @ApiResponse({
     status: 401,
     description: 'Unauthorized - JWT token required',
+  })
+  @AuditLog({
+    action: AuditAction.PAYMENT_COMPLETED,
+    entityType: 'Payment',
+    level: AuditLevel.INFO,
+    includeNewValues: true,
   })
   async recordPayment(
     @Param('id') id: string,
