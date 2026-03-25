@@ -145,3 +145,45 @@ pub(crate) fn appeal_cancelled(env: &Env, appeal_id: String) {
 pub(crate) fn dispute_timeout(env: &Env, agreement_id: String) {
     DisputeTimeout { agreement_id }.publish(env);
 }
+
+// ── Weighted Voting Events ─────────────────────────────────────────────────
+
+#[contractevent(topics = ["weighted_vote_cast"])]
+pub struct WeightedVoteCast {
+    #[topic]
+    pub dispute_id: String,
+    #[topic]
+    pub arbiter: Address,
+    pub weight: u32,
+}
+
+#[contractevent(topics = ["dispute_resolved_by_weight"])]
+pub struct DisputeResolvedByWeight {
+    #[topic]
+    pub dispute_id: String,
+    pub outcome: DisputeOutcome,
+    pub total_weight: u32,
+}
+
+pub(crate) fn weighted_vote_cast(env: &Env, dispute_id: String, arbiter: Address, weight: u32) {
+    WeightedVoteCast {
+        dispute_id,
+        arbiter,
+        weight,
+    }
+    .publish(env);
+}
+
+pub(crate) fn dispute_resolved_by_weight(
+    env: &Env,
+    dispute_id: String,
+    outcome: DisputeOutcome,
+    total_weight: u32,
+) {
+    DisputeResolvedByWeight {
+        dispute_id,
+        outcome,
+        total_weight,
+    }
+    .publish(env);
+}

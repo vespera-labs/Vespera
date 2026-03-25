@@ -6,6 +6,29 @@ use soroban_sdk::{
     Address, Env, String,
 };
 
+// ── Weighted Voting Helpers ────────────────────────────────────────────────
+
+/// Inject a pre-resolved dispute directly into storage so weighted-voting tests
+/// can operate without cross-contract calls.
+fn inject_open_dispute(env: &Env, client: &DisputeResolutionContractClient, dispute_id: &String) {
+    env.as_contract(&client.address, || {
+        let dispute = Dispute {
+            agreement_id: dispute_id.clone(),
+            details_hash: String::from_str(env, "QmWeightedTest"),
+            raised_at: env.ledger().timestamp(),
+            resolved: false,
+            resolved_at: None,
+            votes_favor_landlord: 0,
+            votes_favor_tenant: 0,
+            voters: soroban_sdk::Vec::new(env),
+        };
+        env.storage()
+            .persistent()
+            .set(&DataKey::Dispute(dispute_id.clone()), &dispute);
+        env.storage().persistent().set(&DataKey::Initialized, &true);
+    });
+}
+
 /// Mock chioma contract that returns a valid RentAgreement for testing.
 #[contract]
 pub struct MockChiomaContract;
@@ -812,6 +835,282 @@ fn test_dispute_timeout_auto_resolve_and_config() {
     let stored = client.get_dispute(&agreement_id).unwrap();
     assert!(stored.resolved);
     assert!(stored.resolved_at.is_some());
+}
+
+// ── Weighted Voting Tests ──────────────────────────────────────────────────
+
+#[test]
+fn test_set_arbiter_stats() {
+    let env = Env::default();
+    let client = create_contract(&env);
+    let admin = Address::generate(&env);
+    let arbiter = Address::generate(&env);
+
+    env.mock_all_auths();
+    client.initialize(&admin, &3, &Address::generate(&env));
+    client.add_arbiter(&admin, &arbiter);
+
+    let result = client.try_set_arbiter_stats(&admin, &arbiter, &80, &50);
+    assert!(result.is_ok());
+}
+
+#[test]
+#[should_panic(expected = "Error(Contract, #26)")]
+fn test_set_arbiter_stats_invalid_rating() {
+    let env = Env::default();
+    let client = create_contract(&env);
+    let admin = Address::generate(&env);
+    let arbiter = Address::generate(&env);
+
+    env.mock_all_auths();
+    client.initialize(&admin, &3, &Address::generate(&env));
+    client.add_arbiter(&admin, &arbiter);
+    // rating > 100 should fail with InvalidRating
+    client.set_arbiter_stats(&admin, &arbiter, &101, &0);
+}
+
+#[test]
+fn test_calculate_voting_weight_default_stats() {
+    let env = Env::default();
+    let client = create_contract(&env);
+    let admin = Address::generate(&env);
+    let arbiter = Address::generate(&env);
+
+    env.mock_all_auths();
+    client.initialize(&admin, &3, &Address::generate(&env));
+    client.add_arbiter(&admin, &arbiter);
+
+    // Default stats: rating=50, disputes_resolved=0
+    // rating_mult = 50×2 = 100; exp_mult = 0 → computed=0 → clamped to 1
+    let vw = client.get_voting_weight(&arbiter);
+    assert_eq!(vw.base_weight, 100);
+    assert_eq!(vw.rating_multiplier, 100); // 50×2
+    assert_eq!(vw.experience_multiplier, 0);
+    assert_eq!(vw.total_weight, 1); // minimum
+}
+
+#[test]
+fn test_calculate_voting_weight_with_stats() {
+    let env = Env::default();
+    let client = create_contract(&env);
+    let admin = Address::generate(&env);
+    let arbiter = Address::generate(&env);
+
+    env.mock_all_auths();
+    client.initialize(&admin, &3, &Address::generate(&env));
+    client.add_arbiter(&admin, &arbiter);
+
+    // rating=100, disputes_resolved=100
+    // rating_mult = 100×2 = 200; exp_mult = min(100×2,200) = 200
+    // total = 200×200/100 = 400
+    client.set_arbiter_stats(&admin, &arbiter, &100, &100);
+    let vw = client.get_voting_weight(&arbiter);
+    assert_eq!(vw.rating_multiplier, 200);
+    assert_eq!(vw.experience_multiplier, 200);
+    assert_eq!(vw.total_weight, 400);
+}
+
+#[test]
+fn test_calculate_voting_weight_experience_cap() {
+    let env = Env::default();
+    let client = create_contract(&env);
+    let admin = Address::generate(&env);
+    let arbiter = Address::generate(&env);
+
+    env.mock_all_auths();
+    client.initialize(&admin, &3, &Address::generate(&env));
+    client.add_arbiter(&admin, &arbiter);
+
+    // disputes_resolved=999 should cap exp_mult at 200
+    client.set_arbiter_stats(&admin, &arbiter, &50, &999);
+    let vw = client.get_voting_weight(&arbiter);
+    assert_eq!(vw.experience_multiplier, 200);
+    // total = 100×200/100 = 200
+    assert_eq!(vw.total_weight, 200);
+}
+
+#[test]
+fn test_vote_on_dispute_weighted_records_vote() {
+    let env = Env::default();
+    let client = create_contract(&env);
+    let admin = Address::generate(&env);
+    let arbiter = Address::generate(&env);
+    let dispute_id = String::from_str(&env, "weighted-dispute-1");
+
+    env.mock_all_auths();
+    client.initialize(&admin, &1, &Address::generate(&env));
+    client.add_arbiter(&admin, &arbiter);
+    client.set_arbiter_stats(&admin, &arbiter, &100, &100);
+    inject_open_dispute(&env, &client, &dispute_id);
+
+    let result =
+        client.try_vote_on_dispute_weighted(&arbiter, &dispute_id, &DisputeOutcome::FavorLandlord);
+    assert!(result.is_ok());
+
+    let votes = client.get_dispute_votes_weighted(&dispute_id);
+    assert_eq!(votes.len(), 1);
+    assert_eq!(votes.get(0).unwrap().weight, 400);
+    assert_eq!(votes.get(0).unwrap().vote, DisputeOutcome::FavorLandlord);
+}
+
+#[test]
+#[should_panic(expected = "Error(Contract, #9)")]
+fn test_vote_on_dispute_weighted_already_voted() {
+    let env = Env::default();
+    let client = create_contract(&env);
+    let admin = Address::generate(&env);
+    let arbiter = Address::generate(&env);
+    let dispute_id = String::from_str(&env, "weighted-dispute-dupe");
+
+    env.mock_all_auths();
+    client.initialize(&admin, &1, &Address::generate(&env));
+    client.add_arbiter(&admin, &arbiter);
+    inject_open_dispute(&env, &client, &dispute_id);
+
+    client.vote_on_dispute_weighted(&arbiter, &dispute_id, &DisputeOutcome::FavorLandlord);
+    // second vote should fail
+    client.vote_on_dispute_weighted(&arbiter, &dispute_id, &DisputeOutcome::FavorTenant);
+}
+
+#[test]
+fn test_resolve_dispute_weighted_favor_landlord() {
+    let env = Env::default();
+    let client = create_contract(&env);
+    let admin = Address::generate(&env);
+    let arbiter1 = Address::generate(&env);
+    let arbiter2 = Address::generate(&env);
+    let arbiter3 = Address::generate(&env);
+    let dispute_id = String::from_str(&env, "weighted-resolve-1");
+
+    env.mock_all_auths();
+    client.initialize(&admin, &3, &Address::generate(&env));
+    client.add_arbiter(&admin, &arbiter1);
+    client.add_arbiter(&admin, &arbiter2);
+    client.add_arbiter(&admin, &arbiter3);
+
+    // arbiter1: rating=100, disputes=100 → weight=400
+    // arbiter2: rating=100, disputes=100 → weight=400
+    // arbiter3: rating=50, disputes=50   → weight=100
+    client.set_arbiter_stats(&admin, &arbiter1, &100, &100);
+    client.set_arbiter_stats(&admin, &arbiter2, &100, &100);
+    client.set_arbiter_stats(&admin, &arbiter3, &50, &50);
+
+    inject_open_dispute(&env, &client, &dispute_id);
+
+    client.vote_on_dispute_weighted(&arbiter1, &dispute_id, &DisputeOutcome::FavorLandlord);
+    client.vote_on_dispute_weighted(&arbiter2, &dispute_id, &DisputeOutcome::FavorLandlord);
+    client.vote_on_dispute_weighted(&arbiter3, &dispute_id, &DisputeOutcome::FavorTenant);
+
+    // FavorLandlord: 800  vs  FavorTenant: 100
+    let outcome = client.resolve_dispute_weighted(&dispute_id);
+    assert_eq!(outcome, DisputeOutcome::FavorLandlord);
+
+    let dispute = client.get_dispute(&dispute_id).unwrap();
+    assert!(dispute.resolved);
+}
+
+#[test]
+fn test_resolve_dispute_weighted_favor_tenant() {
+    let env = Env::default();
+    let client = create_contract(&env);
+    let admin = Address::generate(&env);
+    let arbiter1 = Address::generate(&env);
+    let arbiter2 = Address::generate(&env);
+    let arbiter3 = Address::generate(&env);
+    let dispute_id = String::from_str(&env, "weighted-resolve-2");
+
+    env.mock_all_auths();
+    client.initialize(&admin, &3, &Address::generate(&env));
+    client.add_arbiter(&admin, &arbiter1);
+    client.add_arbiter(&admin, &arbiter2);
+    client.add_arbiter(&admin, &arbiter3);
+
+    client.set_arbiter_stats(&admin, &arbiter1, &100, &100); // weight=400
+    client.set_arbiter_stats(&admin, &arbiter2, &100, &100); // weight=400
+    client.set_arbiter_stats(&admin, &arbiter3, &50, &50); // weight=100
+
+    inject_open_dispute(&env, &client, &dispute_id);
+
+    // high-weight arbiters vote for tenant
+    client.vote_on_dispute_weighted(&arbiter1, &dispute_id, &DisputeOutcome::FavorTenant);
+    client.vote_on_dispute_weighted(&arbiter2, &dispute_id, &DisputeOutcome::FavorTenant);
+    client.vote_on_dispute_weighted(&arbiter3, &dispute_id, &DisputeOutcome::FavorLandlord);
+
+    let outcome = client.resolve_dispute_weighted(&dispute_id);
+    assert_eq!(outcome, DisputeOutcome::FavorTenant);
+}
+
+#[test]
+fn test_resolve_dispute_weighted_tie_breaking() {
+    let env = Env::default();
+    let client = create_contract(&env);
+    let admin = Address::generate(&env);
+    let arbiter1 = Address::generate(&env);
+    let arbiter2 = Address::generate(&env);
+    let dispute_id = String::from_str(&env, "weighted-tie-1");
+
+    env.mock_all_auths();
+    client.initialize(&admin, &2, &Address::generate(&env));
+    client.add_arbiter(&admin, &arbiter1);
+    client.add_arbiter(&admin, &arbiter2);
+
+    // equal weights so both sides tie
+    client.set_arbiter_stats(&admin, &arbiter1, &100, &100); // weight=400
+    client.set_arbiter_stats(&admin, &arbiter2, &100, &100); // weight=400
+
+    inject_open_dispute(&env, &client, &dispute_id);
+
+    // first vote → FavorLandlord (should win on tie)
+    env.ledger().with_mut(|l| l.timestamp = 1000);
+    client.vote_on_dispute_weighted(&arbiter1, &dispute_id, &DisputeOutcome::FavorLandlord);
+
+    env.ledger().with_mut(|l| l.timestamp = 2000);
+    client.vote_on_dispute_weighted(&arbiter2, &dispute_id, &DisputeOutcome::FavorTenant);
+
+    // 400 vs 400 → tie broken by first vote → FavorLandlord
+    let outcome = client.resolve_dispute_weighted(&dispute_id);
+    assert_eq!(outcome, DisputeOutcome::FavorLandlord);
+}
+
+#[test]
+fn test_resolve_dispute_weighted_insufficient_votes() {
+    let env = Env::default();
+    let client = create_contract(&env);
+    let admin = Address::generate(&env);
+    let arbiter1 = Address::generate(&env);
+    let dispute_id = String::from_str(&env, "weighted-insuf-1");
+
+    env.mock_all_auths();
+    client.initialize(&admin, &3, &Address::generate(&env));
+    client.add_arbiter(&admin, &arbiter1);
+    inject_open_dispute(&env, &client, &dispute_id);
+
+    client.vote_on_dispute_weighted(&arbiter1, &dispute_id, &DisputeOutcome::FavorLandlord);
+
+    // only 1 voter, need 3
+    let result = client.try_resolve_dispute_weighted(&dispute_id);
+    assert_eq!(result, Err(Ok(DisputeError::InsufficientVotes)));
+}
+
+#[test]
+fn test_weight_update_reflected_in_new_votes() {
+    let env = Env::default();
+    let client = create_contract(&env);
+    let admin = Address::generate(&env);
+    let arbiter = Address::generate(&env);
+
+    env.mock_all_auths();
+    client.initialize(&admin, &1, &Address::generate(&env));
+    client.add_arbiter(&admin, &arbiter);
+
+    // First check: default stats
+    let vw1 = client.get_voting_weight(&arbiter);
+    assert_eq!(vw1.total_weight, 1);
+
+    // Admin updates the arbiter's stats
+    client.set_arbiter_stats(&admin, &arbiter, &100, &100);
+    let vw2 = client.get_voting_weight(&arbiter);
+    assert_eq!(vw2.total_weight, 400);
 }
 
 #[test]

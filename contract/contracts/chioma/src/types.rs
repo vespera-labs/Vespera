@@ -1,4 +1,4 @@
-use soroban_sdk::{contracttype, Address, Map, String, Vec};
+use soroban_sdk::{contracttype, Address, Bytes, String, Vec};
 
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -10,6 +10,54 @@ pub enum AgreementStatus {
     Cancelled,
     Terminated,
     Disputed,
+}
+
+// ─── Multi-Sig Types ──────────────────────────────────────────────────────────
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct MultiSigConfig {
+    pub admins: Vec<Address>,
+    pub required_signatures: u32,
+    pub total_admins: u32,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum ActionType {
+    Pause,
+    Unpause,
+    UpdateConfig,
+    UpdateRate,
+    AddAdmin,
+    RemoveAdmin,
+    UpdateRequiredSignatures,
+    EmergencyAction,
+    SetRateLimit,
+    AddToken,
+    RemoveToken,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct AdminProposal {
+    pub id: String,
+    pub proposer: Address,
+    pub action_type: ActionType,
+    pub target: Option<Address>,
+    pub data: Bytes,
+    pub approvals: Vec<Address>,
+    pub approval_count: u32,
+    pub executed: bool,
+    pub created_at: u64,
+    pub expiry: u64,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Attribute {
+    pub trait_type: String,
+    pub value: String,
 }
 
 #[contracttype]
@@ -30,7 +78,8 @@ pub struct RentAgreement {
     pub signed_at: Option<u64>,
     pub payment_token: Address,
     pub next_payment_due: u64,
-    pub payment_history: Map<u32, PaymentSplit>,
+    pub metadata_uri: String,
+    pub attributes: Vec<Attribute>,
 }
 
 #[contracttype]
@@ -180,4 +229,55 @@ pub struct RoyaltyPayment {
     pub amount: i128,
     pub royalty_amount: i128,
     pub timestamp: u64,
+}
+
+// ─── Rate Limiting Types ──────────────────────────────────────────────────────
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RateLimitConfig {
+    pub max_calls_per_block: u32,
+    pub max_calls_per_user_per_day: u32,
+    pub cooldown_blocks: u32,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct UserCallCount {
+    pub user: Address,
+    pub call_count: u32,
+    pub last_call_block: u64,
+    pub daily_count: u32,
+    pub daily_reset_block: u64,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct AgreementTerms {
+    pub monthly_rent: i128,
+    pub security_deposit: i128,
+    pub start_date: u64,
+    pub end_date: u64,
+    pub agent_commission_rate: u32,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum RateLimitReason {
+    BlockLimitExceeded,
+    DailyLimitExceeded,
+    CooldownNotMet,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct AgreementInput {
+    pub agreement_id: String,
+    pub landlord: Address,
+    pub tenant: Address,
+    pub agent: Option<Address>,
+    pub terms: AgreementTerms,
+    pub payment_token: Address,
+    pub metadata_uri: String,
+    pub attributes: Vec<Attribute>,
 }

@@ -32,4 +32,12 @@ pub enum EscrowError {
     TimeoutNotReached = 12,
     /// Invalid timeout configuration value
     InvalidTimeoutConfig = 13,
+    /// Invalid release amount (e.g., exceeds escrow balance, zero or negative)
+    InvalidAmount = 14,
+    /// Empty reason string for release
+    EmptyReleaseReason = 15,
+    /// Rate limit exceeded for this operation
+    RateLimitExceeded = 16,
+    /// Cooldown period not met
+    CooldownNotMet = 17,
 }

@@ -2,7 +2,7 @@
 //! Implements single-responsibility getter/setter helpers.
 use soroban_sdk::{Address, BytesN, Env, Vec};
 
-use crate::types::{DataKey, Escrow, ReleaseApproval, TimeoutConfig};
+use crate::types::{DataKey, Escrow, ReleaseApproval, ReleaseRecord, TimeoutConfig};
 
 /// Escrow storage management.
 pub struct EscrowStorage;
@@ -149,5 +149,28 @@ impl EscrowStorage {
         env.storage()
             .instance()
             .set(&DataKey::TimeoutConfig, config);
+    }
+
+    /// Retrieve release history for an escrow.
+    /// Returns empty Vec if no releases have been made yet.
+    pub fn get_release_history(env: &Env, escrow_id: &BytesN<32>) -> Vec<ReleaseRecord> {
+        let key = DataKey::ReleaseHistory(escrow_id.clone());
+        match env
+            .storage()
+            .persistent()
+            .get::<_, Vec<ReleaseRecord>>(&key)
+        {
+            Some(history) => history,
+            None => Vec::new(env),
+        }
+    }
+
+    /// Add a new release record to the history.
+    /// Appends to existing release history list.
+    pub fn add_release_record(env: &Env, escrow_id: &BytesN<32>, record: ReleaseRecord) {
+        let mut history = Self::get_release_history(env, escrow_id);
+        history.push_back(record);
+        let key = DataKey::ReleaseHistory(escrow_id.clone());
+        env.storage().persistent().set(&key, &history);
     }
 }

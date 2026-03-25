@@ -13,6 +13,16 @@ The interactive map feature uses **Leaflet with OpenStreetMap** - **no API key r
 
 See [LEAFLET_SETUP.md](./LEAFLET_SETUP.md) for more details.
 
+### Property Listing Wizard
+
+The landlord listing flow is available at `/landlords/properties/add` with:
+
+- 8 guided steps (basic info through preview/publish)
+- progress indicator and listing completeness score
+- auto-save + manual save draft support
+- resume-later behavior through server-backed draft records
+- preview-and-publish action for completed listings
+
 ### Running the Development Server
 
 First, run the development server:
