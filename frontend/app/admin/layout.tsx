@@ -14,9 +14,23 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     '/admin/audit-logs': 'Audit Logs',
     '/admin/kyc': 'Pending KYC Verifications',
     '/admin/kyc/rejected': 'Rejected KYC Verifications',
+    '/admin/refunds': 'Refunds',
+    '/admin/users': 'Users',
   };
 
-  const pageTitle = pageTitleMap[pathname] ?? 'Admin';
+  let pageTitle = pageTitleMap[pathname] ?? 'Admin';
+  if (
+    /^\/admin\/refunds\/.+/.test(pathname) &&
+    pathname !== '/admin/refunds'
+  ) {
+    pageTitle = 'Refund Detail';
+  }
+  if (
+    /^\/admin\/users\/.+/.test(pathname) &&
+    pathname !== '/admin/users'
+  ) {
+    pageTitle = 'User Detail';
+  }
 
   return (
     <ProtectedRoute>
