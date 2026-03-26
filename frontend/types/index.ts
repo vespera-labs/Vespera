@@ -222,6 +222,29 @@ export interface KycVerification {
   documents?: KycDocument[];
 }
 
+// RBAC Types (Admin)
+export interface Permission {
+  id: string;
+  name: string;
+  description?: string | null;
+  resource: string;
+  action: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Role {
+  id: string;
+  name: string;
+  description?: string | null;
+  systemRole?: string | null;
+  isActive: boolean;
+  permissions: Permission[];
+  createdAt: string;
+  updatedAt: string;
+}
+
 // API Response Types
 export interface ApiResponse<T> {
   data: T;

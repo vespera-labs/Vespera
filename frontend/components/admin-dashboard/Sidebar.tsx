@@ -1,26 +1,18 @@
 'use client';
 
-import SidebarItem from '../landlord-dashboard/SidebarItem';
 import Image from 'next/image';
 import { FaArrowRightFromBracket } from 'react-icons/fa6';
 import { usePathname } from 'next/navigation';
 import Logo from '@/components/Logo';
-import { MdSecurity } from 'react-icons/md';
-import { ShieldCheck, ShieldX } from 'lucide-react';
-
-/** Nav entries for routes that exist under `/app/admin` today. */
-const adminNavItems = [
-  { icon: MdSecurity, label: 'Audit Logs', href: '/admin/audit-logs' },
-  { icon: ShieldCheck, label: 'Pending KYC', href: '/admin/kyc' },
-  { icon: ShieldX, label: 'Rejected KYC', href: '/admin/kyc/rejected' },
-];
-
-export function getAdminNavItems() {
-  return adminNavItems;
-}
+import { useAuth } from '@/store/authStore';
+import { getAdminNavItems } from './navigation';
+import Link from 'next/link';
 
 export default function AdminSidebar() {
   const pathname = usePathname();
+  const { user } = useAuth();
+  const navItems = getAdminNavItems(user?.role);
+  const fullName = [user?.firstName, user?.lastName].filter(Boolean).join(' ');
 
   return (
     <aside className="hidden md:flex md:flex-col md:w-20 lg:w-56 h-screen backdrop-blur-xl bg-slate-900/50 border-r border-white/10">
@@ -32,19 +24,32 @@ export default function AdminSidebar() {
       />
 
       <nav className="flex-1">
-        {adminNavItems.map((item) => {
+        {navItems.map((item) => {
           const isActive = pathname.startsWith(item.href);
 
           return (
-            <SidebarItem
+            <Link
               key={item.href}
-              icon={item.icon}
-              label={item.label}
               href={item.href}
-              isActive={isActive}
-            />
+              className={`flex gap-3 items-center px-6 py-3 cursor-pointer transition-all duration-200
+                ${
+                  isActive
+                    ? 'bg-white/10 text-white lg:border-l-4 lg:border-blue-500 shadow-lg'
+                    : 'text-blue-200/60 hover:bg-white/5 hover:text-white'
+                }
+                md:flex-col gap-3 md:py-4 lg:flex-row lg:items-center lg:px-6
+              `}
+            >
+              <item.icon className="w-5 h-5 md:w-6 md:h-6 mx-auto md:mx-0" />
+              <span className="hidden lg:block">{item.label}</span>
+            </Link>
           );
         })}
+        {navItems.length === 0 && (
+          <p className="px-6 py-4 text-xs text-blue-200/60">
+            No admin pages are available for your role.
+          </p>
+        )}
       </nav>
 
       <div className="hidden lg:block p-4 border-t border-white/10">
@@ -62,9 +67,11 @@ export default function AdminSidebar() {
 
           <div className="flex flex-col items-start overflow-hidden">
             <span className="text-sm font-semibold text-white truncate w-full">
-              Admin
+              {fullName || user?.email || 'Admin User'}
             </span>
-            <span className="text-xs text-blue-300/60">Administrator</span>
+            <span className="text-xs text-blue-300/60 capitalize">
+              {user?.role || 'admin'}
+            </span>
           </div>
 
           <FaArrowRightFromBracket className="h-5 w-5 text-blue-300/40 group-hover:text-blue-300 transition-colors ml-auto" />

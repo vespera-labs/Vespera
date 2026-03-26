@@ -39,3 +39,10 @@ export {
   useApproveKycVerification,
   useRejectKycVerification,
 } from './use-kyc-verifications';
+
+export {
+  useAdminRoles,
+  useAdminPermissions,
+  useAssignUserRole,
+  useUpdateRolePermissions,
+} from './use-admin-roles';

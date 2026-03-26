@@ -79,6 +79,13 @@ const DEFAULT_FILTERS: PaymentFilters = {
   endDate: '',
 };
 
+function getDateRangeFromFilters(filters: PaymentFilters): DateRange {
+  return {
+    startDate: filters.startDate,
+    endDate: filters.endDate,
+  };
+}
+
 // Mock data generators
 const generateMockMetrics = (): PaymentMetrics => {
   const baseVolume = 125000 + Math.random() * 50000;
@@ -668,7 +675,7 @@ export default function PaymentMonitoring() {
       pendingRefunds,
       dailyVolume: dailyVolumeData,
       monthlyTrends: monthlyTrendsData,
-      filters: dateRange,
+      filters: getDateRangeFromFilters(filters),
       exportedAt: new Date().toISOString(),
     };
 
