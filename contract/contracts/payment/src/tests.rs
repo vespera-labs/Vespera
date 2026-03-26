@@ -545,7 +545,7 @@ fn test_recurring_payments_retry_logic() {
 // ─── Late Fee Tests ───────────────────────────────────────────────────────────
 
 use crate::late_fee::compute_fee;
-use crate::types::{LateFeeConfig, LateFeeRecord};
+use crate::types::LateFeeConfig;
 
 fn make_late_fee_config(
     env: &Env,
@@ -564,6 +564,7 @@ fn make_late_fee_config(
     }
 }
 
+#[allow(dead_code)]
 fn seed_late_fee_config(
     env: &Env,
     client: &crate::PaymentContractClient<'_>,
