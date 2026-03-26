@@ -1,101 +1,232 @@
 'use client';
 
 import React, { useState } from 'react';
-// Using relative path to ensure Vercel build compatibility
-import { AuditLogList } from '../../components/AuditLogList';
-import { Search, Download, X, info } from 'lucide-react';
+import {
+  ShieldCheck,
+  Download,
+  Activity,
+  AlertCircle,
+  Users,
+  TrendingUp,
+  RotateCcw,
+} from 'lucide-react';
+import { useAuditLogs, useAuditStats } from '@/lib/query/hooks/use-audit-logs';
+import {
+  AuditLogFilters,
+  type AuditLogFilterState,
+} from '@/components/admin/AuditLogFilters';
+import { AuditLogList } from '@/components/admin/AuditLogList';
+import { AuditLogDetailModal } from '@/components/admin/AuditLogDetailModal';
+import type { AuditLog } from '@/types';
+import toast from 'react-hot-toast';
 
 export default function AuditLogsPage() {
-  const [selectedLog, setSelectedLog] = useState<any>(null);
+  const [filters, setFilters] = useState<AuditLogFilterState>({
+    page: 1,
+    limit: 10,
+    search: '',
+    action: '',
+    startDate: '',
+    performedBy: '',
+  });
 
-  const mockLogs = [
-    { id: 1, timestamp: '2026-03-24 14:30:01', user: 'admin@chioma.io', action: 'KYC_APPROVE', resource: 'User_882', ip: '192.168.1.1', details: 'Approved identity verification for new tenant.' },
-    { id: 2, timestamp: '2026-03-24 12:15:22', user: 'system_bot', action: 'TOKEN_MINT', resource: 'Asset_991', ip: '10.0.0.45', details: 'Generated smart contract tokens for Property Block B.' },
-  ];
+  const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null);
+
+  const { data: logs, isLoading, refetch } = useAuditLogs(filters);
+  const { data: stats } = useAuditStats();
+
+  const handleClearFilters = () => {
+    setFilters({
+      page: 1,
+      limit: 10,
+      search: '',
+      action: '',
+      startDate: '',
+      performedBy: '',
+    });
+  };
+
+  const handleExportCSV = () => {
+    if (!logs?.data || logs.data.length === 0) {
+      toast.error('No logs available to export');
+      return;
+    }
+
+    const headers = [
+      'Action',
+      'Entity',
+      'Entity ID',
+      'User ID',
+      'IP Address',
+      'Date',
+    ];
+    const csvContent = [
+      headers.join(','),
+      ...logs.data.map((log) =>
+        [
+          log.action,
+          log.entity,
+          log.entityId,
+          log.userId,
+          log.ipAddress || 'Internal',
+          log.createdAt,
+        ].join(','),
+      ),
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute(
+      'download',
+      `audit-logs-${new Date().toISOString().split('T')[0]}.csv`,
+    );
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success('Audit logs exported successfully');
+  };
 
   return (
-    <div className="p-8 max-w-7xl mx-auto min-h-screen pt-24 bg-slate-50 dark:bg-slate-950">
-      {/* HEADER SECTION */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-        <div>
-          <h1 className="text-3xl font-black text-slate-900 dark:text-white">Audit Log Viewer</h1>
-          <p className="text-slate-500">Compliance monitoring and system activity trails.</p>
-        </div>
-        <button className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2.5 rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-500/20">
-          <Download size={18} /> Export CSV
-        </button>
-      </div>
-
-      {/* FILTERS SECTION */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <div className="md:col-span-2 relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-          <input 
-            type="text" 
-            placeholder="Search by user, action, or resource..." 
-            className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white transition-all"
-          />
-        </div>
-        <select className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500">
-          <option>All Activity Types</option>
-          <option>Security</option>
-          <option>Contract</option>
-          <option>User Management</option>
-        </select>
-      </div>
-
-      {/* TABLE COMPONENT */}
-      <AuditLogList logs={mockLogs} onViewDetails={setSelectedLog} />
-
-      {/* DETAIL MODAL - Renders when a log is selected */}
-      {selectedLog && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
-            <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-800/50">
-              <h3 className="text-xl font-bold text-slate-900 dark:text-white">Event Details</h3>
-              <button 
-                onClick={() => setSelectedLog(null)}
-                className="p-2 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-colors"
-              >
-                <X size={20} className="text-slate-500" />
-              </button>
-            </div>
-            
-            <div className="p-6 space-y-6">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-[10px] uppercase tracking-widest font-bold text-slate-400">Action</label>
-                  <p className="font-mono text-sm font-bold text-indigo-600 dark:text-indigo-400">{selectedLog.action}</p>
-                </div>
-                <div>
-                  <label className="text-[10px] uppercase tracking-widest font-bold text-slate-400">Resource</label>
-                  <p className="font-mono text-sm dark:text-slate-200">{selectedLog.resource}</p>
-                </div>
-              </div>
-
-              <div>
-                <label className="text-[10px] uppercase tracking-widest font-bold text-slate-400">Metadata</label>
-                <div className="mt-2 p-4 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-100 dark:border-slate-800">
-                  <p className="text-sm text-slate-600 dark:text-slate-400 italic">"{selectedLog.details}"</p>
-                  <div className="mt-3 pt-3 border-t border-slate-200 dark:border-slate-800 flex justify-between text-[11px] font-mono text-slate-400">
-                    <span>IP: {selectedLog.ip}</span>
-                    <span>ID: {selectedLog.id}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="p-4 bg-slate-50 dark:bg-slate-800/30 flex justify-end">
-              <button 
-                onClick={() => setSelectedLog(null)}
-                className="px-6 py-2 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-lg font-bold text-sm"
-              >
-                Close
-              </button>
-            </div>
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-blue-950 to-slate-950 p-4 sm:p-6 lg:p-8 space-y-8">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <div className="w-14 h-14 bg-white/5 text-blue-400 rounded-3xl flex items-center justify-center border border-white/10 shadow-lg">
+            <ShieldCheck size={32} />
+          </div>
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight text-white">
+              System Audit Logs
+            </h1>
+            <p className="text-blue-200/60 mt-1">
+              Track all system activities and security events across the
+              protocol.
+            </p>
           </div>
         </div>
-      )}
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => refetch()}
+            className="p-3 bg-white/5 hover:bg-white/10 text-white rounded-2xl border border-white/10 transition-all group"
+            title="Refresh Logs"
+          >
+            <RotateCcw
+              size={20}
+              className="group-hover:rotate-180 transition-transform duration-500"
+            />
+          </button>
+          <button
+            onClick={handleExportCSV}
+            className="flex items-center gap-2 px-6 py-3 bg-white/5 hover:bg-white/10 text-white font-bold rounded-2xl border border-white/10 transition-all shadow-lg"
+          >
+            <Download size={20} />
+            Export CSV
+          </button>
+        </div>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+        <StatCard
+          title="Total Events"
+          value={String(stats?.totalLogs ?? '1,284')}
+          trend="+12%"
+          icon={<Activity size={24} />}
+          color="blue"
+        />
+        <StatCard
+          title="Alerts (24h)"
+          value={String(stats?.errorLogs ?? '3')}
+          trend="Critical"
+          icon={<AlertCircle size={24} />}
+          color="rose"
+        />
+        <StatCard
+          title="Active Admins"
+          value="5"
+          trend="Online"
+          icon={<Users size={24} />}
+          color="emerald"
+        />
+        <StatCard
+          title="Daily Activity"
+          value={String(stats?.dailyAverage ?? '156')}
+          trend="Stable"
+          icon={<TrendingUp size={24} />}
+          color="purple"
+        />
+      </div>
+
+      {/* Filters */}
+      <AuditLogFilters
+        filters={filters}
+        setFilters={setFilters}
+        onClear={handleClearFilters}
+      />
+
+      {/* Table */}
+      <AuditLogList
+        logs={logs}
+        isLoading={isLoading}
+        onViewDetails={setSelectedLog}
+        page={filters.page}
+        setPage={(page) => setFilters({ ...filters, page })}
+      />
+
+      {/* Detail Modal */}
+      <AuditLogDetailModal
+        log={selectedLog}
+        onClose={() => setSelectedLog(null)}
+      />
+    </div>
+  );
+}
+
+function StatCard({
+  title,
+  value,
+  trend,
+  icon,
+  color,
+}: {
+  title: string;
+  value: string | number;
+  trend: string;
+  icon: React.ReactNode;
+  color: string;
+}) {
+  const colorMap: Record<string, string> = {
+    blue: 'text-blue-400 bg-blue-500/10 border-blue-500/20',
+    rose: 'text-rose-400 bg-rose-500/10 border-rose-500/20',
+    emerald: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
+    purple: 'text-purple-400 bg-purple-500/10 border-purple-500/20',
+  };
+
+  return (
+    <div className="bg-white/5 backdrop-blur-sm rounded-3xl p-6 border border-white/10 flex flex-col justify-between group hover:border-white/20 transition-all duration-300">
+      <div className="flex items-start justify-between">
+        <div
+          className={`w-12 h-12 rounded-2xl flex items-center justify-center border transition-transform group-hover:scale-110 ${colorMap[color]}`}
+        >
+          {icon}
+        </div>
+        <span
+          className={`inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider border ${colorMap[color]}`}
+        >
+          {trend}
+        </span>
+      </div>
+      <div className="mt-4">
+        <p className="text-sm font-medium text-blue-200/60 uppercase tracking-wider">
+          {title}
+        </p>
+        <h3 className="text-3xl font-bold tracking-tight text-white mt-1">
+          {value}
+        </h3>
+      </div>
     </div>
   );
 }

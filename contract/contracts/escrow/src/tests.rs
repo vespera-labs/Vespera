@@ -6,7 +6,7 @@ use soroban_sdk::token::StellarAssetClient as TokenAdminClient;
 use soroban_sdk::{Address, Env};
 
 use crate::escrow_impl::{EscrowContract, EscrowContractClient};
-use crate::types::EscrowStatus;
+use crate::types::{EscrowStatus, TimeoutConfig};
 
 fn setup_test(env: &Env) -> (EscrowContractClient<'_>, Address, Address, Address, Address) {
     let contract_id = env.register(EscrowContract, ());
@@ -243,4 +243,441 @@ fn test_approval_count_tracks_per_target() {
 
     let token_client = TokenClient::new(&env, &token_address);
     assert_eq!(token_client.balance(&beneficiary), amount);
+}
+
+#[test]
+fn test_release_escrow_on_timeout_refunds_depositor() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let (client, depositor, beneficiary, arbiter, token_address) = setup_test(&env);
+    let amount = 1000i128;
+
+    let cfg = TimeoutConfig {
+        escrow_timeout_days: 1,
+        dispute_timeout_days: 30,
+        payment_timeout_days: 7,
+    };
+    client.set_timeout_config(&depositor, &cfg);
+
+    let escrow_id = client.create(&depositor, &beneficiary, &arbiter, &amount, &token_address);
+    let token_admin = TokenAdminClient::new(&env, &token_address);
+    token_admin.mint(&depositor, &amount);
+    client.fund_escrow(&escrow_id, &depositor);
+
+    env.ledger().with_mut(|li| li.timestamp += 2 * 86_400);
+    client.release_escrow_on_timeout(&escrow_id);
+
+    let escrow = client.get_escrow(&escrow_id);
+    assert_eq!(escrow.status, EscrowStatus::Refunded);
+
+    let token_client = TokenClient::new(&env, &token_address);
+    assert_eq!(token_client.balance(&depositor), amount);
+    assert_eq!(token_client.balance(&client.address), 0);
+}
+
+#[test]
+fn test_release_escrow_on_timeout_before_deadline_fails() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let (client, depositor, beneficiary, arbiter, token_address) = setup_test(&env);
+    let amount = 1000i128;
+
+    let cfg = TimeoutConfig {
+        escrow_timeout_days: 2,
+        dispute_timeout_days: 30,
+        payment_timeout_days: 7,
+    };
+    client.set_timeout_config(&depositor, &cfg);
+
+    let escrow_id = client.create(&depositor, &beneficiary, &arbiter, &amount, &token_address);
+    let token_admin = TokenAdminClient::new(&env, &token_address);
+    token_admin.mint(&depositor, &amount);
+    client.fund_escrow(&escrow_id, &depositor);
+
+    env.ledger().with_mut(|li| li.timestamp += 86_400);
+    let result = client.try_release_escrow_on_timeout(&escrow_id);
+    assert!(result.is_err());
+}
+
+#[test]
+fn test_resolve_dispute_on_timeout_refunds_depositor() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let (client, depositor, beneficiary, arbiter, token_address) = setup_test(&env);
+    let amount = 1000i128;
+
+    let escrow_id = client.create(&depositor, &beneficiary, &arbiter, &amount, &token_address);
+    let token_admin = TokenAdminClient::new(&env, &token_address);
+    token_admin.mint(&depositor, &amount);
+    client.fund_escrow(&escrow_id, &depositor);
+    client.initiate_dispute(
+        &escrow_id,
+        &beneficiary,
+        &soroban_sdk::String::from_str(&env, "timeout dispute"),
+    );
+
+    let cfg = TimeoutConfig {
+        escrow_timeout_days: 14,
+        dispute_timeout_days: 1,
+        payment_timeout_days: 7,
+    };
+    client.set_timeout_config(&depositor, &cfg);
+    env.ledger().with_mut(|li| li.timestamp += 2 * 86_400);
+
+    client.resolve_dispute_on_timeout(&escrow_id);
+    let escrow = client.get_escrow(&escrow_id);
+    assert_eq!(escrow.status, EscrowStatus::Refunded);
+
+    let token_client = TokenClient::new(&env, &token_address);
+    assert_eq!(token_client.balance(&depositor), amount);
+    assert_eq!(token_client.balance(&client.address), 0);
+}
+
+#[test]
+fn test_partial_release_success() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let (client, depositor, beneficiary, arbiter, token_address) = setup_test(&env);
+    let amount = 1000i128;
+    let partial_amount = 300i128;
+
+    // Create and fund escrow
+    let escrow_id = client.create(&depositor, &beneficiary, &arbiter, &amount, &token_address);
+    let token_admin = TokenAdminClient::new(&env, &token_address);
+    token_admin.mint(&depositor, &amount);
+    client.fund_escrow(&escrow_id, &depositor);
+
+    // Get approvals for partial release to beneficiary (2-of-3)
+    client.approve_partial_release(&escrow_id, &depositor, &beneficiary);
+    client.approve_partial_release(&escrow_id, &arbiter, &beneficiary);
+
+    let reason = soroban_sdk::String::from_str(&env, "Partial payment for services");
+
+    // Execute partial release
+    client.release_escrow_partial(&escrow_id, &partial_amount, &beneficiary, &reason);
+
+    // Verify escrow amount updated
+    let escrow = client.get_escrow(&escrow_id);
+    assert_eq!(escrow.amount, amount - partial_amount);
+    assert_eq!(escrow.status, EscrowStatus::Funded); // Still funded
+
+    // Verify token transfer
+    let token_client = TokenClient::new(&env, &token_address);
+    assert_eq!(token_client.balance(&beneficiary), partial_amount);
+    assert_eq!(
+        token_client.balance(&client.address),
+        amount - partial_amount
+    );
+
+    // Verify release history
+    let history = client.get_release_history(&escrow_id);
+    assert_eq!(history.len(), 1);
+    assert_eq!(history.get(0).unwrap().amount, partial_amount);
+    assert_eq!(history.get(0).unwrap().recipient, beneficiary);
+}
+
+#[test]
+fn test_partial_release_insufficient_approvals() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let (client, depositor, beneficiary, arbiter, token_address) = setup_test(&env);
+    let amount = 1000i128;
+    let partial_amount = 300i128;
+
+    // Create and fund escrow
+    let escrow_id = client.create(&depositor, &beneficiary, &arbiter, &amount, &token_address);
+    let token_admin = TokenAdminClient::new(&env, &token_address);
+    token_admin.mint(&depositor, &amount);
+    client.fund_escrow(&escrow_id, &depositor);
+
+    // Only one approval
+    client.approve_partial_release(&escrow_id, &depositor, &beneficiary);
+
+    let reason = soroban_sdk::String::from_str(&env, "Partial payment");
+
+    // Should fail with NotAuthorized
+    let result =
+        client.try_release_escrow_partial(&escrow_id, &partial_amount, &beneficiary, &reason);
+    assert!(result.is_err());
+}
+
+#[test]
+fn test_partial_release_exceeds_balance() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let (client, depositor, beneficiary, arbiter, token_address) = setup_test(&env);
+    let amount = 1000i128;
+    let excessive_amount = 1500i128;
+
+    // Create and fund escrow
+    let escrow_id = client.create(&depositor, &beneficiary, &arbiter, &amount, &token_address);
+    let token_admin = TokenAdminClient::new(&env, &token_address);
+    token_admin.mint(&depositor, &amount);
+    client.fund_escrow(&escrow_id, &depositor);
+
+    // Get approvals
+    client.approve_partial_release(&escrow_id, &depositor, &beneficiary);
+    client.approve_partial_release(&escrow_id, &arbiter, &beneficiary);
+
+    let reason = soroban_sdk::String::from_str(&env, "Excessive payment");
+
+    // Should fail with InsufficientFunds
+    let result =
+        client.try_release_escrow_partial(&escrow_id, &excessive_amount, &beneficiary, &reason);
+    assert!(result.is_err());
+}
+
+#[test]
+fn test_multiple_partial_releases() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let (client, depositor, beneficiary, arbiter, token_address) = setup_test(&env);
+    let amount = 1000i128;
+
+    // Create and fund escrow
+    let escrow_id = client.create(&depositor, &beneficiary, &arbiter, &amount, &token_address);
+    let token_admin = TokenAdminClient::new(&env, &token_address);
+    token_admin.mint(&depositor, &amount);
+    client.fund_escrow(&escrow_id, &depositor);
+
+    // First partial release
+    client.approve_partial_release(&escrow_id, &depositor, &beneficiary);
+    client.approve_partial_release(&escrow_id, &arbiter, &beneficiary);
+    client.release_escrow_partial(
+        &escrow_id,
+        &300i128,
+        &beneficiary,
+        &soroban_sdk::String::from_str(&env, "First payment"),
+    );
+
+    // Second partial release
+    client.approve_partial_release(&escrow_id, &depositor, &beneficiary);
+    client.approve_partial_release(&escrow_id, &arbiter, &beneficiary);
+    client.release_escrow_partial(
+        &escrow_id,
+        &200i128,
+        &beneficiary,
+        &soroban_sdk::String::from_str(&env, "Second payment"),
+    );
+
+    // Verify escrow balance
+    let escrow = client.get_escrow(&escrow_id);
+    assert_eq!(escrow.amount, 500i128);
+
+    // Verify token balances
+    let token_client = TokenClient::new(&env, &token_address);
+    assert_eq!(token_client.balance(&beneficiary), 500i128);
+    assert_eq!(token_client.balance(&client.address), 500i128);
+
+    // Verify release history
+    let history = client.get_release_history(&escrow_id);
+    assert_eq!(history.len(), 2);
+}
+
+#[test]
+fn test_damage_deduction_success() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let (client, depositor, beneficiary, arbiter, token_address) = setup_test(&env);
+    let amount = 1000i128;
+    let damage_amount = 200i128;
+
+    // Create and fund escrow
+    let escrow_id = client.create(&depositor, &beneficiary, &arbiter, &amount, &token_address);
+    let token_admin = TokenAdminClient::new(&env, &token_address);
+    token_admin.mint(&depositor, &amount);
+    client.fund_escrow(&escrow_id, &depositor);
+
+    // Get approvals for release to depositor (2-of-3)
+    client.approve_partial_release(&escrow_id, &beneficiary, &depositor);
+    client.approve_partial_release(&escrow_id, &arbiter, &depositor);
+
+    let reason = soroban_sdk::String::from_str(&env, "Damaged furniture");
+
+    // Execute damage deduction
+    client.release_with_deduction(&escrow_id, &damage_amount, &reason);
+
+    // Verify escrow is fully released
+    let escrow = client.get_escrow(&escrow_id);
+    assert_eq!(escrow.status, EscrowStatus::Released);
+
+    // Verify token transfers
+    let token_client = TokenClient::new(&env, &token_address);
+    assert_eq!(token_client.balance(&beneficiary), damage_amount); // Damage to landlord
+    assert_eq!(token_client.balance(&depositor), amount - damage_amount); // Refund to tenant
+    assert_eq!(token_client.balance(&client.address), 0); // Contract empty
+
+    // Verify release history
+    let history = client.get_release_history(&escrow_id);
+    assert_eq!(history.len(), 2); // Two records: damage and refund
+}
+
+#[test]
+fn test_damage_deduction_full_amount() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let (client, depositor, beneficiary, arbiter, token_address) = setup_test(&env);
+    let amount = 1000i128;
+    let damage_amount = 1000i128; // Full damage
+
+    // Create and fund escrow
+    let escrow_id = client.create(&depositor, &beneficiary, &arbiter, &amount, &token_address);
+    let token_admin = TokenAdminClient::new(&env, &token_address);
+    token_admin.mint(&depositor, &amount);
+    client.fund_escrow(&escrow_id, &depositor);
+
+    // Get approvals
+    client.approve_partial_release(&escrow_id, &beneficiary, &depositor);
+    client.approve_partial_release(&escrow_id, &arbiter, &depositor);
+
+    let reason = soroban_sdk::String::from_str(&env, "Total property damage");
+
+    // Execute full damage deduction
+    client.release_with_deduction(&escrow_id, &damage_amount, &reason);
+
+    // Verify balances
+    let token_client = TokenClient::new(&env, &token_address);
+    assert_eq!(token_client.balance(&beneficiary), damage_amount);
+    assert_eq!(token_client.balance(&depositor), 0);
+    assert_eq!(token_client.balance(&client.address), 0);
+
+    // Verify escrow is released
+    let escrow = client.get_escrow(&escrow_id);
+    assert_eq!(escrow.status, EscrowStatus::Released);
+}
+
+#[test]
+fn test_damage_deduction_no_damage() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let (client, depositor, beneficiary, arbiter, token_address) = setup_test(&env);
+    let amount = 1000i128;
+    let damage_amount = 0i128; // No damage
+
+    // Create and fund escrow
+    let escrow_id = client.create(&depositor, &beneficiary, &arbiter, &amount, &token_address);
+    let token_admin = TokenAdminClient::new(&env, &token_address);
+    token_admin.mint(&depositor, &amount);
+    client.fund_escrow(&escrow_id, &depositor);
+
+    // Get approvals
+    client.approve_partial_release(&escrow_id, &beneficiary, &depositor);
+    client.approve_partial_release(&escrow_id, &arbiter, &depositor);
+
+    let reason = soroban_sdk::String::from_str(&env, "No damage found");
+
+    // Execute with no damage
+    client.release_with_deduction(&escrow_id, &damage_amount, &reason);
+
+    // Verify full refund to depositor
+    let token_client = TokenClient::new(&env, &token_address);
+    assert_eq!(token_client.balance(&beneficiary), 0);
+    assert_eq!(token_client.balance(&depositor), amount);
+    assert_eq!(token_client.balance(&client.address), 0);
+}
+
+#[test]
+fn test_damage_deduction_exceeds_balance() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let (client, depositor, beneficiary, arbiter, token_address) = setup_test(&env);
+    let amount = 1000i128;
+    let damage_amount = 1500i128; // Exceeds balance
+
+    // Create and fund escrow
+    let escrow_id = client.create(&depositor, &beneficiary, &arbiter, &amount, &token_address);
+    let token_admin = TokenAdminClient::new(&env, &token_address);
+    token_admin.mint(&depositor, &amount);
+    client.fund_escrow(&escrow_id, &depositor);
+
+    // Get approvals
+    client.approve_partial_release(&escrow_id, &beneficiary, &depositor);
+    client.approve_partial_release(&escrow_id, &arbiter, &depositor);
+
+    let reason = soroban_sdk::String::from_str(&env, "Excessive damage");
+
+    // Should fail with InsufficientFunds
+    let result = client.try_release_with_deduction(&escrow_id, &damage_amount, &reason);
+    assert!(result.is_err());
+}
+
+#[test]
+fn test_damage_deduction_insufficient_approvals() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let (client, depositor, beneficiary, arbiter, token_address) = setup_test(&env);
+    let amount = 1000i128;
+    let damage_amount = 200i128;
+
+    // Create and fund escrow
+    let escrow_id = client.create(&depositor, &beneficiary, &arbiter, &amount, &token_address);
+    let token_admin = TokenAdminClient::new(&env, &token_address);
+    token_admin.mint(&depositor, &amount);
+    client.fund_escrow(&escrow_id, &depositor);
+
+    // Only one approval
+    client.approve_partial_release(&escrow_id, &beneficiary, &depositor);
+
+    let reason = soroban_sdk::String::from_str(&env, "Damage");
+
+    // Should fail with NotAuthorized
+    let result = client.try_release_with_deduction(&escrow_id, &damage_amount, &reason);
+    assert!(result.is_err());
+}
+
+#[test]
+fn test_partial_release_invalid_recipient() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let (client, depositor, beneficiary, arbiter, token_address) = setup_test(&env);
+    let amount = 1000i128;
+    let invalid_recipient = Address::generate(&env);
+
+    // Create and fund escrow
+    let escrow_id = client.create(&depositor, &beneficiary, &arbiter, &amount, &token_address);
+    let token_admin = TokenAdminClient::new(&env, &token_address);
+    token_admin.mint(&depositor, &amount);
+    client.fund_escrow(&escrow_id, &depositor);
+
+    // Get approvals (though it will fail)
+    // This should fail at approve_partial_release due to invalid target
+    let approve_result1 =
+        client.try_approve_partial_release(&escrow_id, &depositor, &invalid_recipient);
+    assert!(approve_result1.is_err()); // Should fail with InvalidApprovalTarget
+}
+
+#[test]
+fn test_partial_release_empty_reason() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let (client, depositor, beneficiary, arbiter, token_address) = setup_test(&env);
+    let amount = 1000i128;
+
+    // Create and fund escrow
+    let escrow_id = client.create(&depositor, &beneficiary, &arbiter, &amount, &token_address);
+    let token_admin = TokenAdminClient::new(&env, &token_address);
+    token_admin.mint(&depositor, &amount);
+    client.fund_escrow(&escrow_id, &depositor);
+
+    // Get approvals
+    client.approve_partial_release(&escrow_id, &depositor, &beneficiary);
+    client.approve_partial_release(&escrow_id, &arbiter, &beneficiary);
+
+    let empty_reason = soroban_sdk::String::from_str(&env, "");
+
+    // Should fail with EmptyReleaseReason
+    let result =
+        client.try_release_escrow_partial(&escrow_id, &300i128, &beneficiary, &empty_reason);
+    assert!(result.is_err());
 }

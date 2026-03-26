@@ -58,7 +58,11 @@
     "overrides": {
       "minimatch": "^9.0.8",
       "ajv": "6.14.0",
-      "next": "16.1.5"
+      "next": "16.1.5",
+      "micromatch>picomatch": "^2.3.2",
+      "fdir>picomatch": "^4.0.4",
+      "tinyglobby>picomatch": "^4.0.4",
+      "vitest>picomatch": "^4.0.4"
     }
   }
 }

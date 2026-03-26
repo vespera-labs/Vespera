@@ -5,7 +5,7 @@ import {
   ForbiddenException,
   BadRequestException,
 } from '@nestjs/common';
-import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { CacheService } from '../../common/cache/cache.service';
 import { PropertiesService } from './properties.service';
 import {
   Property,
@@ -15,6 +15,7 @@ import {
 import { PropertyImage } from './entities/property-image.entity';
 import { PropertyAmenity } from './entities/property-amenity.entity';
 import { RentalUnit } from './entities/rental-unit.entity';
+import { PropertyListingDraft } from './entities/property-listing-draft.entity';
 import { User, UserRole, AuthMethod } from '../users/entities/user.entity';
 import { KycStatus } from '../kyc/kyc.entity';
 
@@ -118,16 +119,30 @@ describe('PropertiesService', () => {
     delete: jest.fn(),
   };
 
-  const mockCacheManager = {
+  const mockCacheService = {
     get: jest.fn(),
     set: jest.fn(),
-    del: jest.fn(),
-    store: {
-      keys: jest.fn().mockResolvedValue([]),
-    },
+    getOrSet: jest.fn(async (_key: string, factory: () => Promise<unknown>) =>
+      factory(),
+    ),
+    invalidatePropertyDomainCaches: jest.fn().mockResolvedValue(undefined),
+  };
+
+  const mockPropertyListingDraftRepository = {
+    create: jest.fn(),
+    save: jest.fn(),
+    findOne: jest.fn(),
+    remove: jest.fn(),
   };
 
   beforeEach(async () => {
+    mockCacheService.getOrSet.mockImplementation(
+      async (_key: string, factory: () => Promise<unknown>) => factory(),
+    );
+    mockCacheService.invalidatePropertyDomainCaches.mockResolvedValue(
+      undefined,
+    );
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         PropertiesService,
@@ -148,8 +163,12 @@ describe('PropertiesService', () => {
           useValue: mockRentalUnitRepository,
         },
         {
-          provide: CACHE_MANAGER,
-          useValue: mockCacheManager,
+          provide: getRepositoryToken(PropertyListingDraft),
+          useValue: mockPropertyListingDraftRepository,
+        },
+        {
+          provide: CacheService,
+          useValue: mockCacheService,
         },
       ],
     }).compile();
@@ -237,6 +256,23 @@ describe('PropertiesService', () => {
     });
   });
 
+  describe('findById', () => {
+    it('throws because the method is not implemented (use findOne instead)', () => {
+      expect(() => service.findById('any-id')).toThrow(
+        'Method not implemented.',
+      );
+    });
+
+    it('throws for undefined and object inputs', () => {
+      expect(() => service.findById(undefined)).toThrow(
+        'Method not implemented.',
+      );
+      expect(() => service.findById({ id: 'x' })).toThrow(
+        'Method not implemented.',
+      );
+    });
+  });
+
   describe('findOne', () => {
     it('should return a property by id', async () => {
       mockPropertyRepository.findOne.mockResolvedValue(mockProperty);
@@ -250,11 +286,54 @@ describe('PropertiesService', () => {
       });
     });
 
+    it('should pass the requested id through to the repository for different identifiers', async () => {
+      const uuid = '123e4567-e89b-12d3-a456-426614174000';
+      mockPropertyRepository.findOne.mockResolvedValue({
+        ...mockProperty,
+        id: uuid,
+      });
+
+      await service.findOne(uuid);
+
+      expect(mockPropertyRepository.findOne).toHaveBeenCalledWith({
+        where: { id: uuid },
+        relations: ['images', 'amenities', 'rentalUnits', 'owner'],
+      });
+    });
+
     it('should throw NotFoundException if property not found', async () => {
       mockPropertyRepository.findOne.mockResolvedValue(null);
 
       await expect(service.findOne('non-existent-id')).rejects.toThrow(
         NotFoundException,
+      );
+    });
+
+    it('should include the id in NotFoundException message when not found', async () => {
+      mockPropertyRepository.findOne.mockResolvedValue(null);
+
+      await expect(service.findOne('missing-uuid')).rejects.toThrow(
+        'Property with ID missing-uuid not found',
+      );
+    });
+
+    it('should treat empty string id as not found when repository returns null', async () => {
+      mockPropertyRepository.findOne.mockResolvedValue(null);
+
+      await expect(service.findOne('')).rejects.toThrow(NotFoundException);
+      expect(mockPropertyRepository.findOne).toHaveBeenCalledWith({
+        where: { id: '' },
+        relations: ['images', 'amenities', 'rentalUnits', 'owner'],
+      });
+    });
+
+    it('should propagate repository errors', async () => {
+      mockPropertyRepository.findOne.mockRejectedValue(
+        new Error('database unavailable'),
+      );
+
+      await expect(service.findOne('property-id')).rejects.toThrow(
+        'database unavailable',
       );
     });
   });
@@ -277,6 +356,57 @@ describe('PropertiesService', () => {
 
       await expect(service.findOnePublic('property-id')).rejects.toThrow(
         NotFoundException,
+      );
+    });
+
+    it('should throw NotFoundException with the same message as findOne when property does not exist', async () => {
+      mockPropertyRepository.findOne.mockResolvedValue(null);
+
+      await expect(service.findOnePublic('unknown-id')).rejects.toThrow(
+        'Property with ID unknown-id not found',
+      );
+    });
+
+    it('should not expose draft listings publicly (same 404 message as missing)', async () => {
+      mockPropertyRepository.findOne.mockResolvedValue({
+        ...mockProperty,
+        status: ListingStatus.DRAFT,
+      });
+
+      await expect(service.findOnePublic('property-id')).rejects.toThrow(
+        'Property with ID property-id not found',
+      );
+    });
+
+    it('should not expose archived listings publicly', async () => {
+      mockPropertyRepository.findOne.mockResolvedValue({
+        ...mockProperty,
+        status: ListingStatus.ARCHIVED,
+      });
+
+      await expect(service.findOnePublic('property-id')).rejects.toThrow(
+        'Property with ID property-id not found',
+      );
+    });
+
+    it('should not expose rented listings publicly', async () => {
+      mockPropertyRepository.findOne.mockResolvedValue({
+        ...mockProperty,
+        status: ListingStatus.RENTED,
+      });
+
+      await expect(service.findOnePublic('property-id')).rejects.toThrow(
+        'Property with ID property-id not found',
+      );
+    });
+
+    it('should propagate errors from findOne when the repository fails', async () => {
+      mockPropertyRepository.findOne.mockRejectedValue(
+        new Error('query timeout'),
+      );
+
+      await expect(service.findOnePublic('property-id')).rejects.toThrow(
+        'query timeout',
       );
     });
   });
@@ -491,7 +621,6 @@ describe('PropertiesService', () => {
       mockPropertyRepository.createQueryBuilder.mockReturnValue(
         mockQueryBuilder,
       );
-      mockCacheManager.get.mockResolvedValue(null);
 
       const query = {
         page: 1,
@@ -500,12 +629,15 @@ describe('PropertiesService', () => {
       };
       await service.findAll(query);
 
-      expect(mockCacheManager.set).toHaveBeenCalled();
+      expect(mockCacheService.getOrSet).toHaveBeenCalled();
     });
 
     it('should return cached data if available', async () => {
-      const cachedData = { data: [mockProperty], total: 1, page: 1, limit: 10 };
-      mockCacheManager.get.mockResolvedValue(cachedData);
+      const cachedData = {
+        data: [mockProperty],
+        meta: { total: 1, page: 1, limit: 10 },
+      };
+      mockCacheService.getOrSet.mockResolvedValueOnce(cachedData);
 
       const result = await service.findAll({
         status: ListingStatus.PUBLISHED,
@@ -518,11 +650,59 @@ describe('PropertiesService', () => {
     it('should invalidate cache on update', async () => {
       mockPropertyRepository.findOne.mockResolvedValue(mockProperty);
       mockPropertyRepository.save.mockResolvedValue(mockProperty);
-      mockCacheManager.store.keys.mockResolvedValue(['properties:list:key']);
 
       await service.update('property-id', { title: 'Updated' }, mockOwner);
 
-      expect(mockCacheManager.del).toHaveBeenCalledWith('properties:list:key');
+      expect(
+        mockCacheService.invalidatePropertyDomainCaches,
+      ).toHaveBeenCalledWith('property-id');
+    });
+  });
+
+  describe('wizard draft', () => {
+    it('starts a wizard draft', async () => {
+      mockPropertyListingDraftRepository.create.mockReturnValue({
+        id: 'draft-1',
+        landlordId: mockOwner.id,
+        data: {},
+        currentStep: 1,
+        completedSteps: [],
+      });
+      mockPropertyListingDraftRepository.save.mockResolvedValue({
+        id: 'draft-1',
+        landlordId: mockOwner.id,
+        data: {},
+        currentStep: 1,
+        completedSteps: [],
+      });
+
+      const result = await service.startWizard(mockOwner.id, {});
+      expect(result.id).toBe('draft-1');
+      expect(mockPropertyListingDraftRepository.save).toHaveBeenCalled();
+    });
+
+    it('updates a wizard step', async () => {
+      mockPropertyListingDraftRepository.findOne.mockResolvedValue({
+        id: 'draft-1',
+        landlordId: mockOwner.id,
+        data: { basicInfo: {} },
+        currentStep: 1,
+        completedSteps: [1],
+      });
+      mockPropertyListingDraftRepository.save.mockResolvedValue({
+        id: 'draft-1',
+        landlordId: mockOwner.id,
+        data: { pricing: { monthlyRent: 1200 } },
+        currentStep: 2,
+        completedSteps: [1, 2],
+      });
+
+      const result = await service.updateWizardStep('draft-1', mockOwner.id, {
+        step: 2,
+        data: { pricing: { monthlyRent: 1200 } },
+        completedSteps: [2],
+      });
+      expect(result.currentStep).toBe(2);
     });
   });
 });

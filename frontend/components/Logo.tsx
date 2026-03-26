@@ -27,7 +27,7 @@ export default function Logo({
 
   if (!href) {
     return (
-      <div className={`flex items-center gap-2 ${className}`}>
+      <div className={`flex items-center ${className}`}>
         <Image
           src="/logo_256.png"
           alt="Chioma logo"
@@ -43,7 +43,7 @@ export default function Logo({
   }
 
   return (
-    <Link href={href} className={`flex items-center gap-2 ${className}`}>
+    <Link href={href} className={`flex items-center ${className}`}>
       <Image
         src="/logo_256.png"
         alt="Chioma logo"

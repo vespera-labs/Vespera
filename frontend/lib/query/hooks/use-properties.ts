@@ -41,6 +41,27 @@ interface CreatePropertyPayload {
 
 type UpdatePropertyPayload = Partial<CreatePropertyPayload>;
 
+export interface PropertyListingWizardDraft {
+  id: string;
+  landlordId: string;
+  data: Record<string, unknown>;
+  currentStep: number;
+  completedSteps: number[];
+  createdAt: string;
+  updatedAt: string;
+  expiresAt: string | null;
+}
+
+interface StartWizardPayload {
+  data?: Record<string, unknown>;
+}
+
+interface UpdateWizardStepPayload {
+  step: number;
+  data: Record<string, unknown>;
+  completedSteps?: number[];
+}
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function buildQueryString(params: PropertyListParams): string {
@@ -170,6 +191,69 @@ export function useDeleteProperty() {
       queryClient.invalidateQueries({
         queryKey: queryKeys.properties.all,
       });
+    },
+  });
+}
+
+export function useStartPropertyListingWizard() {
+  return useMutation({
+    mutationFn: async (payload: StartWizardPayload = {}) => {
+      const { data } = await apiClient.post<PropertyListingWizardDraft>(
+        '/properties/property-listings/wizard/start',
+        payload,
+      );
+      return data;
+    },
+  });
+}
+
+export function useWizardDraft(id: string | null) {
+  return useQuery({
+    queryKey: ['property-listing-wizard-draft', id],
+    queryFn: async () => {
+      const { data } = await apiClient.get<PropertyListingWizardDraft>(
+        `/properties/property-listings/wizard/${id}/draft`,
+      );
+      return data;
+    },
+    enabled: Boolean(id),
+  });
+}
+
+export function useUpdateWizardStep(id: string) {
+  return useMutation({
+    mutationFn: async (payload: UpdateWizardStepPayload) => {
+      const { data } = await apiClient.patch<PropertyListingWizardDraft>(
+        `/properties/property-listings/wizard/${id}/step`,
+        payload,
+      );
+      return data;
+    },
+  });
+}
+
+export function usePublishWizardDraft(id: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      const { data } = await apiClient.post<Property>(
+        `/properties/property-listings/wizard/${id}/publish`,
+      );
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.properties.all });
+    },
+  });
+}
+
+export function useDeleteWizardDraft() {
+  return useMutation({
+    mutationFn: async (id: string) => {
+      await apiClient.delete(
+        `/properties/property-listings/wizard/${id}/draft`,
+      );
+      return id;
     },
   });
 }

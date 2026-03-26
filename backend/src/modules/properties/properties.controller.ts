@@ -23,6 +23,10 @@ import { PropertiesService } from './properties.service';
 import { CreatePropertyDto } from './dto/create-property.dto';
 import { UpdatePropertyDto } from './dto/update-property.dto';
 import { QueryPropertyDto } from './dto/query-property.dto';
+import {
+  StartPropertyListingWizardDto,
+  UpdatePropertyListingWizardStepDto,
+} from './dto/property-listing-wizard.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -294,5 +298,86 @@ export class PropertiesController {
     @CurrentUser() user: User,
   ) {
     return await this.propertiesService.markAsRented(id, user);
+  }
+
+  @Post('/property-listings/wizard/start')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.LANDLORD, UserRole.ADMIN)
+  @ApiBearerAuth('JWT-auth')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({
+    summary: 'Start property listing wizard',
+    description: 'Creates a server-side draft for the property listing wizard.',
+  })
+  async startListingWizard(
+    @Body() body: StartPropertyListingWizardDto,
+    @CurrentUser() user: User,
+  ) {
+    return await this.propertiesService.startWizard(user.id, body.data);
+  }
+
+  @Patch('/property-listings/wizard/:id/step')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.LANDLORD, UserRole.ADMIN)
+  @ApiBearerAuth('JWT-auth')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Update a wizard step',
+    description: 'Persists the current step payload and step progress.',
+  })
+  async updateListingWizardStep(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: UpdatePropertyListingWizardStepDto,
+    @CurrentUser() user: User,
+  ) {
+    return await this.propertiesService.updateWizardStep(id, user.id, body);
+  }
+
+  @Get('/property-listings/wizard/:id/draft')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.LANDLORD, UserRole.ADMIN)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({
+    summary: 'Get wizard draft',
+    description: 'Returns an existing draft for resume-later functionality.',
+  })
+  async getListingWizardDraft(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: User,
+  ) {
+    return await this.propertiesService.getWizardDraft(id, user.id);
+  }
+
+  @Delete('/property-listings/wizard/:id/draft')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.LANDLORD, UserRole.ADMIN)
+  @ApiBearerAuth('JWT-auth')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({
+    summary: 'Delete wizard draft',
+    description: 'Deletes a wizard draft for the current landlord.',
+  })
+  async deleteListingWizardDraft(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: User,
+  ) {
+    await this.propertiesService.deleteWizardDraft(id, user.id);
+  }
+
+  @Post('/property-listings/wizard/:id/publish')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.LANDLORD, UserRole.ADMIN)
+  @ApiBearerAuth('JWT-auth')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Publish wizard draft',
+    description:
+      'Validates the wizard draft, creates a property listing, and publishes it.',
+  })
+  async publishListingWizard(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: User,
+  ) {
+    return await this.propertiesService.publishWizardDraft(id, user.id);
   }
 }
