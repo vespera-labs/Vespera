@@ -260,7 +260,10 @@ export const BulkUserOperations: React.FC<BulkUserOperationsProps> = ({
                           {(user.name ?? user.email).charAt(0)}
                         </div>
                         <div>
-                          <Link href={`/admin/users/${user.id}`} className="text-white font-medium block hover:text-blue-400 transition-colors">
+                          <Link
+                            href={`/admin/users/${user.id}`}
+                            className="text-white font-medium block hover:text-blue-400 transition-colors"
+                          >
                             {user.name ?? 'Unknown'}
                           </Link>
                           <span className="text-[10px] text-blue-300/40 font-mono">

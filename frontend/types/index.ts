@@ -17,7 +17,12 @@ export interface User {
 }
 
 // User Activity Types
-export type ActivityType = 'login' | 'property_view' | 'system_event' | 'profile_update' | 'kyc_submission';
+export type ActivityType =
+  | 'login'
+  | 'property_view'
+  | 'system_event'
+  | 'profile_update'
+  | 'kyc_submission';
 
 export interface UserActivity {
   id: string;

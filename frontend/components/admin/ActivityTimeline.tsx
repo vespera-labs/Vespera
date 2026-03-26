@@ -87,7 +87,9 @@ export function ActivityTimeline({ userId }: ActivityTimelineProps) {
             onChange={handleFilterChange}
             className="bg-transparent border-none text-sm text-slate-200 focus:ring-0 outline-none w-full cursor-pointer pr-4"
           >
-            <option value="" className="bg-slate-800 text-white">All Activities</option>
+            <option value="" className="bg-slate-800 text-white">
+              All Activities
+            </option>
             {Object.entries(ACTIVITY_LABELS).map(([key, label]) => (
               <option key={key} value={key} className="bg-slate-800 text-white">
                 {label}
@@ -151,14 +153,19 @@ export function ActivityTimeline({ userId }: ActivityTimelineProps) {
                         </div>
                       </div>
                     </div>
-                    
+
                     {/* Desktop time display */}
                     <div className="hidden md:flex flex-col items-end whitespace-nowrap">
                       <span className="text-sm font-medium text-slate-400">
-                        {formatDistanceToNow(new Date(activity.createdAt), { addSuffix: true })}
+                        {formatDistanceToNow(new Date(activity.createdAt), {
+                          addSuffix: true,
+                        })}
                       </span>
                       <span className="text-xs text-slate-500 mt-1">
-                        {format(new Date(activity.createdAt), 'MMM d, yyyy h:mm a')}
+                        {format(
+                          new Date(activity.createdAt),
+                          'MMM d, yyyy h:mm a',
+                        )}
                       </span>
                     </div>
                   </div>
@@ -168,9 +175,13 @@ export function ActivityTimeline({ userId }: ActivityTimelineProps) {
           ) : (
             <div className="text-center py-12 px-4 rounded-2xl border border-dashed border-slate-700 bg-slate-800/10">
               <Clock className="mx-auto h-12 w-12 text-slate-600 mb-3" />
-              <h3 className="text-lg font-medium text-slate-300">No activities found</h3>
+              <h3 className="text-lg font-medium text-slate-300">
+                No activities found
+              </h3>
               <p className="text-slate-500 mt-1 max-w-sm mx-auto">
-                {typeFilter ? `There are no recent activities of type "${ACTIVITY_LABELS[typeFilter]}".` : "This user hasn't performed any activities yet."}
+                {typeFilter
+                  ? `There are no recent activities of type "${ACTIVITY_LABELS[typeFilter]}".`
+                  : "This user hasn't performed any activities yet."}
               </p>
               {typeFilter && (
                 <button
@@ -189,11 +200,20 @@ export function ActivityTimeline({ userId }: ActivityTimelineProps) {
       {data && data.totalPages > 1 && (
         <div className="flex items-center justify-between mt-8 pt-6 border-t border-slate-800">
           <p className="text-sm text-slate-400 hidden sm:block">
-            Showing <span className="text-white font-medium">{((data.page - 1) * 10) + 1}</span> to <span className="text-white font-medium">{Math.min(data.page * 10, data.total)}</span> of <span className="text-white font-medium">{data.total}</span> entries
+            Showing{' '}
+            <span className="text-white font-medium">
+              {(data.page - 1) * 10 + 1}
+            </span>{' '}
+            to{' '}
+            <span className="text-white font-medium">
+              {Math.min(data.page * 10, data.total)}
+            </span>{' '}
+            of <span className="text-white font-medium">{data.total}</span>{' '}
+            entries
           </p>
           <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
             <button
-              onClick={() => setPage(p => Math.max(1, p - 1))}
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={page === 1 || isLoading}
               className="flex items-center justify-center w-10 h-10 rounded-xl bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               aria-label="Previous page"
@@ -206,7 +226,7 @@ export function ActivityTimeline({ userId }: ActivityTimelineProps) {
               </span>
             </div>
             <button
-              onClick={() => setPage(p => Math.min(data.totalPages, p + 1))}
+              onClick={() => setPage((p) => Math.min(data.totalPages, p + 1))}
               disabled={page === data.totalPages || isLoading}
               className="flex items-center justify-center w-10 h-10 rounded-xl bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               aria-label="Next page"

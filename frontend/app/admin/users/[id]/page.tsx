@@ -12,10 +12,10 @@ export default function UserDetailPage() {
   const router = useRouter();
   const userId = params.id as string;
 
-  // We could fetch the specific user, but for now we'll just get the list and find them, 
+  // We could fetch the specific user, but for now we'll just get the list and find them,
   // or just use generic data if the user endpoint isn't fully set up for detail
   const { data: usersData } = useAdminUsers({ limit: 100 });
-  const user = usersData?.data?.find(u => u.id === userId);
+  const user = usersData?.data?.find((u) => u.id === userId);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-blue-950 to-slate-950 p-4 sm:p-6 lg:p-8 space-y-8">
@@ -25,7 +25,10 @@ export default function UserDetailPage() {
           onClick={() => router.back()}
           className="p-3 bg-white/5 hover:bg-white/10 text-white rounded-xl border border-white/10 transition-all text-sm group"
         >
-          <ArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform" />
+          <ArrowLeft
+            size={18}
+            className="group-hover:-translate-x-1 transition-transform"
+          />
         </button>
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-white flex items-center gap-2">
@@ -44,13 +47,17 @@ export default function UserDetailPage() {
             <div className="flex flex-col items-center justify-center text-center space-y-4">
               <div className="w-24 h-24 rounded-full bg-slate-800 border-4 border-slate-700 flex items-center justify-center overflow-hidden">
                 {user?.avatar ? (
-                   /* eslint-disable-next-line @next/next/no-img-element */
-                   <img src={user.avatar} alt="Avatar" className="w-full h-full object-cover" />
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img
+                    src={user.avatar}
+                    alt="Avatar"
+                    className="w-full h-full object-cover"
+                  />
                 ) : (
                   <User size={40} className="text-slate-500" />
                 )}
               </div>
-              
+
               <div>
                 <h2 className="text-xl font-bold text-white mt-2">
                   {user?.name || 'Unknown User'}
@@ -83,7 +90,10 @@ export default function UserDetailPage() {
               </div>
               <div className="flex items-center gap-3 text-sm text-slate-300">
                 <Calendar size={16} className="text-slate-500" />
-                Joined {user?.createdAt ? format(new Date(user.createdAt), 'MMM d, yyyy') : 'Recently'}
+                Joined{' '}
+                {user?.createdAt
+                  ? format(new Date(user.createdAt), 'MMM d, yyyy')
+                  : 'Recently'}
               </div>
             </div>
           </div>
