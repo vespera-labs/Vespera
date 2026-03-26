@@ -25,16 +25,15 @@ function isIosInstallable() {
 export default function PwaController() {
   const [installEvent, setInstallEvent] = useState<BeforeInstallPromptEvent | null>(null);
   const [updateReady, setUpdateReady] = useState<ServiceWorkerRegistration | null>(null);
-  const [showIosPrompt, setShowIosPrompt] = useState(false);
+  const [dismissedIosPrompt, setDismissedIosPrompt] = useState(false);
   const [requestingInstall, setRequestingInstall] = useState(false);
   const [requestingNotifications, setRequestingNotifications] = useState(false);
+  const showIosPrompt = !dismissedIosPrompt && isIosInstallable();
 
   useEffect(() => {
     if (typeof window === 'undefined') {
       return;
     }
-
-    setShowIosPrompt(isIosInstallable());
 
     const onBeforeInstallPrompt = (event: Event) => {
       event.preventDefault();
@@ -43,7 +42,7 @@ export default function PwaController() {
 
     const onAppInstalled = () => {
       setInstallEvent(null);
-      setShowIosPrompt(false);
+      setDismissedIosPrompt(true);
       toast.success('Chioma is installed and ready offline.');
     };
 
@@ -229,7 +228,7 @@ export default function PwaController() {
         <div className="mt-4">
           <button
             className="rounded-xl border border-slate-700 px-4 py-2 text-sm text-slate-200 transition hover:border-slate-500 hover:bg-slate-900"
-            onClick={() => setShowIosPrompt(false)}
+            onClick={() => setDismissedIosPrompt(true)}
             type="button"
           >
             Dismiss
