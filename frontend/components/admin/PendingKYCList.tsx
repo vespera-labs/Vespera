@@ -2,6 +2,7 @@
 
 import React, { useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
+import { Check, Eye, FileText, Search, X } from 'lucide-react';
 import type { KycVerification, PaginatedResponse } from '@/types';
 import Image from 'next/image';
 

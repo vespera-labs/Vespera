@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useRef, useState, useEffect, ReactNode } from 'react';
+import React, { useRef, useState, ReactNode } from 'react';
 
 interface VirtualListProps<T> {
   items: T[];
