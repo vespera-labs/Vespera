@@ -47,6 +47,11 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
       icon: Wallet,
     },
     {
+      name: 'Transactions',
+      href: '/agents/transactions',
+      icon: ClipboardCheck,
+    },
+    {
       name: 'Messages',
       href: '/agents/messages',
       icon: MessageSquare,

@@ -187,6 +187,16 @@ export interface Transaction {
   createdAt: string;
 }
 
+export interface AgentTransaction {
+  transactionId: string;
+  agentAddress: string;
+  parties: string[];
+  completed: boolean;
+  blockchainHash: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 // KYC Types (Admin)
 export type KycStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'NEEDS_INFO';
 
