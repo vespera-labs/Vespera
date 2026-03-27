@@ -68,7 +68,7 @@ export const FileUpload: React.FC<Props> = ({
         updatedFiles[i].status = 'uploading';
         setFiles([...updatedFiles]);
 
-        const { url, key } = await storageApi.getUploadUrl(
+        const { url } = await storageApi.getUploadUrl(
           updatedFiles[i].file.name,
           updatedFiles[i].file.size,
           updatedFiles[i].file.type || 'application/octet-stream',

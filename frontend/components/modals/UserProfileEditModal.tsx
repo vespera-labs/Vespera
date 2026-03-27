@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { User, Mail, Phone, MapPin, CheckCircle2 } from 'lucide-react';
@@ -60,7 +60,7 @@ export const UserProfileEditModal: React.FC<UserProfileEditModalProps> = ({
     register,
     handleSubmit,
     reset,
-    watch,
+    control,
     formState: { errors, isSubmitting, isDirty },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -74,7 +74,10 @@ export const UserProfileEditModal: React.FC<UserProfileEditModalProps> = ({
     },
   });
 
-  const bio = watch('bio');
+  const bio = useWatch({
+    control,
+    name: 'bio',
+  });
 
   const handleClose = () => {
     reset();

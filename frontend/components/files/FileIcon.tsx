@@ -7,7 +7,6 @@ import {
   Video,
   FileSpreadsheet,
   FileCode,
-  FileDigit,
   Presentation,
 } from 'lucide-react';
 import React from 'react';

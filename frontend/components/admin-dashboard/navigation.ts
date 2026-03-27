@@ -3,6 +3,7 @@
 import {
   Anchor,
   BarChart3,
+  Gavel,
   ShieldAlert,
   ShieldCheck,
   ShieldX,
@@ -64,12 +65,24 @@ const adminNavItems: AdminNavItem[] = [
     visibleFor: ['admin', 'support'],
   },
   {
+    icon: Gavel,
+    label: 'Disputes Dashboard',
+    href: '/admin/disputes',
+    visibleFor: ['admin', 'support'],
+  },
+  {
     icon: ShieldX,
     label: 'Rejected KYC',
     href: '/admin/kyc/rejected',
     visibleFor: ['admin', 'support'],
   },
 ];
+
+function findBestNavMatch(pathname: string) {
+  return [...adminNavItems]
+    .sort((left, right) => right.href.length - left.href.length)
+    .find((item) => pathname.startsWith(item.href));
+}
 
 export function getAdminNavItems(
   role: string | null | undefined,
@@ -81,7 +94,11 @@ export function getAdminNavItems(
 }
 
 export function getAdminPageTitle(pathname: string): string {
-  const matched = adminNavItems.find((item) => pathname.startsWith(item.href));
+  if (/^\/admin\/kyc\/[^/]+$/.test(pathname)) {
+    return 'KYC Verification Detail';
+  }
+
+  const matched = findBestNavMatch(pathname);
   if (matched) return matched.label;
   return pathname === '/admin' ? 'Admin' : 'Admin Panel';
 }
@@ -94,7 +111,7 @@ export function getAdminBreadcrumbItems(pathname: string): Array<{
     return [{ label: 'Admin' }];
   }
 
-  const matched = adminNavItems.find((item) => pathname.startsWith(item.href));
+  const matched = findBestNavMatch(pathname);
   if (matched) {
     return [{ label: 'Admin', href: '/admin' }, { label: matched.label }];
   }

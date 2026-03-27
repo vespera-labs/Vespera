@@ -1,5 +1,5 @@
 import React from 'react';
-import { Search, Filter, LayoutGrid, List } from 'lucide-react';
+import { Search, LayoutGrid, List } from 'lucide-react';
 
 interface Props {
   search: string;

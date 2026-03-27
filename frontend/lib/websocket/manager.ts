@@ -24,7 +24,6 @@ type ConnectionStatus = 'disconnected' | 'connecting' | 'connected';
 let socket: Socket | null = null;
 let currentToken: string | null = null;
 let heartbeatInterval: NodeJS.Timeout | null = null;
-let lastConnectedAt: Date | null = null;
 const listeners = new Map<string, Set<EventHandler>>();
 const statusListeners = new Set<(status: ConnectionStatus) => void>();
 
@@ -84,7 +83,6 @@ export function connect(options: ConnectionOptions): void {
   });
 
   socket.on('connect', () => {
-    lastConnectedAt = new Date();
     notifyStatus('connected');
     startHeartbeat();
   });
@@ -122,7 +120,6 @@ export function disconnect(): void {
   socket.disconnect();
   socket = null;
   currentToken = null;
-  lastConnectedAt = null;
   notifyStatus('disconnected');
 }
 

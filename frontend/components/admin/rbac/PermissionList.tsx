@@ -11,7 +11,6 @@ import {
 } from '@/lib/query/hooks/use-admin-roles';
 import { useAdminRoles } from '@/lib/query/hooks/use-admin-roles';
 import { PermissionForm } from './PermissionForm';
-import type { Permission } from '@/types';
 
 const resourceColors: Record<string, string> = {
   users: 'bg-blue-500/10 border-blue-500/30 text-blue-300',

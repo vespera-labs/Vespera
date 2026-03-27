@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { DollarSign, AlertCircle, ReceiptText } from 'lucide-react';
@@ -62,7 +62,7 @@ export const RefundRequestModal: React.FC<RefundRequestModalProps> = ({
     register,
     handleSubmit,
     reset,
-    watch,
+    control,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -73,7 +73,10 @@ export const RefundRequestModal: React.FC<RefundRequestModalProps> = ({
     },
   });
 
-  const details = watch('details');
+  const details = useWatch({
+    control,
+    name: 'details',
+  });
 
   const handleClose = () => {
     reset();

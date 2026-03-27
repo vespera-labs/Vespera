@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Upload, FilePlus, FolderPlus, RefreshCw } from 'lucide-react';
+import { Upload, RefreshCw } from 'lucide-react';
 import { FileMetadata, storageApi } from '../../../lib/api/storage';
 import { FileList } from '../../../components/files/FileList';
 import { FileGrid } from '../../../components/files/FileGrid';
@@ -102,7 +102,7 @@ export default function FilesPage() {
       link.download = file.fileName;
       link.click();
       toast.success('Download started');
-    } catch (error) {
+    } catch {
       toast.error('Failed to download file');
     }
   };
@@ -115,7 +115,7 @@ export default function FilesPage() {
       setFiles((prev) => prev.filter((f) => f.id !== file.id));
       if (selectedFile?.id === file.id) setSelectedFile(null);
       toast.success('File deleted');
-    } catch (error) {
+    } catch {
       toast.error('Failed to delete file');
     }
   };
@@ -137,7 +137,7 @@ export default function FilesPage() {
       setIsRenameOpen(false);
       setSelectedFile(updated);
       toast.success('File renamed');
-    } catch (error) {
+    } catch {
       toast.error('Failed to rename file');
     }
   };
@@ -199,9 +199,9 @@ export default function FilesPage() {
                 .length,
               color: 'orange',
             },
-          ].map((stat, i) => (
+          ].map((stat) => (
             <div
-              key={i}
+              key={stat.label}
               className="bg-white dark:bg-neutral-800 rounded-3xl p-6 border border-neutral-100 dark:border-neutral-700 shadow-sm"
             >
               <p className="text-sm font-black text-neutral-500 dark:text-neutral-400 uppercase tracking-wider mb-1">

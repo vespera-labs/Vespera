@@ -1,5 +1,5 @@
 import React from 'react';
-import { MoreVertical, Download, Trash2, Edit2, Share2 } from 'lucide-react';
+import { Download, Trash2, Edit2, Share2 } from 'lucide-react';
 import { FileMetadata } from '../../lib/api/storage';
 import { FileIcon } from './FileIcon';
 import { formatDistanceToNow } from 'date-fns';

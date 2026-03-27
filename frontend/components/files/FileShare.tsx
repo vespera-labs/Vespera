@@ -21,7 +21,7 @@ export const FileShare: React.FC<Props> = ({ file, onClose }) => {
       const url = await storageApi.getDownloadUrl(file.s3Key);
       setShareLink(url);
       setCopied(false);
-    } catch (error) {
+    } catch {
       toast.error('Failed to generate share link');
     } finally {
       setLoading(false);

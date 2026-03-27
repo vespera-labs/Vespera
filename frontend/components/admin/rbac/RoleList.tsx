@@ -12,7 +12,6 @@ import {
 import { useAdminUsers } from '@/lib/query/hooks/use-admin-users';
 import { RoleForm } from './RoleForm';
 import { PermissionMatrix } from './PermissionMatrix';
-import type { Role } from '@/types';
 
 type RoleBadgeTone = 'blue' | 'emerald' | 'amber' | 'rose' | 'slate';
 

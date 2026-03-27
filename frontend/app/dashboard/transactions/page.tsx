@@ -42,7 +42,7 @@ const generateMockTransactions = (count: number = 10): StellarTransaction[] => {
     'manage_offer',
   ];
 
-  return Array.from({ length: count }, (_, i) => ({
+  return Array.from({ length: count }, () => ({
     id: `TXN-${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
     hash: '0x' + Math.random().toString(16).substr(2, 64),
     type: types[Math.floor(Math.random() * types.length)],
@@ -67,8 +67,6 @@ export default function StellarTransactionsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState('all');
-  const [page, setPage] = useState(1);
-
   useEffect(() => {
     // Simulate API call
     setTimeout(() => {
@@ -352,9 +350,9 @@ export default function StellarTransactionsPage() {
             <ChevronLeft size={24} />
           </button>
           <div className="flex items-center gap-2">
-            {[1, 2, 3, '...', 12].map((n, i) => (
+            {[1, 2, 3, '...', 12].map((n) => (
               <button
-                key={i}
+                key={String(n)}
                 className={`w-12 h-12 rounded-2xl font-black transition-all ${n === 1 ? 'bg-blue-600 text-white shadow-xl shadow-blue-900/20' : 'text-slate-500 hover:text-white'}`}
               >
                 {n}
