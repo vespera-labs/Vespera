@@ -13,7 +13,6 @@ import {
   SkipForward,
   Phone,
   MapPin,
-  FileText,
   Bell,
   CreditCard,
   Shield,
