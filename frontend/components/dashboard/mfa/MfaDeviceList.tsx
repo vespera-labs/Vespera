@@ -1,13 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import {
-  Search,
-  Power,
-  Trash2,
-  AlertCircle,
-  CheckCircle,
-} from 'lucide-react';
+import { Search, Power, Trash2, AlertCircle, CheckCircle } from 'lucide-react';
 
 interface MfaDevice {
   id: string;
@@ -103,9 +97,7 @@ export function MfaDeviceList({
               >
                 <div className="flex items-start justify-between gap-2 mb-2">
                   <div className="flex items-center gap-2 flex-1 min-w-0">
-                    <span className="text-lg">
-                      {DEVICE_ICONS[device.type]}
-                    </span>
+                    <span className="text-lg">{DEVICE_ICONS[device.type]}</span>
                     <div className="min-w-0 flex-1">
                       <p className="text-sm text-white font-medium truncate">
                         {device.name}
@@ -116,10 +108,16 @@ export function MfaDeviceList({
                     </div>
                   </div>
                   {device.verified && (
-                    <CheckCircle size={16} className="text-emerald-400 flex-shrink-0" />
+                    <CheckCircle
+                      size={16}
+                      className="text-emerald-400 flex-shrink-0"
+                    />
                   )}
                   {!device.verified && (
-                    <AlertCircle size={16} className="text-amber-400 flex-shrink-0" />
+                    <AlertCircle
+                      size={16}
+                      className="text-amber-400 flex-shrink-0"
+                    />
                   )}
                 </div>
 

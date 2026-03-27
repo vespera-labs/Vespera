@@ -1,15 +1,10 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import {
-  Plus,
-  RotateCcw,
-  Smartphone,
-  Shield,
-} from 'lucide-react';
+import { Plus, Shield } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { MfaDeviceList } from './MfaDeviceList';
-import { MfaDeviceForm } from './MfaDeviceForm';
+import { MfaDeviceForm, type MfaDeviceFormValues } from './MfaDeviceForm';
 import { MfaDeviceDetail } from './MfaDeviceDetail';
 
 interface MfaDevice {
@@ -42,10 +37,10 @@ export function MfaDeviceManagement({ userId }: MfaDeviceManagementProps) {
     [devices],
   );
 
-  const handleAddDevice = async (data: any) => {
+  const handleAddDevice = async (data: MfaDeviceFormValues) => {
     try {
       const newDevice: MfaDevice = {
-        id: `device_${Date.now()}`,
+        id: `device_${userId}_${Date.now()}`,
         ...data,
         enabled: true,
         verified: false,
@@ -63,9 +58,7 @@ export function MfaDeviceManagement({ userId }: MfaDeviceManagementProps) {
   const handleVerifyDevice = async (id: string) => {
     try {
       setDevices(
-        devices.map((d) =>
-          d.id === id ? { ...d, verified: true } : d,
-        ),
+        devices.map((d) => (d.id === id ? { ...d, verified: true } : d)),
       );
       toast.success('MFA device verified and enabled');
     } catch {
@@ -76,9 +69,7 @@ export function MfaDeviceManagement({ userId }: MfaDeviceManagementProps) {
   const handleRenameDevice = async (id: string, newName: string) => {
     try {
       setDevices(
-        devices.map((d) =>
-          d.id === id ? { ...d, name: newName } : d,
-        ),
+        devices.map((d) => (d.id === id ? { ...d, name: newName } : d)),
       );
       toast.success('Device renamed successfully');
     } catch {
@@ -89,9 +80,7 @@ export function MfaDeviceManagement({ userId }: MfaDeviceManagementProps) {
   const handleToggleDevice = async (id: string) => {
     try {
       setDevices(
-        devices.map((d) =>
-          d.id === id ? { ...d, enabled: !d.enabled } : d,
-        ),
+        devices.map((d) => (d.id === id ? { ...d, enabled: !d.enabled } : d)),
       );
       toast.success('Device status updated');
     } catch {
@@ -100,7 +89,11 @@ export function MfaDeviceManagement({ userId }: MfaDeviceManagementProps) {
   };
 
   const handleRemoveDevice = async (id: string) => {
-    if (!confirm('Are you sure you want to remove this device? You will need to use another MFA method.')) {
+    if (
+      !confirm(
+        'Are you sure you want to remove this device? You will need to use another MFA method.',
+      )
+    ) {
       return;
     }
 
@@ -117,9 +110,7 @@ export function MfaDeviceManagement({ userId }: MfaDeviceManagementProps) {
     try {
       const newCodes = generateBackupCodes();
       setDevices(
-        devices.map((d) =>
-          d.id === id ? { ...d, backupCodes: newCodes } : d,
-        ),
+        devices.map((d) => (d.id === id ? { ...d, backupCodes: newCodes } : d)),
       );
       toast.success('Backup codes regenerated');
     } catch {
@@ -155,7 +146,8 @@ export function MfaDeviceManagement({ userId }: MfaDeviceManagementProps) {
       {unverifiedCount > 0 && (
         <div className="rounded-3xl border border-amber-300/20 bg-amber-500/10 p-6 text-amber-100">
           <p className="font-semibold">
-            {unverifiedCount} unverified device{unverifiedCount !== 1 ? 's' : ''}
+            {unverifiedCount} unverified device
+            {unverifiedCount !== 1 ? 's' : ''}
           </p>
           <p className="text-sm mt-1">
             Complete verification to enable these devices.
@@ -177,7 +169,9 @@ export function MfaDeviceManagement({ userId }: MfaDeviceManagementProps) {
           <p className="text-xs text-blue-200/60 uppercase tracking-wider">
             Total Devices
           </p>
-          <h3 className="text-2xl font-bold text-white mt-1">{devices.length}</h3>
+          <h3 className="text-2xl font-bold text-white mt-1">
+            {devices.length}
+          </h3>
         </div>
         <div className="bg-white/5 backdrop-blur-sm rounded-3xl p-6 border border-white/10">
           <p className="text-xs text-blue-200/60 uppercase tracking-wider">

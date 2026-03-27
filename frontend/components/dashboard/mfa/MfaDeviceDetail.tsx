@@ -46,7 +46,9 @@ export function MfaDeviceDetail({
   const [newName, setNewName] = useState(device.name);
   const [showBackupCodes, setShowBackupCodes] = useState(false);
   const [verificationCode, setVerificationCode] = useState('');
-  const [showVerificationForm, setShowVerificationForm] = useState(!device.verified);
+  const [showVerificationForm, setShowVerificationForm] = useState(
+    !device.verified,
+  );
 
   const createdDate = new Date(device.createdAt);
   const lastUsedDate = device.lastUsed ? new Date(device.lastUsed) : null;
@@ -121,9 +123,7 @@ export function MfaDeviceDetail({
           ) : (
             <div>
               <div className="flex items-center gap-3">
-                <h2 className="text-2xl font-bold text-white">
-                  {device.name}
-                </h2>
+                <h2 className="text-2xl font-bold text-white">{device.name}</h2>
                 <button
                   onClick={() => setIsRenaming(true)}
                   className="p-2 text-blue-200/60 hover:text-white transition-colors"
@@ -250,7 +250,8 @@ export function MfaDeviceDetail({
           )}
 
           <p className="text-xs text-blue-200/60 mt-3">
-            Save these codes in a secure location. Each code can only be used once if you lose access to your device.
+            Save these codes in a secure location. Each code can only be used
+            once if you lose access to your device.
           </p>
         </div>
       )}

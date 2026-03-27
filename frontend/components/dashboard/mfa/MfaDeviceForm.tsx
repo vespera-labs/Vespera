@@ -4,17 +4,42 @@ import { useState } from 'react';
 import { X } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 
+export type MfaDeviceFormValues = {
+  name: string;
+  type: 'totp' | 'sms' | 'email' | 'webauthn';
+};
+
 interface MfaDeviceFormProps {
-  onSubmit: (data: any) => Promise<void>;
+  onSubmit: (data: MfaDeviceFormValues) => void | Promise<void>;
   onCancel: () => void;
   isLoading?: boolean;
 }
 
 const DEVICE_TYPES = [
-  { value: 'totp', label: 'Authenticator App', icon: '🔐', description: 'Use an authenticator app like Google Authenticator or Authy' },
-  { value: 'sms', label: 'SMS', icon: '📱', description: 'Receive codes via text message' },
-  { value: 'email', label: 'Email', icon: '📧', description: 'Receive codes via email' },
-  { value: 'webauthn', label: 'Security Key', icon: '🔑', description: 'Use a hardware security key' },
+  {
+    value: 'totp',
+    label: 'Authenticator App',
+    icon: '🔐',
+    description: 'Use an authenticator app like Google Authenticator or Authy',
+  },
+  {
+    value: 'sms',
+    label: 'SMS',
+    icon: '📱',
+    description: 'Receive codes via text message',
+  },
+  {
+    value: 'email',
+    label: 'Email',
+    icon: '📧',
+    description: 'Receive codes via email',
+  },
+  {
+    value: 'webauthn',
+    label: 'Security Key',
+    icon: '🔑',
+    description: 'Use a hardware security key',
+  },
 ];
 
 export function MfaDeviceForm({
@@ -22,21 +47,24 @@ export function MfaDeviceForm({
   onCancel,
   isLoading = false,
 }: MfaDeviceFormProps) {
-  const { register, handleSubmit, formState: { errors }, watch } = useForm({
+  const [selectedType, setSelectedType] =
+    useState<MfaDeviceFormValues['type']>('totp');
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<MfaDeviceFormValues>({
     defaultValues: {
       name: '',
       type: 'totp',
     },
   });
 
-  const selectedType = watch('type');
-
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
       <div className="flex items-center justify-between gap-4">
-        <h3 className="text-lg font-bold text-white">
-          Add New MFA Device
-        </h3>
+        <h3 className="text-lg font-bold text-white">Add New MFA Device</h3>
         <button
           type="button"
           onClick={onCancel}
@@ -77,6 +105,9 @@ export function MfaDeviceForm({
                   type="radio"
                   value={type.value}
                   {...register('type')}
+                  onChange={() =>
+                    setSelectedType(type.value as MfaDeviceFormValues['type'])
+                  }
                   className="mt-1 accent-purple-500"
                   disabled={isLoading}
                 />
@@ -97,7 +128,9 @@ export function MfaDeviceForm({
         {selectedType === 'totp' && (
           <div className="rounded-xl bg-blue-500/10 border border-blue-500/20 p-4">
             <p className="text-sm text-blue-200">
-              Download an authenticator app like Google Authenticator, Microsoft Authenticator, or Authy. You'll scan a QR code to set up your device.
+              Download an authenticator app like Google Authenticator, Microsoft
+              Authenticator, or Authy. You&apos;ll scan a QR code to set up your
+              device.
             </p>
           </div>
         )}
@@ -105,7 +138,8 @@ export function MfaDeviceForm({
         {selectedType === 'sms' && (
           <div className="rounded-xl bg-blue-500/10 border border-blue-500/20 p-4">
             <p className="text-sm text-blue-200">
-              You'll receive verification codes via SMS to your registered phone number.
+              You&apos;ll receive verification codes via SMS to your registered
+              phone number.
             </p>
           </div>
         )}
@@ -113,7 +147,8 @@ export function MfaDeviceForm({
         {selectedType === 'email' && (
           <div className="rounded-xl bg-blue-500/10 border border-blue-500/20 p-4">
             <p className="text-sm text-blue-200">
-              You'll receive verification codes via email to your registered email address.
+              You&apos;ll receive verification codes via email to your
+              registered email address.
             </p>
           </div>
         )}
