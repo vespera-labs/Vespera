@@ -1,6 +1,13 @@
 'use client';
 
-import { Anchor, BarChart3, ShieldCheck, ShieldX, UserCog } from 'lucide-react';
+import {
+  Anchor,
+  BarChart3,
+  ShieldAlert,
+  ShieldCheck,
+  ShieldX,
+  UserCog,
+} from 'lucide-react';
 import { MdSecurity } from 'react-icons/md';
 import type { ComponentType } from 'react';
 
@@ -25,6 +32,12 @@ const adminNavItems: AdminNavItem[] = [
     label: 'Audit Logs',
     href: '/admin/audit-logs',
     visibleFor: ['admin', 'auditor'],
+  },
+  {
+    icon: ShieldAlert,
+    label: 'Security Dashboard',
+    href: '/admin/security',
+    visibleFor: ['admin'],
   },
   {
     icon: Anchor,

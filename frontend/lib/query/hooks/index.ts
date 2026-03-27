@@ -52,3 +52,13 @@ export {
   useAssignUserRole,
   useUpdateRolePermissions,
 } from './use-admin-roles';
+
+export {
+  useSecurityEvents,
+  useThreats,
+  useThreatStats,
+  useSecurityIncidents,
+  useIncidentMetrics,
+  useMarkThreatFalsePositive,
+  useResolveSecurityIncident,
+} from './use-security-dashboard';

@@ -92,4 +92,21 @@ describe('queryKeys', () => {
       ]);
     });
   });
+
+  describe('security', () => {
+    it('events key includes filters', () => {
+      expect(queryKeys.security.events({ hours: 24 })).toEqual([
+        'security',
+        'events',
+        { hours: 24 },
+      ]);
+    });
+
+    it('incident metrics key is stable', () => {
+      expect(queryKeys.security.incidentMetrics()).toEqual([
+        'security',
+        'incident-metrics',
+      ]);
+    });
+  });
 });

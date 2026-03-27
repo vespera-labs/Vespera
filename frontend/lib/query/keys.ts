@@ -109,4 +109,17 @@ export const queryKeys = {
     list: (filters: object) => [...queryKeys.kyc.lists(), filters] as const,
     detail: (id: string) => [...queryKeys.kyc.all, 'detail', id] as const,
   },
+
+  security: {
+    all: ['security'] as const,
+    events: (filters: object) =>
+      [...queryKeys.security.all, 'events', filters] as const,
+    threats: (filters: object) =>
+      [...queryKeys.security.all, 'threats', filters] as const,
+    threatStats: (filters: object) =>
+      [...queryKeys.security.all, 'threat-stats', filters] as const,
+    incidents: () => [...queryKeys.security.all, 'incidents'] as const,
+    incidentMetrics: () =>
+      [...queryKeys.security.all, 'incident-metrics'] as const,
+  },
 } as const;
