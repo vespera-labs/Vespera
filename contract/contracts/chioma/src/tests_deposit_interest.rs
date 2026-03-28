@@ -40,12 +40,12 @@ fn create_agreement_helper(
     let id = String::from_str(env, "AGR001");
     let token_admin = Address::generate(env);
     let token = create_token_mock(env, &token_admin);
-    
+
     // Mint tokens to the contract for distribution
     let token_admin_client = TokenAdminClient::new(env, &token);
     let contract_self = client.address.clone();
     token_admin_client.mint(&contract_self, &(deposit * 2));
-    
+
     client.create_agreement(&AgreementInput {
         agreement_id: id.clone(),
         landlord: landlord.clone(),
@@ -382,7 +382,7 @@ fn test_calculate_accrued_interest_365_days_equals_annual_rate() {
     // With monthly compounding over 12 months at 10% annual rate:
     // 10,000 × (1 + 0.1/12)^12 - 10,000 ≈ 1,047
     // Allow some tolerance for rounding
-    assert!(interest >= 1_000 && interest <= 1_100);
+    assert!((1_000..=1_100).contains(&interest));
 }
 
 #[test]
@@ -690,7 +690,7 @@ fn test_process_interest_accruals_batch() {
             1 => String::from_str(&env, "AGR001"),
             _ => String::from_str(&env, "AGR002"),
         };
-        
+
         client.create_agreement(&AgreementInput {
             agreement_id: id.clone(),
             landlord: landlord.clone(),
