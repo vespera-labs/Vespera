@@ -85,7 +85,7 @@
                   "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
                 },
                 {
-                  "i128": "10000"
+                  "i128": "24000"
                 }
               ]
             }
@@ -194,7 +194,7 @@
                               "symbol": "security_deposit"
                             },
                             "val": {
-                              "i128": "5000"
+                              "i128": "12000"
                             }
                           },
                           {
@@ -230,7 +230,7 @@
                   "string": "AGR001"
                 },
                 {
-                  "u32": 500
+                  "u32": 1200
                 },
                 {
                   "vec": [
@@ -253,12 +253,24 @@
         }
       ]
     ],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
     []
   ],
   "ledger": {
     "protocol_version": 23,
     "sequence_number": 0,
-    "timestamp": 0,
+    "timestamp": 31104000,
     "network_id": "0000000000000000000000000000000000000000000000000000000000000000",
     "base_reserve": 0,
     "min_persistent_entry_ttl": 4096,
@@ -454,7 +466,7 @@
                         "symbol": "security_deposit"
                       },
                       "val": {
-                        "i128": "5000"
+                        "i128": "12000"
                       }
                     },
                     {
@@ -601,7 +613,440 @@
                         "symbol": "accrual_history"
                       },
                       "val": {
-                        "vec": []
+                        "vec": [
+                          {
+                            "map": [
+                              {
+                                "key": {
+                                  "symbol": "accrued_at"
+                                },
+                                "val": {
+                                  "u64": "2592000"
+                                }
+                              },
+                              {
+                                "key": {
+                                  "symbol": "amount"
+                                },
+                                "val": {
+                                  "i128": "120"
+                                }
+                              },
+                              {
+                                "key": {
+                                  "symbol": "balance"
+                                },
+                                "val": {
+                                  "i128": "12120"
+                                }
+                              },
+                              {
+                                "key": {
+                                  "symbol": "rate"
+                                },
+                                "val": {
+                                  "u32": 1200
+                                }
+                              }
+                            ]
+                          },
+                          {
+                            "map": [
+                              {
+                                "key": {
+                                  "symbol": "accrued_at"
+                                },
+                                "val": {
+                                  "u64": "5184000"
+                                }
+                              },
+                              {
+                                "key": {
+                                  "symbol": "amount"
+                                },
+                                "val": {
+                                  "i128": "121"
+                                }
+                              },
+                              {
+                                "key": {
+                                  "symbol": "balance"
+                                },
+                                "val": {
+                                  "i128": "12241"
+                                }
+                              },
+                              {
+                                "key": {
+                                  "symbol": "rate"
+                                },
+                                "val": {
+                                  "u32": 1200
+                                }
+                              }
+                            ]
+                          },
+                          {
+                            "map": [
+                              {
+                                "key": {
+                                  "symbol": "accrued_at"
+                                },
+                                "val": {
+                                  "u64": "7776000"
+                                }
+                              },
+                              {
+                                "key": {
+                                  "symbol": "amount"
+                                },
+                                "val": {
+                                  "i128": "122"
+                                }
+                              },
+                              {
+                                "key": {
+                                  "symbol": "balance"
+                                },
+                                "val": {
+                                  "i128": "12363"
+                                }
+                              },
+                              {
+                                "key": {
+                                  "symbol": "rate"
+                                },
+                                "val": {
+                                  "u32": 1200
+                                }
+                              }
+                            ]
+                          },
+                          {
+                            "map": [
+                              {
+                                "key": {
+                                  "symbol": "accrued_at"
+                                },
+                                "val": {
+                                  "u64": "10368000"
+                                }
+                              },
+                              {
+                                "key": {
+                                  "symbol": "amount"
+                                },
+                                "val": {
+                                  "i128": "123"
+                                }
+                              },
+                              {
+                                "key": {
+                                  "symbol": "balance"
+                                },
+                                "val": {
+                                  "i128": "12486"
+                                }
+                              },
+                              {
+                                "key": {
+                                  "symbol": "rate"
+                                },
+                                "val": {
+                                  "u32": 1200
+                                }
+                              }
+                            ]
+                          },
+                          {
+                            "map": [
+                              {
+                                "key": {
+                                  "symbol": "accrued_at"
+                                },
+                                "val": {
+                                  "u64": "12960000"
+                                }
+                              },
+                              {
+                                "key": {
+                                  "symbol": "amount"
+                                },
+                                "val": {
+                                  "i128": "124"
+                                }
+                              },
+                              {
+                                "key": {
+                                  "symbol": "balance"
+                                },
+                                "val": {
+                                  "i128": "12610"
+                                }
+                              },
+                              {
+                                "key": {
+                                  "symbol": "rate"
+                                },
+                                "val": {
+                                  "u32": 1200
+                                }
+                              }
+                            ]
+                          },
+                          {
+                            "map": [
+                              {
+                                "key": {
+                                  "symbol": "accrued_at"
+                                },
+                                "val": {
+                                  "u64": "15552000"
+                                }
+                              },
+                              {
+                                "key": {
+                                  "symbol": "amount"
+                                },
+                                "val": {
+                                  "i128": "126"
+                                }
+                              },
+                              {
+                                "key": {
+                                  "symbol": "balance"
+                                },
+                                "val": {
+                                  "i128": "12736"
+                                }
+                              },
+                              {
+                                "key": {
+                                  "symbol": "rate"
+                                },
+                                "val": {
+                                  "u32": 1200
+                                }
+                              }
+                            ]
+                          },
+                          {
+                            "map": [
+                              {
+                                "key": {
+                                  "symbol": "accrued_at"
+                                },
+                                "val": {
+                                  "u64": "18144000"
+                                }
+                              },
+                              {
+                                "key": {
+                                  "symbol": "amount"
+                                },
+                                "val": {
+                                  "i128": "127"
+                                }
+                              },
+                              {
+                                "key": {
+                                  "symbol": "balance"
+                                },
+                                "val": {
+                                  "i128": "12863"
+                                }
+                              },
+                              {
+                                "key": {
+                                  "symbol": "rate"
+                                },
+                                "val": {
+                                  "u32": 1200
+                                }
+                              }
+                            ]
+                          },
+                          {
+                            "map": [
+                              {
+                                "key": {
+                                  "symbol": "accrued_at"
+                                },
+                                "val": {
+                                  "u64": "20736000"
+                                }
+                              },
+                              {
+                                "key": {
+                                  "symbol": "amount"
+                                },
+                                "val": {
+                                  "i128": "128"
+                                }
+                              },
+                              {
+                                "key": {
+                                  "symbol": "balance"
+                                },
+                                "val": {
+                                  "i128": "12991"
+                                }
+                              },
+                              {
+                                "key": {
+                                  "symbol": "rate"
+                                },
+                                "val": {
+                                  "u32": 1200
+                                }
+                              }
+                            ]
+                          },
+                          {
+                            "map": [
+                              {
+                                "key": {
+                                  "symbol": "accrued_at"
+                                },
+                                "val": {
+                                  "u64": "23328000"
+                                }
+                              },
+                              {
+                                "key": {
+                                  "symbol": "amount"
+                                },
+                                "val": {
+                                  "i128": "129"
+                                }
+                              },
+                              {
+                                "key": {
+                                  "symbol": "balance"
+                                },
+                                "val": {
+                                  "i128": "13120"
+                                }
+                              },
+                              {
+                                "key": {
+                                  "symbol": "rate"
+                                },
+                                "val": {
+                                  "u32": 1200
+                                }
+                              }
+                            ]
+                          },
+                          {
+                            "map": [
+                              {
+                                "key": {
+                                  "symbol": "accrued_at"
+                                },
+                                "val": {
+                                  "u64": "25920000"
+                                }
+                              },
+                              {
+                                "key": {
+                                  "symbol": "amount"
+                                },
+                                "val": {
+                                  "i128": "131"
+                                }
+                              },
+                              {
+                                "key": {
+                                  "symbol": "balance"
+                                },
+                                "val": {
+                                  "i128": "13251"
+                                }
+                              },
+                              {
+                                "key": {
+                                  "symbol": "rate"
+                                },
+                                "val": {
+                                  "u32": 1200
+                                }
+                              }
+                            ]
+                          },
+                          {
+                            "map": [
+                              {
+                                "key": {
+                                  "symbol": "accrued_at"
+                                },
+                                "val": {
+                                  "u64": "28512000"
+                                }
+                              },
+                              {
+                                "key": {
+                                  "symbol": "amount"
+                                },
+                                "val": {
+                                  "i128": "132"
+                                }
+                              },
+                              {
+                                "key": {
+                                  "symbol": "balance"
+                                },
+                                "val": {
+                                  "i128": "13383"
+                                }
+                              },
+                              {
+                                "key": {
+                                  "symbol": "rate"
+                                },
+                                "val": {
+                                  "u32": 1200
+                                }
+                              }
+                            ]
+                          },
+                          {
+                            "map": [
+                              {
+                                "key": {
+                                  "symbol": "accrued_at"
+                                },
+                                "val": {
+                                  "u64": "31104000"
+                                }
+                              },
+                              {
+                                "key": {
+                                  "symbol": "amount"
+                                },
+                                "val": {
+                                  "i128": "133"
+                                }
+                              },
+                              {
+                                "key": {
+                                  "symbol": "balance"
+                                },
+                                "val": {
+                                  "i128": "13516"
+                                }
+                              },
+                              {
+                                "key": {
+                                  "symbol": "rate"
+                                },
+                                "val": {
+                                  "u32": 1200
+                                }
+                              }
+                            ]
+                          }
+                        ]
                       }
                     },
                     {
@@ -609,7 +1054,7 @@
                         "symbol": "accrued_interest"
                       },
                       "val": {
-                        "i128": "0"
+                        "i128": "1516"
                       }
                     },
                     {
@@ -625,7 +1070,7 @@
                         "symbol": "last_accrual_date"
                       },
                       "val": {
-                        "u64": "0"
+                        "u64": "31104000"
                       }
                     },
                     {
@@ -633,7 +1078,7 @@
                         "symbol": "principal"
                       },
                       "val": {
-                        "i128": "5000"
+                        "i128": "12000"
                       }
                     },
                     {
@@ -641,7 +1086,7 @@
                         "symbol": "total_with_interest"
                       },
                       "val": {
-                        "i128": "5000"
+                        "i128": "13516"
                       }
                     }
                   ]
@@ -703,7 +1148,7 @@
                         "symbol": "annual_rate"
                       },
                       "val": {
-                        "u32": 500
+                        "u32": 1200
                       }
                     },
                     {
@@ -1151,7 +1596,7 @@
                         "symbol": "amount"
                       },
                       "val": {
-                        "i128": "10000"
+                        "i128": "24000"
                       }
                     },
                     {

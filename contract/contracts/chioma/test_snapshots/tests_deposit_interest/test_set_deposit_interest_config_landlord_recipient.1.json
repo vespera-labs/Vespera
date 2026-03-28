@@ -242,7 +242,7 @@
                 {
                   "vec": [
                     {
-                      "symbol": "Tenant"
+                      "symbol": "Landlord"
                     }
                   ]
                 }
@@ -725,7 +725,7 @@
                       "val": {
                         "vec": [
                           {
-                            "symbol": "Tenant"
+                            "symbol": "Landlord"
                           }
                         ]
                       }

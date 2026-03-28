@@ -85,7 +85,7 @@
                   "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
                 },
                 {
-                  "i128": "10000"
+                  "i128": "20000"
                 }
               ]
             }
@@ -194,7 +194,7 @@
                               "symbol": "security_deposit"
                             },
                             "val": {
-                              "i128": "5000"
+                              "i128": "10000"
                             }
                           },
                           {
@@ -230,7 +230,7 @@
                   "string": "AGR001"
                 },
                 {
-                  "u32": 500
+                  "u32": 10000
                 },
                 {
                   "vec": [
@@ -258,7 +258,7 @@
   "ledger": {
     "protocol_version": 23,
     "sequence_number": 0,
-    "timestamp": 0,
+    "timestamp": 31536000,
     "network_id": "0000000000000000000000000000000000000000000000000000000000000000",
     "base_reserve": 0,
     "min_persistent_entry_ttl": 4096,
@@ -454,7 +454,7 @@
                         "symbol": "security_deposit"
                       },
                       "val": {
-                        "i128": "5000"
+                        "i128": "10000"
                       }
                     },
                     {
@@ -633,7 +633,7 @@
                         "symbol": "principal"
                       },
                       "val": {
-                        "i128": "5000"
+                        "i128": "10000"
                       }
                     },
                     {
@@ -641,7 +641,7 @@
                         "symbol": "total_with_interest"
                       },
                       "val": {
-                        "i128": "5000"
+                        "i128": "10000"
                       }
                     }
                   ]
@@ -703,7 +703,7 @@
                         "symbol": "annual_rate"
                       },
                       "val": {
-                        "u32": 500
+                        "u32": 10000
                       }
                     },
                     {
@@ -1151,7 +1151,7 @@
                         "symbol": "amount"
                       },
                       "val": {
-                        "i128": "10000"
+                        "i128": "20000"
                       }
                     },
                     {

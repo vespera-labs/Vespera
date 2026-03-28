@@ -230,12 +230,12 @@
                   "string": "AGR001"
                 },
                 {
-                  "u32": 500
+                  "u32": 750
                 },
                 {
                   "vec": [
                     {
-                      "symbol": "Monthly"
+                      "symbol": "Quarterly"
                     }
                   ]
                 },
@@ -703,7 +703,7 @@
                         "symbol": "annual_rate"
                       },
                       "val": {
-                        "u32": 500
+                        "u32": 750
                       }
                     },
                     {
@@ -713,7 +713,7 @@
                       "val": {
                         "vec": [
                           {
-                            "symbol": "Monthly"
+                            "symbol": "Quarterly"
                           }
                         ]
                       }

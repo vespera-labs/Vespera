@@ -85,7 +85,7 @@
                   "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
                 },
                 {
-                  "i128": "10000"
+                  "i128": "20000"
                 }
               ]
             }
@@ -194,7 +194,7 @@
                               "symbol": "security_deposit"
                             },
                             "val": {
-                              "i128": "5000"
+                              "i128": "10000"
                             }
                           },
                           {
@@ -230,7 +230,7 @@
                   "string": "AGR001"
                 },
                 {
-                  "u32": 500
+                  "u32": 1000
                 },
                 {
                   "vec": [
@@ -253,12 +253,13 @@
         }
       ]
     ],
+    [],
     []
   ],
   "ledger": {
     "protocol_version": 23,
     "sequence_number": 0,
-    "timestamp": 0,
+    "timestamp": 2592000,
     "network_id": "0000000000000000000000000000000000000000000000000000000000000000",
     "base_reserve": 0,
     "min_persistent_entry_ttl": 4096,
@@ -454,7 +455,7 @@
                         "symbol": "security_deposit"
                       },
                       "val": {
-                        "i128": "5000"
+                        "i128": "10000"
                       }
                     },
                     {
@@ -601,7 +602,44 @@
                         "symbol": "accrual_history"
                       },
                       "val": {
-                        "vec": []
+                        "vec": [
+                          {
+                            "map": [
+                              {
+                                "key": {
+                                  "symbol": "accrued_at"
+                                },
+                                "val": {
+                                  "u64": "2592000"
+                                }
+                              },
+                              {
+                                "key": {
+                                  "symbol": "amount"
+                                },
+                                "val": {
+                                  "i128": "83"
+                                }
+                              },
+                              {
+                                "key": {
+                                  "symbol": "balance"
+                                },
+                                "val": {
+                                  "i128": "10083"
+                                }
+                              },
+                              {
+                                "key": {
+                                  "symbol": "rate"
+                                },
+                                "val": {
+                                  "u32": 1000
+                                }
+                              }
+                            ]
+                          }
+                        ]
                       }
                     },
                     {
@@ -609,7 +647,7 @@
                         "symbol": "accrued_interest"
                       },
                       "val": {
-                        "i128": "0"
+                        "i128": "83"
                       }
                     },
                     {
@@ -625,7 +663,7 @@
                         "symbol": "last_accrual_date"
                       },
                       "val": {
-                        "u64": "0"
+                        "u64": "2592000"
                       }
                     },
                     {
@@ -633,7 +671,7 @@
                         "symbol": "principal"
                       },
                       "val": {
-                        "i128": "5000"
+                        "i128": "10000"
                       }
                     },
                     {
@@ -641,7 +679,7 @@
                         "symbol": "total_with_interest"
                       },
                       "val": {
-                        "i128": "5000"
+                        "i128": "10083"
                       }
                     }
                   ]
@@ -703,7 +741,7 @@
                         "symbol": "annual_rate"
                       },
                       "val": {
-                        "u32": 500
+                        "u32": 1000
                       }
                     },
                     {
@@ -1151,7 +1189,7 @@
                         "symbol": "amount"
                       },
                       "val": {
-                        "i128": "10000"
+                        "i128": "20000"
                       }
                     },
                     {

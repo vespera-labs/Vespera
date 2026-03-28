@@ -230,7 +230,7 @@
                   "string": "AGR001"
                 },
                 {
-                  "u32": 500
+                  "u32": 600
                 },
                 {
                   "vec": [
@@ -242,7 +242,7 @@
                 {
                   "vec": [
                     {
-                      "symbol": "Tenant"
+                      "symbol": "Split"
                     }
                   ]
                 }
@@ -253,12 +253,15 @@
         }
       ]
     ],
+    [],
+    [],
+    [],
     []
   ],
   "ledger": {
     "protocol_version": 23,
     "sequence_number": 0,
-    "timestamp": 0,
+    "timestamp": 7776000,
     "network_id": "0000000000000000000000000000000000000000000000000000000000000000",
     "base_reserve": 0,
     "min_persistent_entry_ttl": 4096,
@@ -601,7 +604,116 @@
                         "symbol": "accrual_history"
                       },
                       "val": {
-                        "vec": []
+                        "vec": [
+                          {
+                            "map": [
+                              {
+                                "key": {
+                                  "symbol": "accrued_at"
+                                },
+                                "val": {
+                                  "u64": "2592000"
+                                }
+                              },
+                              {
+                                "key": {
+                                  "symbol": "amount"
+                                },
+                                "val": {
+                                  "i128": "25"
+                                }
+                              },
+                              {
+                                "key": {
+                                  "symbol": "balance"
+                                },
+                                "val": {
+                                  "i128": "5025"
+                                }
+                              },
+                              {
+                                "key": {
+                                  "symbol": "rate"
+                                },
+                                "val": {
+                                  "u32": 600
+                                }
+                              }
+                            ]
+                          },
+                          {
+                            "map": [
+                              {
+                                "key": {
+                                  "symbol": "accrued_at"
+                                },
+                                "val": {
+                                  "u64": "5184000"
+                                }
+                              },
+                              {
+                                "key": {
+                                  "symbol": "amount"
+                                },
+                                "val": {
+                                  "i128": "25"
+                                }
+                              },
+                              {
+                                "key": {
+                                  "symbol": "balance"
+                                },
+                                "val": {
+                                  "i128": "5050"
+                                }
+                              },
+                              {
+                                "key": {
+                                  "symbol": "rate"
+                                },
+                                "val": {
+                                  "u32": 600
+                                }
+                              }
+                            ]
+                          },
+                          {
+                            "map": [
+                              {
+                                "key": {
+                                  "symbol": "accrued_at"
+                                },
+                                "val": {
+                                  "u64": "7776000"
+                                }
+                              },
+                              {
+                                "key": {
+                                  "symbol": "amount"
+                                },
+                                "val": {
+                                  "i128": "25"
+                                }
+                              },
+                              {
+                                "key": {
+                                  "symbol": "balance"
+                                },
+                                "val": {
+                                  "i128": "5075"
+                                }
+                              },
+                              {
+                                "key": {
+                                  "symbol": "rate"
+                                },
+                                "val": {
+                                  "u32": 600
+                                }
+                              }
+                            ]
+                          }
+                        ]
                       }
                     },
                     {
@@ -609,7 +721,7 @@
                         "symbol": "accrued_interest"
                       },
                       "val": {
-                        "i128": "0"
+                        "i128": "75"
                       }
                     },
                     {
@@ -625,7 +737,7 @@
                         "symbol": "last_accrual_date"
                       },
                       "val": {
-                        "u64": "0"
+                        "u64": "7776000"
                       }
                     },
                     {
@@ -641,7 +753,7 @@
                         "symbol": "total_with_interest"
                       },
                       "val": {
-                        "i128": "5000"
+                        "i128": "5075"
                       }
                     }
                   ]
@@ -703,7 +815,7 @@
                         "symbol": "annual_rate"
                       },
                       "val": {
-                        "u32": 500
+                        "u32": 600
                       }
                     },
                     {
@@ -725,7 +837,7 @@
                       "val": {
                         "vec": [
                           {
-                            "symbol": "Tenant"
+                            "symbol": "Split"
                           }
                         ]
                       }

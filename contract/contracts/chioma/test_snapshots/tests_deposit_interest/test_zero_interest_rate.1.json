@@ -230,7 +230,7 @@
                   "string": "AGR001"
                 },
                 {
-                  "u32": 500
+                  "u32": 0
                 },
                 {
                   "vec": [
@@ -258,7 +258,7 @@
   "ledger": {
     "protocol_version": 23,
     "sequence_number": 0,
-    "timestamp": 0,
+    "timestamp": 31536000,
     "network_id": "0000000000000000000000000000000000000000000000000000000000000000",
     "base_reserve": 0,
     "min_persistent_entry_ttl": 4096,
@@ -703,7 +703,7 @@
                         "symbol": "annual_rate"
                       },
                       "val": {
-                        "u32": 500
+                        "u32": 0
                       }
                     },
                     {
