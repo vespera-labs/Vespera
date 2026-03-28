@@ -1,4 +1,10 @@
-import { Injectable, Logger, BadRequestException, UnauthorizedException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  BadRequestException,
+  UnauthorizedException,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { createHash } from 'crypto';
@@ -11,7 +17,11 @@ import { ChangePasswordDto } from './dto/update-user.dto';
 import { UserRestoreDto } from './dto/user-restore.dto';
 import { KycStatus } from '../kyc/kyc-status.enum';
 import { AuditService } from '../audit/audit.service';
-import { AuditAction, AuditLevel, AuditStatus } from '../audit/entities/audit-log.entity';
+import {
+  AuditAction,
+  AuditLevel,
+  AuditStatus,
+} from '../audit/entities/audit-log.entity';
 
 const SALT_ROUNDS = 12;
 
@@ -23,7 +33,7 @@ export class UsersService {
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
     private readonly auditService: AuditService,
-  ) { }
+  ) {}
 
   async exportUserData(userId: string): Promise<any> {
     // Gather all user data for export (including related entities)
@@ -61,7 +71,9 @@ export class UsersService {
     await this.userRepository.save(user);
     // Soft delete
     await this.userRepository.softDelete(userId);
-    this.logger.log(`GDPR account deletion and anonymization for user: ${user.id}`);
+    this.logger.log(
+      `GDPR account deletion and anonymization for user: ${user.id}`,
+    );
     // TODO: Add auditService.log for compliance
     await this.auditService.log({
       action: AuditAction.DELETE,
@@ -75,7 +87,10 @@ export class UsersService {
     return { message: 'Account deleted and data anonymized (GDPR)' };
   }
 
-  async updateConsent(userId: string, consent: any): Promise<{ message: string }> {
+  async updateConsent(
+    userId: string,
+    consent: any,
+  ): Promise<{ message: string }> {
     // Store consent preferences (simple example, should be expanded)
     const user = await this.findById(userId);
     (user as any).consent = consent;

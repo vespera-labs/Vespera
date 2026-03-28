@@ -37,7 +37,7 @@ import { User, UserRole } from './entities/user.entity';
 @ApiBearerAuth('JWT-auth')
 @UseInterceptors(ClassSerializerInterceptor)
 export class UsersController {
-  constructor(private readonly usersService: UsersService) { }
+  constructor(private readonly usersService: UsersService) {}
 
   @Get('me')
   @ApiOperation({ summary: 'Get current user profile' })
@@ -128,7 +128,10 @@ export class UsersController {
   @Delete('me/gdpr')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Delete user account and anonymize data (GDPR)' })
-  @ApiResponse({ status: 200, description: 'Account deleted and data anonymized' })
+  @ApiResponse({
+    status: 200,
+    description: 'Account deleted and data anonymized',
+  })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async gdprDeleteAccount(@CurrentUser() user: User) {
     return this.usersService.gdprDeleteAccount(user.id);
