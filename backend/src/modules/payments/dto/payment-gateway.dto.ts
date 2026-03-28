@@ -32,6 +32,14 @@ export class ProcessStellarRentGatewayDto {
   @IsNumberString()
   @IsNotEmpty()
   amount: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Optional idempotency key for safely retrying payment creation',
+  })
+  @IsOptional()
+  @IsString()
+  idempotencyKey?: string;
 }
 
 export class CreateEscrowGatewayDto {
@@ -68,6 +76,13 @@ export class CreateEscrowGatewayDto {
   @IsOptional()
   @IsString()
   expirationDate?: string;
+
+  @ApiPropertyOptional({
+    description: 'Optional idempotency key for safely retrying escrow creation',
+  })
+  @IsOptional()
+  @IsString()
+  idempotencyKey?: string;
 }
 
 export class ReleaseEscrowGatewayDto {

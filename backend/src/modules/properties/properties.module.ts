@@ -10,6 +10,9 @@ import { PropertyAmenity } from './entities/property-amenity.entity';
 import { RentalUnit } from './entities/rental-unit.entity';
 import { PropertyListingDraft } from './entities/property-listing-draft.entity';
 import { CacheService } from '../../common/cache/cache.service';
+import { PropertyAvailability } from './entities/property-availability.entity';
+import { AvailabilityService } from './availability.service';
+import { AvailabilityController } from './availability.controller';
 
 @Module({
   imports: [
@@ -20,10 +23,16 @@ import { CacheService } from '../../common/cache/cache.service';
       PropertyAmenity,
       RentalUnit,
       PropertyListingDraft,
+      PropertyAvailability,
     ]),
   ],
-  controllers: [PropertiesController],
-  providers: [PropertiesService, PropertyCacheWarmingService, CacheService],
+  controllers: [PropertiesController, AvailabilityController],
+  providers: [
+    PropertiesService,
+    PropertyCacheWarmingService,
+    CacheService,
+    AvailabilityService,
+  ],
   exports: [PropertiesService],
 })
 export class PropertiesModule {}

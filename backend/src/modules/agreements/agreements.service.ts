@@ -25,6 +25,8 @@ import { BlockchainSyncService } from './blockchain-sync.service';
 import { EscrowIntegrationService } from './escrow-integration.service';
 import { TemplateRenderingService } from './template-rendering.service';
 import { PDFGenerationService } from './pdf-generation.service';
+import { Locked, LockService } from '../../common/lock';
+import { Idempotent, IdempotencyService } from '../../common/idempotency';
 
 @Injectable()
 export class AgreementsService {
@@ -42,8 +44,23 @@ export class AgreementsService {
     private readonly escrowIntegration: EscrowIntegrationService,
     private readonly templateService: TemplateRenderingService,
     private readonly pdfService: PDFGenerationService,
+    private readonly lockService: LockService,
+    private readonly idempotencyService: IdempotencyService,
   ) {}
 
+  @Locked({
+    key: (createAgreementDto: CreateAgreementDto) =>
+      `agreement:create:${createAgreementDto.propertyId}:${createAgreementDto.tenantId}:${createAgreementDto.startDate}`,
+    ttlMs: 10000,
+  })
+  @Idempotent({
+    ttlMs: 604_800_000,
+    key: (createAgreementDto: CreateAgreementDto) =>
+      createAgreementDto.idempotencyKey
+        ? `agreement:create:${createAgreementDto.landlordId}:${createAgreementDto.idempotencyKey}`
+        : null,
+    requireKey: false,
+  })
   async create(createAgreementDto: CreateAgreementDto) {
     const startDate = new Date(createAgreementDto.startDate);
     const endDate = new Date(createAgreementDto.endDate);
@@ -82,6 +99,7 @@ export class AgreementsService {
     return await this.agreementRepository.save(agreement);
   }
 
+  @Locked({ key: (id: string) => `agreement:terminate:${id}`, ttlMs: 5000 })
   async terminate(id: string, dto: TerminateAgreementDto) {
     const agreement = await this.findOne(id);
     agreement.status = AgreementStatus.TERMINATED;

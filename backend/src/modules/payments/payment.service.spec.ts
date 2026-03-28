@@ -11,7 +11,6 @@ import {
 } from './entities/payment-schedule.entity';
 import { PaymentGatewayService } from './payment-gateway.service';
 import { NotificationsService } from '../notifications/notifications.service';
-import { UsersService } from '../users/users.service';
 import { PaymentStatus } from './entities/payment.entity';
 import { CreatePaymentRecordDto } from './dto/record-payment.dto';
 import { ProcessRefundDto } from './dto/process-refund.dto';
@@ -21,6 +20,8 @@ import { PaymentInterval } from './entities/payment-schedule.entity';
 import { PaymentProcessingService } from '../stellar/services/payment-processing.service';
 import { StellarService } from '../stellar/services/stellar.service';
 import * as StellarSdk from '@stellar/stellar-sdk';
+import { LockService } from '../../common/lock';
+import { IdempotencyService } from '../../common/idempotency';
 
 const mockPaymentRepository = () => ({
   findOne: jest.fn(),
@@ -75,6 +76,18 @@ const mockStellarService = {
   getTransactionByHash: jest.fn(),
 };
 
+const mockLockService = {
+  withLock: jest.fn(
+    async (_key: string, _ttlMs: number, fn: () => Promise<unknown>) => fn(),
+  ),
+};
+
+const mockIdempotencyService = {
+  process: jest.fn(
+    async (_key: string, _ttlMs: number, fn: () => Promise<unknown>) => fn(),
+  ),
+};
+
 describe('PaymentService', () => {
   let service: PaymentService;
   let paymentRepository: Repository<Payment>;
@@ -106,7 +119,7 @@ describe('PaymentService', () => {
           useValue: mockNotificationsService,
         },
         {
-          provide: UsersService,
+          provide: Object,
           useValue: mockUsersService,
         },
         {
@@ -116,6 +129,14 @@ describe('PaymentService', () => {
         {
           provide: StellarService,
           useValue: mockStellarService,
+        },
+        {
+          provide: LockService,
+          useValue: mockLockService,
+        },
+        {
+          provide: IdempotencyService,
+          useValue: mockIdempotencyService,
         },
       ],
     }).compile();
@@ -260,7 +281,7 @@ describe('PaymentService', () => {
         refundedAmount: 0,
         currency: 'NGN',
         metadata: { chargeId: 'charge_1' },
-      } as Payment;
+      } as unknown as Payment;
 
       (paymentRepository.findOne as jest.Mock).mockResolvedValue(payment);
       mockPaymentGateway.processRefund.mockResolvedValue({
@@ -294,7 +315,7 @@ describe('PaymentService', () => {
         amount: 100,
         refundedAmount: 0,
         metadata: {},
-      } as Payment;
+      } as unknown as Payment;
 
       (paymentRepository.findOne as jest.Mock).mockResolvedValue(payment);
 
@@ -520,7 +541,7 @@ describe('PaymentService', () => {
           userId: 'user_1',
           status: PaymentStatus.FAILED,
           amount: 150,
-          paymentMethodId: 2,
+          paymentMethodRelationId: 2,
           agreementId: 'agreement_1',
           referenceNumber: 'ref_1',
           metadata: {},
@@ -544,7 +565,7 @@ describe('PaymentService', () => {
       (paymentRepository.find as jest.Mock).mockResolvedValue([
         {
           amount: 10,
-          refundedAmount: 0,
+          refundAmount: 0,
           currency: 'XLM',
           status: PaymentStatus.COMPLETED,
           metadata: { flow: 'rent' },

@@ -167,4 +167,13 @@ export class CreateAgreementDto {
   @IsOptional()
   @IsString()
   termsAndConditions?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Optional idempotency key for safely retrying agreement creation',
+    example: '66b2c4b6-38c6-4f18-a591-2e0f9d4f1d4e',
+  })
+  @IsOptional()
+  @IsString()
+  idempotencyKey?: string;
 }
