@@ -21,6 +21,8 @@ import {
   BadRequestException,
   ForbiddenException,
 } from '@nestjs/common';
+import { LockService } from '../../../common/lock';
+import { IdempotencyService } from '../../../common/idempotency';
 
 describe('DisputesService', () => {
   let service: DisputesService;
@@ -128,6 +130,30 @@ describe('DisputesService', () => {
           provide: AuditService,
           useValue: {
             log: jest.fn(),
+          },
+        },
+        {
+          provide: LockService,
+          useValue: {
+            withLock: jest.fn(
+              async (
+                _key: string,
+                _ttlMs: number,
+                fn: () => Promise<unknown>,
+              ) => fn(),
+            ),
+          },
+        },
+        {
+          provide: IdempotencyService,
+          useValue: {
+            process: jest.fn(
+              async (
+                _key: string,
+                _ttlMs: number,
+                fn: () => Promise<unknown>,
+              ) => fn(),
+            ),
           },
         },
       ],

@@ -69,6 +69,7 @@ API Docs: Swagger/OpenAPI
 ### Design Patterns
 
 **Dependency Injection**
+
 ```typescript
 // NestJS handles DI automatically
 @Injectable()
@@ -81,6 +82,7 @@ export class UserService {
 ```
 
 **Repository Pattern**
+
 ```typescript
 // Encapsulates database queries
 @Injectable()
@@ -94,6 +96,7 @@ export class UserRepository {
 ```
 
 **Service Layer**
+
 ```typescript
 // Contains business logic
 @Injectable()
@@ -106,6 +109,7 @@ export class UserService {
 ```
 
 **Controller Layer**
+
 ```typescript
 // Handles HTTP requests/responses
 @Controller('users')
@@ -189,6 +193,7 @@ backend/
 ### Key Directories Explained
 
 **`src/common/`** - Shared utilities used across modules
+
 - Decorators: Custom route/parameter decorators
 - DTOs: Data Transfer Objects for validation
 - Errors: Error types and handling
@@ -200,17 +205,20 @@ backend/
 - Utils: Helper functions
 
 **`src/modules/`** - Feature modules organized by domain
+
 - Each module is self-contained
 - Contains controller, service, repository, entity, DTO
 - Can have sub-modules for complex features
 
 **`src/database/`** - Database configuration and migrations
+
 - `data-source.ts` - TypeORM configuration
 - `migration-runner.ts` - Safe migration execution
 - `migrations/` - Migration files (timestamped)
 - `seeds/` - Seed data for development
 
 **`test/`** - End-to-end tests
+
 - Tests against real database
 - Tests API contracts
 - Tests integration scenarios
@@ -248,7 +256,11 @@ export class MyFeature {
   @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
   createdAt: Date;
 
-  @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP', onUpdate: 'CURRENT_TIMESTAMP' })
+  @Column({
+    type: 'timestamp',
+    default: () => 'CURRENT_TIMESTAMP',
+    onUpdate: 'CURRENT_TIMESTAMP',
+  })
   updatedAt: Date;
 }
 ```
@@ -488,13 +500,12 @@ import { MyFeature } from '../../modules/my-feature/entities/my-feature.entity';
 export async function seedMyFeature(dataSource: DataSource) {
   const repository = dataSource.getRepository(MyFeature);
 
-  const features = [
-    { name: 'Feature 1' },
-    { name: 'Feature 2' },
-  ];
+  const features = [{ name: 'Feature 1' }, { name: 'Feature 2' }];
 
   for (const feature of features) {
-    const existing = await repository.findOne({ where: { name: feature.name } });
+    const existing = await repository.findOne({
+      where: { name: feature.name },
+    });
     if (!existing) {
       await repository.save(feature);
     }
@@ -654,7 +665,12 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { MyFeatureService } from './my-feature.service';
 import { CreateMyFeatureDto } from './dto/create-my-feature.dto';
@@ -744,6 +760,7 @@ make ci
 ```
 
 This runs:
+
 1. **Install** - Install dependencies
 2. **Format Check** - Prettier formatting
 3. **Lint** - ESLint code quality
@@ -756,6 +773,7 @@ This runs:
 #### 1. ESLint (Code Quality)
 
 Checks for:
+
 - Unused variables
 - Missing error handling
 - Security issues
@@ -862,9 +880,11 @@ Before submitting a PR:
 
 ```markdown
 ## Description
+
 Brief description of changes
 
 ## Type of Change
+
 - [ ] Bug fix
 - [ ] New feature
 - [ ] Breaking change
@@ -872,18 +892,23 @@ Brief description of changes
 - [ ] Documentation update
 
 ## Related Issues
+
 Closes #123
 
 ## Testing
+
 How to test these changes
 
 ## Database Changes
+
 Any migrations or schema changes
 
 ## Security Considerations
+
 Any security implications
 
 ## Checklist
+
 - [ ] Code follows style guidelines
 - [ ] Tests pass locally (`make ci`)
 - [ ] No new warnings generated

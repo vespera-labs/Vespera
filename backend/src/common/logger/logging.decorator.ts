@@ -9,17 +9,26 @@ export function Logging(contextInfo: Partial<LogContext> = {}) {
     const originalMethod = descriptor.value;
     descriptor.value = async function (...args: any[]) {
       const logger: LoggerService = this.logger || new LoggerService();
+      const logInfo = (message: string, metadata: Record<string, unknown>) => {
+        if (typeof (logger as any).info === 'function') {
+          (logger as any).info(message, metadata);
+          return;
+        }
+        if (typeof (logger as any).log === 'function') {
+          (logger as any).log(message, metadata);
+        }
+      };
       const method = propertyKey;
       const service = target.constructor.name;
       const start = Date.now();
       try {
-        logger.info(`START ${service}.${method}`, {
+        logInfo(`START ${service}.${method}`, {
           ...contextInfo,
           service,
           method,
         });
         const result = await originalMethod.apply(this, args);
-        logger.info(`END ${service}.${method}`, {
+        logInfo(`END ${service}.${method}`, {
           ...contextInfo,
           service,
           method,

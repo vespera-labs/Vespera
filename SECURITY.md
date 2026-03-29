@@ -38,10 +38,10 @@ Alternatively, you can use GitHub's private vulnerability reporting:
 
 ## Supported Versions
 
-| Version | Status | Security Updates |
-|---------|--------|------------------|
-| 1.x     | Current | ✅ Yes |
-| 0.x     | Legacy | ⚠️ Limited |
+| Version | Status  | Security Updates |
+| ------- | ------- | ---------------- |
+| 1.x     | Current | ✅ Yes           |
+| 0.x     | Legacy  | ⚠️ Limited       |
 
 ## Security Best Practices
 
@@ -76,6 +76,7 @@ Alternatively, you can use GitHub's private vulnerability reporting:
 ### For Deployments
 
 1. **Environment Variables**
+
    ```bash
    # Never commit these
    DATABASE_URL

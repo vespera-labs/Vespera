@@ -52,6 +52,8 @@ import { QueuesModule } from './modules/queues/queues.module';
 import { WebhooksModule } from './modules/webhooks/webhooks.module';
 import { ScreeningModule } from './modules/screening/screening.module';
 import { ReferralModule } from './modules/referral/referral.module';
+import { LockModule } from './common/lock';
+import { IdempotencyModule } from './common/idempotency';
 
 const appLogger = new Logger('AppModule');
 
@@ -62,6 +64,8 @@ const appLogger = new Logger('AppModule');
       isGlobal: true,
     }),
     LoggerModule,
+    LockModule,
+    IdempotencyModule,
     require('./common/services/encryption.module').EncryptionModule,
     process.env.NODE_ENV === 'test'
       ? CacheModule.register({

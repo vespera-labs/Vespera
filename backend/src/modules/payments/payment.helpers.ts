@@ -47,6 +47,30 @@ export function calculateNextRunAt(
   }
 }
 
+export function parseEscrowReference(referenceNumber: string): number | null {
+  if (referenceNumber?.startsWith('escrow:')) {
+    const escrowIdStr = referenceNumber.substring('escrow:'.length);
+    const escrowId = parseInt(escrowIdStr, 10);
+    return isNaN(escrowId) ? null : escrowId;
+  }
+  return null;
+}
+
+export function mapWebhookStatus(webhookStatus: string): string {
+  const statusMap: Record<string, string> = {
+    completed: 'completed',
+    successful: 'completed',
+    success: 'completed',
+    pending: 'pending',
+    processing: 'pending',
+    failed: 'failed',
+    error: 'failed',
+    refunded: 'refunded',
+    cancelled: 'failed',
+  };
+  return statusMap[webhookStatus?.toLowerCase()] ?? 'pending';
+}
+
 export function encryptMetadata(data: Record<string, unknown>): string {
   const secret = process.env.PAYMENT_METADATA_SECRET;
   if (!secret) {

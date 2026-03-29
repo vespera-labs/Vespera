@@ -26,8 +26,9 @@ import {
 import { PasswordPolicyService } from './services/password-policy.service';
 import { MfaService } from './services/mfa.service';
 import { ReferralService } from '../referral/referral.service';
-import { LoggerService } from '../../common/logger/logger.service';
+import { LoggerService } from '../../common/services/logger.service';
 import { Logging } from '../../common/logger/logging.decorator';
+import { Locked, LockService } from '../../common/lock';
 
 const SALT_ROUNDS = 12;
 const MAX_FAILED_ATTEMPTS = 5;
@@ -48,9 +49,15 @@ export class AuthService {
     private mfaService: MfaService,
     private referralService: ReferralService,
     private readonly loggerService: LoggerService,
+    private readonly lockService: LockService,
   ) {}
 
   @Logging({ service: 'AuthService' })
+  @Locked({
+    key: (registerDto: RegisterDto) =>
+      `user:register:${registerDto.email?.toLowerCase() ?? 'unknown'}`,
+    ttlMs: 5000,
+  })
   async register(registerDto: RegisterDto): Promise<AuthSuccessResponseDto> {
     const { email, password, firstName, lastName, role, referralCode } =
       registerDto;

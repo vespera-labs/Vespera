@@ -24,6 +24,8 @@ import { AuditService } from '../audit/audit.service';
 import { AuditAction, AuditLevel } from '../audit/entities/audit-log.entity';
 import { AuditLog } from '../audit/decorators/audit-log.decorator';
 import { randomUUID } from 'crypto';
+import { Locked, LockService } from '../../common/lock';
+import { Idempotent, IdempotencyService } from '../../common/idempotency';
 
 @Injectable()
 export class DisputesService {
@@ -40,6 +42,8 @@ export class DisputesService {
     private readonly userRepository: Repository<User>,
     private readonly auditService: AuditService,
     private readonly dataSource: DataSource,
+    private readonly lockService: LockService,
+    private readonly idempotencyService: IdempotencyService,
   ) {}
 
   /**
@@ -50,6 +54,19 @@ export class DisputesService {
     entityType: 'Dispute',
     level: AuditLevel.INFO,
     includeNewValues: true,
+  })
+  @Locked({
+    key: (createDisputeDto: CreateDisputeDto) =>
+      `dispute:create:${createDisputeDto.agreementId}`,
+    ttlMs: 10000,
+  })
+  @Idempotent({
+    ttlMs: 2_592_000_000,
+    key: (createDisputeDto: CreateDisputeDto, userId: string) =>
+      createDisputeDto.idempotencyKey
+        ? `dispute:create:${userId}:${createDisputeDto.idempotencyKey}`
+        : null,
+    requireKey: false,
   })
   async createDispute(
     createDisputeDto: CreateDisputeDto,
@@ -355,6 +372,10 @@ export class DisputesService {
     level: AuditLevel.INFO,
     includeOldValues: true,
     includeNewValues: true,
+  })
+  @Locked({
+    key: (disputeId: string) => `dispute:resolve:${disputeId}`,
+    ttlMs: 10000,
   })
   async resolveDispute(
     disputeId: string,

@@ -3,6 +3,7 @@
 ## 🚀 Quick Links
 
 ### Creating Issues
+
 - **Bug**: Use [Bug Report](ISSUE_TEMPLATE/bug_report.md) template
 - **Feature**: Use [Feature Request](ISSUE_TEMPLATE/feature_request.md) template
 - **Docs**: Use [Documentation](ISSUE_TEMPLATE/documentation.md) template
@@ -11,11 +12,13 @@
 - **CI/CD**: Use [CI/CD Failure](ISSUE_TEMPLATE/ci_cd_failure.md) template
 
 ### Creating PRs
+
 - Use [Pull Request Template](pull_request_template.md)
 - Complete all checklist items
 - Link related issues with `Closes #123`
 
 ### Documentation
+
 - **Frontend**: [frontend/CONTRIBUTING.md](../frontend/CONTRIBUTING.md)
 - **Backend**: [backend/CONTRIBUTING.md](../backend/CONTRIBUTING.md)
 - **Contract**: [contract/CONTRIBUTING.md](../contract/CONTRIBUTING.md)
@@ -26,20 +29,21 @@
 
 ## 📋 Issue Templates at a Glance
 
-| Template | Use When | Label |
-|----------|----------|-------|
-| 🐛 Bug Report | Something is broken | `bug` |
-| ✨ Feature Request | Suggest new feature | `enhancement` |
-| 📚 Documentation | Docs need improvement | `documentation` |
-| ⚡ Performance | Performance problem | `performance` |
-| 🔒 Security | Found vulnerability | `security` |
-| 🚨 CI/CD Failure | Pipeline is failing | `ci-cd` |
+| Template           | Use When              | Label           |
+| ------------------ | --------------------- | --------------- |
+| 🐛 Bug Report      | Something is broken   | `bug`           |
+| ✨ Feature Request | Suggest new feature   | `enhancement`   |
+| 📚 Documentation   | Docs need improvement | `documentation` |
+| ⚡ Performance     | Performance problem   | `performance`   |
+| 🔒 Security        | Found vulnerability   | `security`      |
+| 🚨 CI/CD Failure   | Pipeline is failing   | `ci-cd`         |
 
 ---
 
 ## ✅ Before Submitting
 
 ### Before Creating an Issue
+
 - [ ] Search for existing issues
 - [ ] Use the appropriate template
 - [ ] Fill in all sections
@@ -48,6 +52,7 @@
 - [ ] Link related issues
 
 ### Before Creating a PR
+
 - [ ] Run `make check` (frontend/backend)
 - [ ] Run `cargo test --all` (contract)
 - [ ] Complete the PR template
@@ -105,6 +110,7 @@ Examples:
 ## 🔗 Linking Issues
 
 In PR description:
+
 ```
 Closes #123          # Closes the issue
 Related to #456      # Links without closing
@@ -116,24 +122,28 @@ Fixes #789           # Same as Closes
 ## 📊 Checklist Items
 
 ### Code Quality
+
 - [ ] Code follows style guidelines
 - [ ] No console errors or warnings
 - [ ] TypeScript/Rust types are correct
 - [ ] No unused variables or imports
 
 ### Testing
+
 - [ ] All tests pass
 - [ ] New tests added
 - [ ] Edge cases tested
 - [ ] Error scenarios tested
 
 ### Documentation
+
 - [ ] README updated
 - [ ] API docs updated
 - [ ] Code comments added
 - [ ] CONTRIBUTING.md updated
 
 ### Security
+
 - [ ] No hardcoded secrets
 - [ ] Input validation added
 - [ ] Authorization checks in place
@@ -144,6 +154,7 @@ Fixes #789           # Same as Closes
 ## 🚀 Development Commands
 
 ### Frontend
+
 ```bash
 cd frontend
 make check          # Run all checks
@@ -154,6 +165,7 @@ make build          # Build
 ```
 
 ### Backend
+
 ```bash
 cd backend
 make ci              # Full CI pipeline
@@ -165,6 +177,7 @@ make build           # Build
 ```
 
 ### Contract
+
 ```bash
 cd contract
 cargo build --release    # Build
@@ -189,24 +202,28 @@ cargo test --all         # Tests
 ## 🎯 Common Scenarios
 
 ### I found a bug
+
 1. Search for existing issues
 2. Create issue with [Bug Report](ISSUE_TEMPLATE/bug_report.md) template
 3. Include reproduction steps
 4. Add environment details
 
 ### I want to suggest a feature
+
 1. Search for existing requests
 2. Create issue with [Feature Request](ISSUE_TEMPLATE/feature_request.md) template
 3. Describe the problem it solves
 4. Provide acceptance criteria
 
 ### I found a security vulnerability
+
 1. **DO NOT** create public issue
 2. Email security@chioma.dev
 3. Include: description, location, reproduction, impact, suggested fix
 4. Wait for response before disclosing
 
 ### I want to contribute code
+
 1. Read the appropriate CONTRIBUTING.md
 2. Create a branch
 3. Make changes
@@ -216,6 +233,7 @@ cargo test --all         # Tests
 7. Request review
 
 ### The CI/CD pipeline is failing
+
 1. Check the error logs
 2. Create issue with [CI/CD Failure](ISSUE_TEMPLATE/ci_cd_failure.md) template
 3. Include error messages
@@ -267,6 +285,7 @@ Created → Triaged → Assigned → In Progress → In Review → Closed
 ## 📊 Metrics
 
 Track these to improve:
+
 - Issue response time
 - Issue resolution time
 - PR review time

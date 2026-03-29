@@ -5,9 +5,11 @@ This directory contains templates to help contributors create clear, descriptive
 ## Available Templates
 
 ### 🐛 Bug Report (`bug_report.md`)
+
 **Use when**: You've found a bug or unexpected behavior
 
 **Includes**:
+
 - Description of the bug
 - Steps to reproduce
 - Expected vs actual behavior
@@ -20,9 +22,11 @@ This directory contains templates to help contributors create clear, descriptive
 ---
 
 ### ✨ Feature Request (`feature_request.md`)
+
 **Use when**: You want to suggest a new feature or enhancement
 
 **Includes**:
+
 - Feature description
 - Problem statement
 - Proposed solution
@@ -35,9 +39,11 @@ This directory contains templates to help contributors create clear, descriptive
 ---
 
 ### 📚 Documentation (`documentation.md`)
+
 **Use when**: Documentation is missing or needs improvement
 
 **Includes**:
+
 - Description of documentation needed
 - Location where it should go
 - Content outline
@@ -49,9 +55,11 @@ This directory contains templates to help contributors create clear, descriptive
 ---
 
 ### ⚡ Performance Issue (`performance.md`)
+
 **Use when**: You've identified a performance problem or optimization opportunity
 
 **Includes**:
+
 - Description of the issue
 - Current vs expected performance
 - Root cause analysis
@@ -63,14 +71,17 @@ This directory contains templates to help contributors create clear, descriptive
 ---
 
 ### 🔒 Security Issue (`security.md`)
+
 **Use when**: You've found a security vulnerability
 
 **⚠️ IMPORTANT**: Do NOT create public issues for security vulnerabilities!
+
 - Email security@chioma.dev instead
 - Or use GitHub's private vulnerability reporting
 - See SECURITY.md for details
 
 **Includes**:
+
 - Vulnerability description
 - Type of vulnerability
 - Affected component
@@ -81,9 +92,11 @@ This directory contains templates to help contributors create clear, descriptive
 ---
 
 ### 🚨 CI/CD Pipeline Failure (`ci_cd_failure.md`)
+
 **Use when**: A GitHub Actions pipeline is failing
 
 **Includes**:
+
 - Description of the failure
 - Failed job details
 - Error messages and logs
@@ -117,24 +130,29 @@ Each template includes:
 ## Best Practices
 
 ### Be Specific
+
 ❌ Bad: "Something is broken"
 ✅ Good: "Login fails with 'Invalid credentials' error when using email with + symbol"
 
 ### Provide Context
+
 ❌ Bad: "It doesn't work"
 ✅ Good: "On Windows 10, when I click the login button, nothing happens. No error message appears."
 
 ### Include Reproduction Steps
+
 ❌ Bad: "The app crashes sometimes"
 ✅ Good: "Steps to reproduce: 1. Open app, 2. Go to properties, 3. Click filter, 4. Select 'price', 5. App crashes"
 
 ### Add Relevant Details
+
 - Environment (OS, browser, versions)
 - Screenshots or logs
 - Related issues or PRs
 - Expected vs actual behavior
 
 ### Use Checklists
+
 - Verify the issue hasn't been reported
 - Provide all requested information
 - Follow the template structure
@@ -143,14 +161,14 @@ Each template includes:
 
 Issues are automatically labeled based on the template used:
 
-| Label | Meaning |
-|-------|---------|
-| `bug` | Something is broken |
-| `enhancement` | New feature or improvement |
-| `documentation` | Documentation needed |
-| `performance` | Performance issue |
-| `security` | Security vulnerability |
-| `ci-cd` | Pipeline failure |
+| Label           | Meaning                    |
+| --------------- | -------------------------- |
+| `bug`           | Something is broken        |
+| `enhancement`   | New feature or improvement |
+| `documentation` | Documentation needed       |
+| `performance`   | Performance issue          |
+| `security`      | Security vulnerability     |
+| `ci-cd`         | Pipeline failure           |
 
 ## Issue Lifecycle
 

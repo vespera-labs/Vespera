@@ -663,9 +663,11 @@ Before submitting a PR:
 
 ```markdown
 ## Description
+
 Brief description of changes
 
 ## Type of Change
+
 - [ ] Bug fix
 - [ ] New feature
 - [ ] Breaking change
@@ -673,18 +675,23 @@ Brief description of changes
 - [ ] Documentation update
 
 ## Related Issues
+
 Closes #123
 
 ## Testing
+
 How to test these changes
 
 ## Security Considerations
+
 Any security implications
 
 ## Contract Changes
+
 Any changes to contract interfaces or storage
 
 ## Checklist
+
 - [ ] Code compiles without errors
 - [ ] Code is formatted (`cargo fmt --all`)
 - [ ] No Clippy warnings
@@ -880,13 +887,13 @@ pub fn transfer(env: Env, amount: u128) -> Result<(), String> {
 // ✅ Good - emit events for important actions
 pub fn transfer(env: Env, to: Address, amount: u128) -> Result<(), String> {
     // Do transfer
-    
+
     // Emit event
     env.events().publish(
         (Symbol::new(&env, "contract"), Symbol::new(&env, "transfer")),
         (to, amount),
     );
-    
+
     Ok(())
 }
 ```

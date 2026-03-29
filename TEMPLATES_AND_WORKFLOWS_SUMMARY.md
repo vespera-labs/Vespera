@@ -38,36 +38,42 @@ This document summarizes all the GitHub templates, workflows, and documentation 
 ### Issue Templates
 
 #### 🐛 Bug Report
+
 - **Purpose**: Report bugs and unexpected behavior
 - **Key Sections**: Steps to reproduce, expected vs actual, environment
 - **Auto-Label**: `bug`
 - **Example**: "Login button doesn't work on mobile"
 
 #### ✨ Feature Request
+
 - **Purpose**: Suggest new features or enhancements
 - **Key Sections**: Problem statement, proposed solution, acceptance criteria
 - **Auto-Label**: `enhancement`
 - **Example**: "Add dark mode toggle"
 
 #### 📚 Documentation
+
 - **Purpose**: Request documentation improvements
 - **Key Sections**: Location, content outline, target audience
 - **Auto-Label**: `documentation`
 - **Example**: "Add Windows setup guide"
 
 #### ⚡ Performance Issue
+
 - **Purpose**: Report performance problems
 - **Key Sections**: Current vs expected performance, root cause, metrics
 - **Auto-Label**: `performance`
 - **Example**: "API response time is 5s, should be <1s"
 
 #### 🔒 Security Issue
+
 - **Purpose**: Report security vulnerabilities (privately!)
 - **Key Sections**: Vulnerability type, affected component, impact
 - **Auto-Label**: `security`
 - **⚠️ Important**: Use private reporting, not public issues!
 
 #### 🚨 CI/CD Failure
+
 - **Purpose**: Report pipeline failures
 - **Key Sections**: Failed job, error logs, root cause
 - **Auto-Label**: `ci-cd`
@@ -76,6 +82,7 @@ This document summarizes all the GitHub templates, workflows, and documentation 
 ### Pull Request Template
 
 **Comprehensive checklist covering**:
+
 - Code quality (style, types, imports)
 - Testing (unit, E2E, coverage)
 - Documentation (README, API docs, comments)
@@ -121,6 +128,7 @@ This document summarizes all the GitHub templates, workflows, and documentation 
 ## 📖 Contributor Guides
 
 ### Frontend (`frontend/CONTRIBUTING.md`)
+
 - Project overview and tech stack
 - Theme & design system
 - Project structure
@@ -132,6 +140,7 @@ This document summarizes all the GitHub templates, workflows, and documentation 
 - Best practices
 
 ### Backend (`backend/CONTRIBUTING.md`)
+
 - Project overview and tech stack
 - Architecture & design patterns
 - Project structure
@@ -144,6 +153,7 @@ This document summarizes all the GitHub templates, workflows, and documentation 
 - Best practices
 
 ### Contract (`contract/CONTRIBUTING.md`)
+
 - Project overview and tech stack
 - Soroban basics
 - Project structure
@@ -167,6 +177,7 @@ This document summarizes all the GitHub templates, workflows, and documentation 
 5. Submit
 
 **Tips**:
+
 - Be specific and detailed
 - Provide reproduction steps
 - Include environment details
@@ -182,6 +193,7 @@ This document summarizes all the GitHub templates, workflows, and documentation 
 5. Submit for review
 
 **Tips**:
+
 - Use clear commit messages
 - Complete the checklist
 - Link related issues
@@ -201,16 +213,17 @@ This document summarizes all the GitHub templates, workflows, and documentation 
 
 Automatically applied based on template:
 
-| Label | Template | Purpose |
-|-------|----------|---------|
-| `bug` | Bug Report | Something is broken |
-| `enhancement` | Feature Request | New feature or improvement |
-| `documentation` | Documentation | Documentation needed |
-| `performance` | Performance Issue | Performance problem |
-| `security` | Security Issue | Security vulnerability |
-| `ci-cd` | CI/CD Failure | Pipeline failure |
+| Label           | Template          | Purpose                    |
+| --------------- | ----------------- | -------------------------- |
+| `bug`           | Bug Report        | Something is broken        |
+| `enhancement`   | Feature Request   | New feature or improvement |
+| `documentation` | Documentation     | Documentation needed       |
+| `performance`   | Performance Issue | Performance problem        |
+| `security`      | Security Issue    | Security vulnerability     |
+| `ci-cd`         | CI/CD Failure     | Pipeline failure           |
 
 Additional labels added during triage:
+
 - `good first issue` - Good for new contributors
 - `help wanted` - Need community help
 - `blocked` - Blocked by another issue
@@ -222,6 +235,7 @@ Additional labels added during triage:
 ## 📊 Benefits
 
 ### For Contributors
+
 - ✅ Clear templates reduce confusion
 - ✅ Structured format ensures all info is provided
 - ✅ Automatic labeling saves time
@@ -229,6 +243,7 @@ Additional labels added during triage:
 - ✅ Examples show what's expected
 
 ### For Maintainers
+
 - ✅ Consistent issue format
 - ✅ All necessary information included
 - ✅ Automatic categorization
@@ -236,6 +251,7 @@ Additional labels added during triage:
 - ✅ Better tracking and metrics
 
 ### For Project
+
 - ✅ Higher quality issues
 - ✅ Faster issue resolution
 - ✅ Better security practices
@@ -325,18 +341,21 @@ Root/
 ### Writing Good Issues
 
 **Be Specific**
+
 ```
 ❌ Bad: "Something is broken"
 ✅ Good: "Login fails with 'Invalid credentials' error when using email with + symbol"
 ```
 
 **Provide Context**
+
 ```
 ❌ Bad: "It doesn't work"
 ✅ Good: "On Windows 10, when I click the login button, nothing happens. No error message appears."
 ```
 
 **Include Reproduction Steps**
+
 ```
 ❌ Bad: "The app crashes sometimes"
 ✅ Good: "Steps: 1. Open app, 2. Go to properties, 3. Click filter, 4. Select 'price', 5. App crashes"
@@ -345,6 +364,7 @@ Root/
 ### Writing Good PRs
 
 **Clear Title**
+
 ```
 ✅ Good: "feat: add dark mode toggle to settings"
 ✅ Good: "fix: prevent SQL injection in search"
@@ -352,11 +372,13 @@ Root/
 ```
 
 **Complete Checklist**
+
 - All items should be checked before submitting
 - If something doesn't apply, explain why
 - Don't skip sections
 
 **Detailed Description**
+
 - Explain WHAT changed
 - Explain WHY it changed
 - Explain HOW it was tested
