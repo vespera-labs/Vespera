@@ -1,4 +1,4 @@
-export default function DisputeTimeline({ events }: { events: any[] }) {
+export default function DisputeTimeline({ events }: { events: { action: string; date: string; actor: string }[] }) {
   return (
     <div className="border-l border-white/20 ml-4 py-2 space-y-4">
       {events.map((e, idx) => (

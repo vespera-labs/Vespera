@@ -1,5 +1,4 @@
 'use client';
-import { useState } from 'react';
 import Link from 'next/link';
 import DisputeTimeline from './DisputeTimeline';
 
@@ -12,7 +11,7 @@ const mockDispute = {
   ]
 };
 
-export default function DisputeDetail({ id }: { id: string }) {
+export default function DisputeDetail({ id: _id }: { id: string }) {
   const data = mockDispute; // Fake fetching by id
 
   return (

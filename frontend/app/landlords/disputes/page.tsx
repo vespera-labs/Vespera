@@ -1,5 +1,4 @@
 'use client';
-import { useState } from 'react';
 import DisputesList from '@/components/landlord/DisputesList';
 
 export default function DisputesPage() {

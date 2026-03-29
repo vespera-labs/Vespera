@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
 
-export default function ResourceDetail({ slug }: { slug: string }) {
+export default function ResourceDetail({ slug: _slug }: { slug: string }) {
   // basic mock data
   const data = {
     title: 'Tenant Guide: Getting Started',

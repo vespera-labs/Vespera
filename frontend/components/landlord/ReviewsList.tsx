@@ -35,7 +35,7 @@ export default function ReviewsList() {
                 <StarRating rating={r.rating} />
                 <span className="text-xs text-slate-400">{r.date}</span>
               </div>
-              <p className="text-white text-sm">"{r.text}"</p>
+              <p className="text-white text-sm">&quot;{r.text}&quot;</p>
               <div className="flex justify-between text-xs mt-2">
                 <span className="text-slate-400">By: {r.tenant}</span>
                 <span className="text-blue-400 capitalize">{r.status}</span>

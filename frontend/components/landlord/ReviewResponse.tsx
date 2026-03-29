@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 
-export default function ReviewResponse({ reviewId, existingResponse }: { reviewId: string, existingResponse: string | null }) {
+export default function ReviewResponse({ reviewId: _reviewId, existingResponse }: { reviewId: string, existingResponse: string | null }) {
   const [response, setResponse] = useState(existingResponse || '');
   const [isEditing, setIsEditing] = useState(!existingResponse);
 

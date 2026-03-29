@@ -14,7 +14,7 @@ export default function ReviewDetail({ id }: { id: string }) {
           <StarRating rating={mockReview.rating} />
           <span className="text-sm text-slate-400">{mockReview.date}</span>
         </div>
-        <p className="text-white text-lg mb-4">"{mockReview.text}"</p>
+        <p className="text-white text-lg mb-4">&quot;{mockReview.text}&quot;</p>
         <p className="text-slate-400 text-sm">Review by: {mockReview.tenant}</p>
       </div>
       <ReviewResponse reviewId={id} existingResponse={mockReview.response} />

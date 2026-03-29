@@ -1,7 +1,6 @@
 'use client';
 import { useState } from 'react';
 import Link from 'next/link';
-import { AlertCircle, FileText, Settings, XCircle, CheckCircle } from 'lucide-react';
 
 const MOCK_DISPUTES = [
   { id: '1', property: '123 Main St', tenant: 'Alice Smith', type: 'Maintenance', status: 'open', date: '2026-03-25', amount: null },
