@@ -5,170 +5,198 @@
 <h1 align="center">Vespera</h1>
 
 <p align="center">
-  <em>Rental payments on Stellar — landlords, agents and tenants move rent and deposits through soroban contracts instead of cash, bank transfers or trust</em>
+  <em>Programmable rental payments on Stellar. Landlords, agents and tenants move rent and deposits through Soroban contracts instead of cash, bank transfers, or trust.</em>
 </p>
 
 <p align="center">
   <a href="https://github.com/vespera-labs/Vespera/actions"><img alt="CI" src="https://img.shields.io/badge/CI-passing-brightgreen"/></a>
   <a href="https://github.com/vespera-labs/Vespera/blob/main/LICENSE"><img alt="License" src="https://img.shields.io/badge/license-MIT-blue"/></a>
   <img alt="Built on" src="https://img.shields.io/badge/built%20on-Stellar%20Soroban-7b4bd8"/>
+  <img alt="Stack" src="https://img.shields.io/badge/stack-Rust%20%7C%20Next.js%20%7C%20NestJS-1e4a72"/>
+</p>
+
+<p align="center">
+  <a href="#overview">Overview</a> ·
+  <a href="#how-it-works">How it works</a> ·
+  <a href="#architecture">Architecture</a> ·
+  <a href="#smart-contracts">Smart contracts</a> ·
+  <a href="#getting-started">Getting started</a> ·
+  <a href="#roadmap">Roadmap</a> ·
+  <a href="#contributing">Contributing</a>
 </p>
 
 ---
 
-**Vespera** is an open‑source platform built on the **Stellar blockchain** that connects **landlords (property owners), house agents, and tenants** through transparent, low‑cost, and programmable rental payments.
+## Overview
 
-Vespera focuses on what blockchains do best: **money movement, trust minimization, and verifiable agreements**, while keeping complex business logic off‑chain for usability and scale.
+Vespera is an open source rental payments platform built on Stellar. It connects landlords, house agents and tenants through programmable escrow, on chain rent receipts, and automated commission distribution, so that every party in a tenancy has a verifiable record of what was paid, when, and to whom.
 
-Our goal is to modernize rental transactions—especially in emerging markets—by reducing friction, disputes, and payment inefficiencies using Stellar’s fast settlement and low fees.
+The project focuses on emerging markets where rental disputes, missing receipts, and opaque commission structures are everyday problems. By pushing the parts that need trust (deposits, rent settlement, receipts) onto Soroban smart contracts, and keeping the parts that need flexibility (listings, messaging, metadata) off chain, Vespera gives each side of the deal the guarantees they actually need without forcing them to learn blockchain.
 
----
+## The problem
 
-## Why Vespera?
+Rental markets in most of Africa, South Asia and Southeast Asia run on a combination of cash, bank transfers, and informal trust. That setup produces a predictable set of failures:
 
-Rental systems today suffer from:
+- Tenants pay deposits with no enforceable proof of payment.
+- Landlords chase late rent with no automated settlement path.
+- Agents collect commissions from both sides with no public accounting.
+- Disputes take months to resolve because there is no shared record.
+- Cross border payments (diaspora tenants, foreign landlords) add days of delay and costly FX spread.
 
-- Manual and opaque rent collection
-- Delayed settlements between tenants, agents, and landlords
-- Trust issues around deposits and commissions
-- High transaction costs for cross‑border or multi‑currency payments
+These problems are not a function of bad actors. They are a function of missing infrastructure.
 
-**Vespera solves this by combining Stellar’s payment rails with a clean, open‑source marketplace layer.**
+## How it works
 
----
+1. An agent registers a property on chain with terms (rent amount, deposit, commission split).
+2. A tenant signs the rental agreement and escrows the deposit in a Soroban contract.
+3. Each month the tenant pays rent in USDC to the rental contract.
+4. The contract releases the rent to the landlord, the commission to the agent, and writes a receipt to the ledger.
+5. At the end of the tenancy, the deposit is released according to the terms agreed at the start, with disputes routed through a defined resolution flow.
 
-## Why Stellar?
+Nothing in steps 3 through 5 requires a third party to be online or to be trusted. The contracts enforce what was agreed at step 1.
 
-Vespera is designed **specifically for Stellar**, not just deployed on it.
+## Architecture
 
-Stellar enables:
-
-- **Fast finality** (seconds)
-- **Ultra‑low transaction fees**
-- **Built‑in decentralized exchange (DEX)**
-- **Anchor‑based fiat on/off‑ramps**
-- **Multi‑sig & conditional transactions** for escrow‑like flows
-
-This makes Stellar ideal for:
-
-- Monthly rent payments
-- Security deposit escrow
-- Automated agent commissions
-- Multi‑currency rent settlement
-
----
-
-## What Vespera Does (High Level)
-
-Vespera is **not** a monolithic on‑chain app.
-
-Instead, it uses a **hybrid architecture**:
-
-### On‑Chain (Stellar)
-
-- Rent payments
-- Security deposit holding & release
-- Agent commission distribution
-- Tokenized rent obligations
-- Immutable transaction records
-
-### Off‑Chain
-
-- Property listings
-- User profiles (landlords, agents, tenants)
-- Matching & discovery
-- Messaging & notifications
-- Compliance & moderation
-
-This keeps costs low while preserving decentralization where it matters most.
-
----
-
-## Core Concepts
-
-### 1. Rent Payment Flows
-
-- Tenants pay rent using Stellar assets (USDC, local fiat tokens via anchors, or project tokens)
-- Payments settle instantly
-- Funds are split automatically between landlord and agent
-
-### 2. Security Deposits (Escrow‑Like)
-
-- Deposits are locked using Stellar’s multi‑sig or pre‑authorized transactions
-- Released on move‑out approval
-- Transparent and verifiable by all parties
-
-### 3. Agent Commissions
-
-- Agents receive commissions automatically
-- No manual tracking or disputes
-- Commission logic is enforced at payment time
-
----
-
-## Architecture Overview
-
-```text
-Frontend (Web / Mobile)
-   │
-   ├── Property Listings
-   ├── User Dashboards
-   ├── Payment UI
-   │
-Backend (API + Indexer)
-   │
-   ├── Business Logic
-   ├── Stellar SDK Integration
-   ├── Compliance Hooks
-   │
-Stellar Network
-   │
-   ├── Asset Issuance
-   ├── Payments & Escrow
-   ├── DEX Swaps
+```
+vespera/
+  contract/           Soroban smart contracts (Rust)
+    contracts/
+      agent_registry/
+      dispute_resolution/
+      escrow/
+      payment/
+      property_registry/
+      rent_obligation/
+      user_profile/
+  backend/            NestJS API, indexer and notification service (TypeScript)
+    src/
+      blockchain/     Horizon listener and Soroban client
+      database/       PostgreSQL access layer
+      health/         readiness and liveness endpoints
+      common/         shared utilities
+  frontend/           Next.js application (TypeScript, React)
+    app/              routes and pages
+    components/       UI components
+    contexts/         wallet and session contexts
+  scripts/            deployment and devnet tooling
 ```
 
----
+### Data flow
 
-## Open Source First
+- **On chain**: tenancies, deposits, rent payments, commissions, receipts, dispute records.
+- **Off chain**: property listings, photos, agent contact data, tenant profiles, notifications.
+- **Indexer**: reads Horizon, writes the indexed state into PostgreSQL so the frontend can render fast without re-reading the ledger.
 
-Vespera is being built **fully open‑source**
+## Smart contracts
 
-We welcome:
+| contract | purpose |
+|---|---|
+| `user_profile` | identity and verification handles for landlords, agents and tenants |
+| `property_registry` | on chain listing of units with terms and metadata pointers |
+| `agent_registry` | registered agents with reputation and commission history |
+| `rent_obligation` | the rental agreement itself, signed by tenant and landlord |
+| `escrow` | holds the security deposit for the duration of the tenancy |
+| `payment` | accepts monthly rent in USDC and routes it per the agreement |
+| `dispute_resolution` | structured path for raising and resolving disputes |
 
-- Contributors
-- Reviewers
-- Anchor operators
-- Protocol researchers
+All contracts are written in Rust with the Soroban SDK. They are tested with the Soroban contract test framework and exercised end to end against Stellar futurenet.
 
----
+## Tech stack
 
-## You Should Know
+- **Smart contracts**: Rust, Soroban SDK
+- **Backend**: NestJS, TypeScript, PostgreSQL, Horizon client
+- **Frontend**: Next.js 16, React, TanStack Query, Freighter wallet, Leaflet (maps), Framer Motion
+- **Tooling**: pnpm, Vitest, Storybook, Docker Compose, ESLint, Prettier
 
-Vespera is not just a rental app.
+## Getting started
 
-It is **open financial infrastructure for housing**, built on Stellar, and designed to scale across borders, currencies, and communities.
+### Prerequisites
 
-## Property Listing Wizard
+- Rust 1.78 or newer and the Soroban CLI
+- Node.js 20 or newer and pnpm 9
+- Docker and Docker Compose
+- A Stellar testnet account with funded XLM and USDC
 
-The Property Listing Wizard is a guided 8-step flow for landlords to create high-quality rental listings with AI-assisted content generation and automated draft saving.
+### Clone and bootstrap
 
-### API Endpoints
+```bash
+git clone https://github.com/vespera-labs/Vespera.git
+cd Vespera
+```
 
-- `POST /property-listings/wizard/start` - Initialize a new property draft.
-- `GET /property-listings/wizard/:id/draft` - Resume an existing draft.
-- `PATCH /property-listings/wizard/:id/step` - Save current step data and run validation.
-- `DELETE /property-listings/wizard/:id/draft` - Discard a draft.
-- `POST /property-listings/wizard/:id/publish` - Finalize and publish the property.
+### Run the full stack with Docker Compose
 
-### AI Features
+```bash
+docker compose up -d
+```
 
-The wizard includes server-side AI helpers for:
+This brings up:
 
-- **Pricing Suggestions**: Recommended rent ranges based on property type and location.
-- **Description Generation**: Compelling property and neighborhood blurbs.
-- **Completeness Scoring**: Real-time analysis of listing quality with improvement tips.
+- the Soroban local network for local contract calls
+- PostgreSQL
+- the NestJS backend at http://localhost:4000
+- the Next.js frontend at http://localhost:3000
 
-### Draft Expiry
+### Manual setup (without Docker)
 
-Drafts automatically expire after **30 days** of inactivity. A cleanup task runs periodically to remove expired drafts.
+**Contracts**
+
+```bash
+cd contract
+make build
+make test
+```
+
+**Backend**
+
+```bash
+cd backend
+pnpm install
+pnpm run start:dev
+```
+
+**Frontend**
+
+```bash
+cd frontend
+pnpm install
+pnpm run dev
+```
+
+## Roadmap
+
+- [x] Core contracts implemented and unit tested
+- [x] Full local stack with Docker Compose
+- [x] Freighter wallet integration on the frontend
+- [x] PostgreSQL indexer reading Horizon
+- [ ] Futurenet end to end test pass (in progress)
+- [ ] Security review of the escrow contract
+- [ ] Dispute resolution flow user testing
+- [ ] Cross border rent payments (diaspora flows)
+- [ ] Public testnet launch
+- [ ] Mainnet pilot in one market
+
+## Contributing
+
+We welcome contributions across the stack. Open issues are tagged by area (`contract`, `backend`, `frontend`, `docs`) and by difficulty (`good first issue`, `help wanted`).
+
+1. Pick an unassigned issue tagged for your area.
+2. Comment on the issue so a maintainer can assign you.
+3. Fork the repo and create a branch named after the issue (`feat/123-short-description`).
+4. Submit a pull request that references the issue number.
+5. A maintainer will review within 48 hours.
+
+Read [CONTRIBUTING.md](frontend/CONTRIBUTING.md) for full coding standards and review expectations.
+
+## Security
+
+Vespera handles real funds. If you find a vulnerability:
+
+- Do **not** open a public issue.
+- Read [SECURITY.md](SECURITY.md) for the disclosure process and contact channel.
+
+The escrow and payment contracts are slated for external audit before mainnet. Audit reports will be linked here when available.
+
+## License
+
+[MIT](LICENSE)
