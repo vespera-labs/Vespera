@@ -16,21 +16,15 @@
 
 ---
 
-**Chioma** is an open‑source platform built on the **Stellar blockchain** that connects **landlords (property owners), house agents, and tenants** through transparent, low‑cost, and programmable rental payments.
+**Vespera** is an open‑source platform built on the **Stellar blockchain** that connects **landlords (property owners), house agents, and tenants** through transparent, low‑cost, and programmable rental payments.
 
-Chioma focuses on what blockchains do best: **money movement, trust minimization, and verifiable agreements**, while keeping complex business logic off‑chain for usability and scale.
+Vespera focuses on what blockchains do best: **money movement, trust minimization, and verifiable agreements**, while keeping complex business logic off‑chain for usability and scale.
 
 Our goal is to modernize rental transactions—especially in emerging markets—by reducing friction, disputes, and payment inefficiencies using Stellar’s fast settlement and low fees.
 
 ---
 
-Telegram: https://t.me/chiomagroup
-
-## Figma
-
-https://www.figma.com/design/2iA2B5gmRupQtzjYv3LSx4/Chioma?node-id=0-1&t=KEwTSTGKUDT0ievI-1
-
-## Why Chioma?
+## Why Vespera?
 
 Rental systems today suffer from:
 
@@ -39,13 +33,13 @@ Rental systems today suffer from:
 - Trust issues around deposits and commissions
 - High transaction costs for cross‑border or multi‑currency payments
 
-**Chioma solves this by combining Stellar’s payment rails with a clean, open‑source marketplace layer.**
+**Vespera solves this by combining Stellar’s payment rails with a clean, open‑source marketplace layer.**
 
 ---
 
 ## Why Stellar?
 
-Chioma is designed **specifically for Stellar**, not just deployed on it.
+Vespera is designed **specifically for Stellar**, not just deployed on it.
 
 Stellar enables:
 
@@ -64,9 +58,9 @@ This makes Stellar ideal for:
 
 ---
 
-## What Chioma Does (High Level)
+## What Vespera Does (High Level)
 
-Chioma is **not** a monolithic on‑chain app.
+Vespera is **not** a monolithic on‑chain app.
 
 Instead, it uses a **hybrid architecture**:
 
@@ -138,7 +132,7 @@ Stellar Network
 
 ## Open Source First
 
-Chioma is being built **fully open‑source**
+Vespera is being built **fully open‑source**
 
 We welcome:
 
@@ -151,7 +145,7 @@ We welcome:
 
 ## You Should Know
 
-Chioma is not just a rental app.
+Vespera is not just a rental app.
 
 It is **open financial infrastructure for housing**, built on Stellar, and designed to scale across borders, currencies, and communities.
 
