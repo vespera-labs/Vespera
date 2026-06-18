@@ -534,3 +534,70 @@ fn test_rate_agent_fails_when_already_rated() {
     client.rate_agent(&tenant, &agent, &5, &txn_id);
     client.rate_agent(&tenant, &agent, &4, &txn_id);
 }
+
+#[test]
+fn test_average_rating_scaled_preserves_decimal() {
+    let env = Env::default();
+    let client = create_contract(&env);
+
+    let admin = Address::generate(&env);
+    let agent = Address::generate(&env);
+    let tenant1 = Address::generate(&env);
+    let tenant2 = Address::generate(&env);
+    let landlord = Address::generate(&env);
+
+    env.mock_all_auths();
+
+    client.initialize(&admin);
+
+    let profile_hash = String::from_str(&env, "QmXoypizjW3WknFiJnKLwHCnL72vedxjQkDDP1mXWo6uco");
+    client.register_agent(&agent, &profile_hash);
+    client.verify_agent(&admin, &agent);
+
+    // First transaction: tenant1 rates 5, landlord rates 4
+    let txn_id1 = String::from_str(&env, "TXN-001");
+    let parties1 = vec![&env, tenant1.clone(), landlord.clone()];
+    client.register_transaction(&txn_id1, &agent, &parties1);
+    client.complete_transaction(&txn_id1, &agent);
+    client.rate_agent(&tenant1, &agent, &5, &txn_id1);
+    client.rate_agent(&landlord, &agent, &4, &txn_id1);
+
+    // Average should be (5+4)/2 = 4.5 -> 450 when scaled
+    let avg1 = client.get_average_rating(&agent);
+    assert_eq!(avg1, 450, "Expected 450 (4.5 scaled by 100)");
+
+    // Verify individual ratings are stored
+    let ratings = client.get_agent_ratings(&agent);
+    assert_eq!(ratings.len(), 2, "Expected 2 individual ratings");
+
+    // Second transaction: tenant2 rates 3
+    let tenant3 = Address::generate(&env);
+    let landlord2 = Address::generate(&env);
+    let txn_id2 = String::from_str(&env, "TXN-002");
+    let parties2 = vec![&env, tenant2.clone(), tenant3.clone(), landlord2.clone()];
+    client.register_transaction(&txn_id2, &agent, &parties2);
+    client.complete_transaction(&txn_id2, &agent);
+    client.rate_agent(&tenant2, &agent, &3, &txn_id2);
+
+    // Average should be (5+4+3)/3 = 4.0 -> 400 when scaled
+    let avg2 = client.get_average_rating(&agent);
+    assert_eq!(avg2, 400, "Expected 400 (4.0 scaled by 100)");
+
+    // Verify all ratings are stored
+    let all_ratings = client.get_agent_ratings(&agent);
+    assert_eq!(all_ratings.len(), 3, "Expected 3 individual ratings");
+
+    // Verify the rating details are correct
+    let mut total_score = 0u32;
+    for rating in all_ratings.iter() {
+        assert_eq!(rating.agent, agent, "Rating should reference the agent");
+        assert!(rating.score >= 1 && rating.score <= 5, "Score should be between 1 and 5");
+        total_score += rating.score;
+    }
+    assert_eq!(total_score, 12, "Total score should be 5+4+3=12");
+
+    // Calculate and verify the average from individual ratings
+    let calculated_avg = (total_score * 100) / 3;
+    assert_eq!(calculated_avg, 400, "Calculated average should match stored average");
+}
+

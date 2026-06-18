@@ -12,12 +12,12 @@ mod types;
 mod tests;
 
 pub use agent::{
-    complete_transaction, get_agent_count, get_agent_info, rate_agent, register_agent,
-    register_transaction, verify_agent,
+    complete_transaction, get_agent_count, get_agent_info, get_agent_ratings, get_average_rating,
+    rate_agent, register_agent, register_transaction, verify_agent,
 };
 pub use errors::AgentError;
 pub use storage::DataKey;
-pub use types::{AgentInfo, AgentTransaction, ContractState};
+pub use types::{AgentInfo, AgentTransaction, ContractState, Rating};
 
 #[contract]
 pub struct AgentRegistryContract;
@@ -141,6 +141,31 @@ impl AgentRegistryContract {
     /// * `u32` - The total number of agents registered
     pub fn get_agent_count(env: Env) -> u32 {
         agent::get_agent_count(&env)
+    }
+
+    /// Get all individual ratings for an agent.
+    /// Each rating includes the rater's address, score (1-5), and timestamp.
+    /// This enables auditability of individual ratings.
+    ///
+    /// # Arguments
+    /// * `agent` - The address of the agent
+    ///
+    /// # Returns
+    /// * `Vec<Rating>` - A vector of all Rating structs for this agent
+    pub fn get_agent_ratings(env: Env, agent: Address) -> Vec<Rating> {
+        agent::get_agent_ratings(&env, agent)
+    }
+
+    /// Get the average rating for an agent, scaled by 100.
+    /// Returns 0 if the agent has no ratings.
+    ///
+    /// # Arguments
+    /// * `agent` - The address of the agent
+    ///
+    /// # Returns
+    /// * `u32` - The average rating multiplied by 100 (e.g., 450 for a 4.5 average)
+    pub fn get_average_rating(env: Env, agent: Address) -> u32 {
+        agent::get_average_rating(&env, agent)
     }
 
     /// Register a transaction involving an agent.

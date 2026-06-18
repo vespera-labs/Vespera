@@ -14,11 +14,18 @@ pub struct AgentInfo {
 }
 
 impl AgentInfo {
+    /// Returns the average rating scaled by 100 to avoid truncation.
+    /// For example, a 4.5 average is returned as 450.
+    /// Divide by 100 to get the whole number part, modulus 100 for the decimal.
+    ///
+    /// # Returns
+    /// * `u32` - The average rating multiplied by 100, or 0 if no ratings exist
     pub fn average_rating(&self) -> u32 {
         if self.total_ratings == 0 {
             0
         } else {
-            self.total_score / self.total_ratings
+            // Multiply by 100 first to preserve 2 decimal places of precision
+            (self.total_score * 100) / self.total_ratings
         }
     }
 }

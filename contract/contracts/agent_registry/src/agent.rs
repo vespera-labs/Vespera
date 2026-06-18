@@ -3,7 +3,7 @@ use soroban_sdk::{Address, Env, String, Vec};
 use crate::errors::AgentError;
 use crate::events;
 use crate::storage::DataKey;
-use crate::types::{AgentInfo, AgentTransaction, ContractState};
+use crate::types::{AgentInfo, AgentTransaction, ContractState, Rating};
 
 pub fn register_agent(
     env: &Env,
@@ -151,6 +151,26 @@ pub fn rate_agent(
         .persistent()
         .extend_ttl(&rating_key, 500000, 500000);
 
+    // Persist the full Rating struct for auditability
+    let rating = Rating {
+        rater: rater.clone(),
+        agent: agent.clone(),
+        score,
+        rated_at: env.ledger().timestamp(),
+    };
+
+    let rating_list_key = DataKey::AgentRatingList(agent.clone());
+    let mut ratings: Vec<Rating> = env
+        .storage()
+        .persistent()
+        .get(&rating_list_key)
+        .unwrap_or_else(|| Vec::new(env));
+    ratings.push_back(rating);
+    env.storage().persistent().set(&rating_list_key, &ratings);
+    env.storage()
+        .persistent()
+        .extend_ttl(&rating_list_key, 500000, 500000);
+
     agent_info.total_ratings += 1;
     agent_info.total_score += score;
 
@@ -174,6 +194,39 @@ pub fn get_agent_count(env: &Env) -> u32 {
         .persistent()
         .get(&DataKey::AgentCount)
         .unwrap_or(0)
+}
+
+/// Get all individual ratings for an agent.
+/// This allows auditing each rating's score, rater, and timestamp.
+///
+/// # Arguments
+/// * `agent` - The address of the agent
+///
+/// # Returns
+/// * `Vec<Rating>` - A vector of all Rating structs for this agent (empty if none)
+pub fn get_agent_ratings(env: &Env, agent: Address) -> Vec<Rating> {
+    let key = DataKey::AgentRatingList(agent);
+    env.storage().persistent().get(&key).unwrap_or_else(|| Vec::new(env))
+}
+
+/// Get the average rating for an agent, scaled by 100.
+/// Returns 0 if the agent has no ratings.
+///
+/// # Arguments
+/// * `agent` - The address of the agent
+///
+/// # Returns
+/// * `u32` - The average rating multiplied by 100, or 0 if no ratings exist
+///
+/// # Example
+/// An average of 4.5 returns 450. Divide by 100 for the whole part, modulus 100 for the decimal.
+pub fn get_average_rating(env: &Env, agent: Address) -> u32 {
+    let key = DataKey::Agent(agent);
+    let agent_info: Option<AgentInfo> = env.storage().persistent().get(&key);
+    match agent_info {
+        Some(info) => info.average_rating(),
+        None => 0,
+    }
 }
 
 pub fn register_transaction(
