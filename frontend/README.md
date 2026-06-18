@@ -18,6 +18,18 @@ cp .env.example .env.local
 pnpm dev
 ```
 
+## Environment Variables
+
+Copy `.env.example` to `.env.local` and fill in the values:
+
+| Variable | Description | Example |
+|---|---|---|
+| `NEXT_PUBLIC_STELLAR_NETWORK` | Stellar network to connect to. Use `TESTNET` for development, `PUBLIC` for production. | `TESTNET` |
+| `NEXT_PUBLIC_HORIZON_URL` | Horizon API endpoint for the selected Stellar network. | `https://horizon-testnet.stellar.org` |
+| `NEXT_PUBLIC_RENTAL_CONTRACT_ID` | The Soroban contract ID for the deployed rental contract. Obtain from the contract deployment output or the contracts README. | `CDEF...` |
+
+All variables are prefixed with `NEXT_PUBLIC_` so they are available in the browser at build time.
+
 ## Layout
 
 ```
