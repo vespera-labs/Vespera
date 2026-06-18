@@ -1,6 +1,6 @@
 # Scalability and Performance
 
-This document outlines the scalability strategies, performance optimization techniques, capacity planning, and load testing procedures for the Chioma backend.
+This document outlines the scalability strategies, performance optimization techniques, capacity planning, and load testing procedures for the Vespera backend.
 
 ## 1. Horizontal Scaling
 

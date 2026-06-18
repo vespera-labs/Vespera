@@ -53,10 +53,10 @@ This will:
 
 | Role     | Email                | Password           |
 | -------- | -------------------- | ------------------ |
-| Admin    | admin@chioma.demo    | Admin@Demo2024!    |
-| Agent    | agent@chioma.demo    | Agent@Demo2024!    |
-| Landlord | landlord@chioma.demo | Landlord@Demo2024! |
-| Tenant   | tenant@chioma.demo   | Tenant@Demo2024!   |
+| Admin    | admin@vespera.demo    | Admin@Demo2024!    |
+| Agent    | agent@vespera.demo    | Agent@Demo2024!    |
+| Landlord | landlord@vespera.demo | Landlord@Demo2024! |
+| Tenant   | tenant@vespera.demo   | Tenant@Demo2024!   |
 
 ### Test Login
 

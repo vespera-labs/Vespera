@@ -66,7 +66,7 @@ pnpm run seed:admin:prod
 Admin seed defaults can be configured with environment variables:
 
 ```dotenv
-ADMIN_DEFAULT_EMAIL=admin@chioma.local
+ADMIN_DEFAULT_EMAIL=admin@vespera.local
 ADMIN_DEFAULT_FIRST_NAME=System
 ADMIN_DEFAULT_LAST_NAME=Administrator
 ADMIN_AUTO_GENERATE_PASSWORD=true

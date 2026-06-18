@@ -13,7 +13,7 @@
 
 ## Version in requests
 
-- Base URL includes no version segment for v1: `https://api.chioma.app/api/...`
+- Base URL includes no version segment for v1: `https://api.vespera.app/api/...`
 - NestJS `enableVersioning(VersioningType.URI)` is configured with `defaultVersion: '1'`. Optional explicit versioning (e.g. `/api/v2/...`) can be added when v2 is introduced.
 
 ## OpenAPI

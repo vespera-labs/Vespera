@@ -1,7 +1,7 @@
 ````markdown
-# Contributing to Chioma
+# Contributing to Vespera
 
-Thank you for your interest in contributing to Chioma! We welcome contributions from the community to help make rental payments transparent, low-cost, and programmable.
+Thank you for your interest in contributing to Vespera! We welcome contributions from the community to help make rental payments transparent, low-cost, and programmable.
 
 ## Table of Contents
 
@@ -17,7 +17,7 @@ Thank you for your interest in contributing to Chioma! We welcome contributions 
 
 ## Introduction
 
-Chioma is an open-source platform on the Stellar blockchain connecting landlords, agents, and tenants. It uses a hybrid architecture with on-chain settlement and off-chain business logic.
+Vespera is an open-source platform on the Stellar blockchain connecting landlords, agents, and tenants. It uses a hybrid architecture with on-chain settlement and off-chain business logic.
 
 ## Prerequisites
 
@@ -34,8 +34,8 @@ Ensure you have the following installed:
 1.  **Clone the repository**:
 
     ```bash
-    git clone https://github.com/caxtonacollins/chioma.git
-    cd chioma
+    git clone https://github.com/caxtonacollins/vespera.git
+    cd vespera
     ```
 
 2.  **Install dependencies**:
@@ -119,7 +119,7 @@ Located in `contract/`.
 4.  Link any relevant issues in your PR description.
 5.  Wait for review and address any feedback.
 
-Thank you for contributing to Chioma!
+Thank you for contributing to Vespera!
 
 ## Local pipeline checks
 

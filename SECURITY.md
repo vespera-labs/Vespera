@@ -12,7 +12,7 @@ We take security seriously. If you discover a security vulnerability, please rep
 
 ### ✅ DO
 
-Report security vulnerabilities by emailing **security@chioma.dev** with:
+Report security vulnerabilities by emailing **security@vespera.dev** with:
 
 1. **Description** - Clear description of the vulnerability
 2. **Location** - Affected component and code location
@@ -161,8 +161,8 @@ Before submitting a PR, verify:
 
 ## Contact
 
-- **Security Email**: security@chioma.dev
+- **Security Email**: security@vespera.dev
 - **GitHub Issues**: Use private vulnerability reporting
-- **Discussions**: https://github.com/chioma/discussions
+- **Discussions**: https://github.com/vespera-labs/Vespera/discussions
 
-Thank you for helping keep Chioma secure! 🔒
+Thank you for helping keep Vespera secure! 🔒

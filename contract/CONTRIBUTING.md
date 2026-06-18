@@ -1,6 +1,6 @@
 # Contract Contributor Guide
 
-Welcome to the Chioma Smart Contracts! This guide will help you understand the Soroban contract architecture, development workflow, and how to make changes that pass all CI/CD checks.
+Welcome to the Vespera Smart Contracts! This guide will help you understand the Soroban contract architecture, development workflow, and how to make changes that pass all CI/CD checks.
 
 ## Table of Contents
 
@@ -18,7 +18,7 @@ Welcome to the Chioma Smart Contracts! This guide will help you understand the S
 
 ## Project Overview
 
-**Chioma Smart Contracts** are Soroban contracts built on the Stellar blockchain for property rental transactions.
+**Vespera Smart Contracts** are Soroban contracts built on the Stellar blockchain for property rental transactions.
 
 ### Tech Stack
 
@@ -32,7 +32,7 @@ Code Quality: Clippy, Rustfmt
 
 ### Key Contracts
 
-1. **Chioma Contract** - Main contract for property listings and bookings
+1. **Vespera Contract** - Main contract for property listings and bookings
 2. **Escrow Contract** - Secure fund holding for transactions
 3. **Dispute Resolution** - Dispute handling and resolution
 4. **Payment Contract** - Payment processing
@@ -107,7 +107,7 @@ use soroban_sdk::token::Interface as TokenInterface;
 ```
 contract/
 ├── contracts/                        # Smart contracts
-│   ├── chioma/                       # Main contract
+│   ├── vespera/                       # Main contract
 │   │   ├── src/
 │   │   │   ├── lib.rs               # Contract definition
 │   │   │   ├── test.rs              # Tests
@@ -760,7 +760,7 @@ rustup target add wasm32-unknown-unknown
 
 # 3. Clone the repository
 git clone <repo-url>
-cd chioma/contract
+cd vespera/contract
 
 # 4. Build contracts
 cargo build --release

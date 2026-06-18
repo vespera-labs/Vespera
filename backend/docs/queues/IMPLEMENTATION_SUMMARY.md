@@ -2,7 +2,7 @@
 
 ## ✅ Completed Implementation
 
-I have successfully implemented Bull Job Queues for the Chioma Housing Protocol backend, addressing issue #383. The implementation is production-ready and fully tested.
+I have successfully implemented Bull Job Queues for the Vespera Housing Protocol backend, addressing issue #383. The implementation is production-ready and fully tested.
 
 ## 📋 What Was Implemented
 

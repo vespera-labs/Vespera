@@ -261,12 +261,12 @@ Log level can be configured via `LOG_LEVEL` environment variable.
 
 For issues or questions:
 
-- GitHub Issues: https://github.com/chioma/chioma/issues
-- Telegram: https://t.me/chiomagroup
+- GitHub Issues: https://github.com/vespera/vespera/issues
+- Telegram: https://t.me/vesperagroup
 - Documentation: See `/docs/anchor-integration.md`
 
 ## References
 
 - [SEP-24 Specification](https://github.com/stellar/stellar-protocol/blob/master/ecosystem/sep-0024.md)
 - [Stellar Anchor Directory](https://anchors.stellar.org/)
-- [Chioma API Documentation](./api-documentation.md)
+- [Vespera API Documentation](./api-documentation.md)
