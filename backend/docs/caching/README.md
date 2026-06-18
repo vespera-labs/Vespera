@@ -1,6 +1,6 @@
 # Caching Architecture Overview
 
-This directory documents the caching strategy used in the Chioma backend. The application uses a two-tier cache:
+This directory documents the caching strategy used in the Vespera backend. The application uses a two-tier cache:
 
 - **In-memory cache** — used in the test environment (`NODE_ENV=test`) via `@nestjs/cache-manager` with a simple in-process store.
 - **Redis cache** — used in all other environments, backed by either ioredis (traditional Redis) or the Upstash REST API (serverless/Render deployments).

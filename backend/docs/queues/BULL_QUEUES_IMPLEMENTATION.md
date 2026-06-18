@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document describes the Bull job queue implementation for the Chioma Housing Protocol backend. Bull is a robust, production-ready job queue library for Node.js that uses Redis as its backing store.
+This document describes the Bull job queue implementation for the Vespera Housing Protocol backend. Bull is a robust, production-ready job queue library for Node.js that uses Redis as its backing store.
 
 ## Architecture
 
@@ -114,7 +114,7 @@ await queueManagementService.addEmailJob({
     title: 'Payment Received',
     message: 'Your rent payment has been received',
     amount: 1000,
-    actionUrl: 'https://app.chioma.local/payments/123',
+    actionUrl: 'https://app.vespera.local/payments/123',
     actionText: 'View Payment',
   },
 });

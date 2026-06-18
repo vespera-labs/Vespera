@@ -159,7 +159,7 @@ pending → failed
 
 ## Status Mapping
 
-| Anchor Status               | Chioma Status |
+| Anchor Status               | Vespera Status |
 | --------------------------- | ------------- |
 | pending_user_transfer_start | pending       |
 | pending_anchor              | processing    |

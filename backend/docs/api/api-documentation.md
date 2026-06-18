@@ -1,14 +1,14 @@
-# Chioma API Documentation
+# Vespera API Documentation
 
 ## Overview
 
-The Chioma API is a RESTful API built on NestJS that provides endpoints for managing rental agreements, user authentication, and Stellar blockchain-based payments. The API follows a hybrid architecture combining traditional web2 authentication with Web3 Stellar wallet authentication.
+The Vespera API is a RESTful API built on NestJS that provides endpoints for managing rental agreements, user authentication, and Stellar blockchain-based payments. The API follows a hybrid architecture combining traditional web2 authentication with Web3 Stellar wallet authentication.
 
 ## Base URL
 
 ```
 Development: http://localhost:3000/api
-Production: https://api.chioma.com/api
+Production: https://api.vespera.com/api
 ```
 
 ## Authentication
@@ -382,7 +382,7 @@ List endpoints support pagination with these query parameters:
 
 ```typescript
 // Initialize API client
-const api = new ChiomaAPI({
+const api = new VesperaAPI({
   baseURL: 'http://localhost:3000/api',
   apiKey: 'your-jwt-token',
 });
@@ -413,10 +413,10 @@ const payment = await api.agreements.recordPayment(agreement.id, {
 ### Python
 
 ```python
-from chioma_sdk import ChiomaAPI
+from vespera_sdk import VesperaAPI
 
 # Initialize client
-api = ChiomaAPI(base_url='http://localhost:3000/api')
+api = VesperaAPI(base_url='http://localhost:3000/api')
 api.set_token('your-jwt-token')
 
 # Get user agreements
@@ -436,7 +436,7 @@ agreement = api.agreements.create({
 
 ## Webhooks
 
-Chioma supports webhooks for real-time notifications:
+Vespera supports webhooks for real-time notifications:
 
 ### Supported Events
 
@@ -449,7 +449,7 @@ Chioma supports webhooks for real-time notifications:
 
 ```json
 {
-  "url": "https://your-app.com/webhooks/chioma",
+  "url": "https://your-app.com/webhooks/vespera",
   "events": ["payment.completed", "agreement.terminated"],
   "secret": "webhook-secret-key"
 }
@@ -499,12 +499,12 @@ For API support:
 
 - Documentation: Available at `/api/docs` (Swagger UI)
 - Issues: Create GitHub issue
-- Email: api-support@chioma.com
-- Discord: [Community Server](https://discord.gg/chioma)
+- Email: api-support@vespera.com
+- Discord: [Community Server](https://discord.gg/vespera)
 
 ## API Keys (Developer Portal)
 
-API keys provide programmatic access to the Chioma API. All API key endpoints require JWT authentication.
+API keys provide programmatic access to the Vespera API. All API key endpoints require JWT authentication.
 
 ### Key Expiration
 
@@ -537,7 +537,7 @@ Content-Type: application/json
 ```json
 {
   "id": "uuid-string",
-  "key": "chioma_sk_xxxxxxxxxxxxxxxxxxxx",
+  "key": "vespera_sk_xxxxxxxxxxxxxxxxxxxx",
   "name": "My Integration",
   "expiresAt": "2026-06-25T12:00:00Z"
 }
@@ -557,7 +557,7 @@ Authorization: Bearer <jwt_token>
   {
     "id": "uuid-string",
     "name": "My Integration",
-    "prefix": "chioma_sk_xxx...",
+    "prefix": "vespera_sk_xxx...",
     "lastUsedAt": "2024-01-26T17:32:00Z",
     "createdAt": "2024-01-26T17:32:00Z",
     "expiresAt": "2026-06-25T12:00:00Z",
@@ -586,7 +586,7 @@ Content-Type: application/json
 ```json
 {
   "id": "new-uuid-string",
-  "key": "chioma_sk_xxxxxxxxxxxxxxxxxxxx",
+  "key": "vespera_sk_xxxxxxxxxxxxxxxxxxxx",
   "name": "My Integration",
   "expiresAt": "2026-12-31T23:59:59Z"
 }
@@ -606,8 +606,8 @@ Authorization: Bearer <jwt_token>
   {
     "id": "history-uuid",
     "rotatedAt": "2024-02-01T10:00:00Z",
-    "oldKeyPrefix": "chioma_sk_old...",
-    "newKeyPrefix": "chioma_sk_new..."
+    "oldKeyPrefix": "vespera_sk_old...",
+    "newKeyPrefix": "vespera_sk_new..."
   }
 ]
 ```
@@ -644,7 +644,7 @@ Authorization: Bearer <jwt_token>
 Include the API key in the `X-API-Key` header:
 
 ```http
-X-API-Key: chioma_sk_xxxxxxxxxxxxxxxxxxxx
+X-API-Key: vespera_sk_xxxxxxxxxxxxxxxxxxxx
 ```
 
 ## Changelog

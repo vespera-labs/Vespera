@@ -25,7 +25,7 @@
 
 ```bash
 # Build Docker image
-docker build -f Dockerfile.production -t chioma-backend:latest .
+docker build -f Dockerfile.production -t vespera-backend:latest .
 
 # Deploy using blue-green strategy
 ./scripts/blue-green-deploy.sh deploy
@@ -93,11 +93,11 @@ Backups run daily via cron:
 
 ```bash
 # List available backups
-ls -lh /var/backups/chioma/
+ls -lh /var/backups/vespera/
 
 # Restore specific backup
-gunzip -c /var/backups/chioma/backup_YYYYMMDD_HHMMSS.sql.gz | \
-  docker exec -i chioma-postgres-production psql -U $DB_USERNAME -d $DB_NAME
+gunzip -c /var/backups/vespera/backup_YYYYMMDD_HHMMSS.sql.gz | \
+  docker exec -i vespera-postgres-production psql -U $DB_USERNAME -d $DB_NAME
 ```
 
 ## Monitoring
@@ -119,11 +119,11 @@ gunzip -c /var/backups/chioma/backup_YYYYMMDD_HHMMSS.sql.gz | \
 
 ```bash
 # View application logs
-docker logs -f chioma-backend-production
+docker logs -f vespera-backend-production
 
 # View nginx logs
-tail -f /var/log/nginx/chioma-access.log
-tail -f /var/log/nginx/chioma-error.log
+tail -f /var/log/nginx/vespera-access.log
+tail -f /var/log/nginx/vespera-error.log
 ```
 
 ## Security
@@ -201,7 +201,7 @@ tail -f /var/log/nginx/chioma-error.log
 ### Application Not Responding
 
 1. Check container status: `docker ps`
-2. View logs: `docker logs chioma-backend-production`
+2. View logs: `docker logs vespera-backend-production`
 3. Check database connection
 4. Verify network connectivity
 
@@ -216,5 +216,5 @@ tail -f /var/log/nginx/chioma-error.log
 
 For deployment issues, contact:
 
-- DevOps Team: devops@chioma.app
+- DevOps Team: devops@vespera.app
 - On-call: +1-XXX-XXX-XXXX

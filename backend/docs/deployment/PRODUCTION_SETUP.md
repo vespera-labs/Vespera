@@ -57,25 +57,25 @@ Or seed individual users:
 ```bash
 # Admin
 NODE_ENV=production ts-node src/commands/index.ts admin \
-  --email "admin@chioma.demo" \
+  --email "admin@vespera.demo" \
   --password "Admin@Demo2024!" \
   --force
 
 # Agent
 NODE_ENV=production ts-node src/commands/index.ts agent \
-  --email "agent@chioma.demo" \
+  --email "agent@vespera.demo" \
   --password "Agent@Demo2024!" \
   --force
 
 # Landlord
 NODE_ENV=production ts-node src/commands/index.ts landlord \
-  --email "landlord@chioma.demo" \
+  --email "landlord@vespera.demo" \
   --password "Landlord@Demo2024!" \
   --force
 
 # Tenant
 NODE_ENV=production ts-node src/commands/index.ts tenant \
-  --email "tenant@chioma.demo" \
+  --email "tenant@vespera.demo" \
   --password "Tenant@Demo2024!" \
   --force
 ```
@@ -86,10 +86,10 @@ After seeding, you can log in with these credentials:
 
 | Role     | Email                | Password           |
 | -------- | -------------------- | ------------------ |
-| Admin    | admin@chioma.demo    | Admin@Demo2024!    |
-| Agent    | agent@chioma.demo    | Agent@Demo2024!    |
-| Landlord | landlord@chioma.demo | Landlord@Demo2024! |
-| Tenant   | tenant@chioma.demo   | Tenant@Demo2024!   |
+| Admin    | admin@vespera.demo    | Admin@Demo2024!    |
+| Agent    | agent@vespera.demo    | Agent@Demo2024!    |
+| Landlord | landlord@vespera.demo | Landlord@Demo2024! |
+| Tenant   | tenant@vespera.demo   | Tenant@Demo2024!   |
 
 ## Troubleshooting
 

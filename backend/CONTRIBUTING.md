@@ -1,6 +1,6 @@
 # Backend Contributor Guide
 
-Welcome to the Chioma backend! This guide will help you understand the project structure, architecture, development workflow, and how to make changes that pass all CI/CD checks.
+Welcome to the Vespera backend! This guide will help you understand the project structure, architecture, development workflow, and how to make changes that pass all CI/CD checks.
 
 ## Table of Contents
 
@@ -19,7 +19,7 @@ Welcome to the Chioma backend! This guide will help you understand the project s
 
 ## Project Overview
 
-**Chioma Backend** is a NestJS-based REST API with blockchain integration, built for a property rental platform.
+**Vespera Backend** is a NestJS-based REST API with blockchain integration, built for a property rental platform.
 
 ### Tech Stack
 
@@ -736,7 +736,7 @@ export class MyFeatureController {
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 
 const config = new DocumentBuilder()
-  .setTitle('Chioma API')
+  .setTitle('Vespera API')
   .setDescription('Property rental platform API')
   .setVersion('1.0')
   .addBearerAuth()
@@ -976,7 +976,7 @@ pnpm run build
 ```bash
 # 1. Clone the repository
 git clone <repo-url>
-cd chioma/backend
+cd vespera/backend
 
 # 2. Install dependencies
 pnpm install
@@ -1064,7 +1064,7 @@ logger.debug('Debug info');
 
 ```bash
 # Connect to PostgreSQL
-psql -h localhost -U postgres -d chioma_db
+psql -h localhost -U postgres -d vespera_db
 
 # View tables
 \dt
