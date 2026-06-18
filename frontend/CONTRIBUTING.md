@@ -85,37 +85,37 @@ pnpm lint        # ESLint (next lint)
 pnpm build       # Production build
 ```
 
-Run `pnpm typecheck`, `pnpm lint`, and `pnpm build` before opening a PR — these are the
+Run `pnpm typecheck`, `pnpm lint`, and `pnpm build` before opening a PR. These are the
 checks reviewers expect to pass.
 
 ---
 
 ## Coding Standards
 
-- **TypeScript strict mode** — `strict` is enabled; avoid `any` and type all props, state,
+- **TypeScript strict mode** - `strict` is enabled; avoid `any` and type all props, state,
   and API responses.
-- **ESLint** — run `pnpm lint` and resolve every error and warning before committing.
-- **Imports** — use the `@/*` path alias instead of deep relative paths.
-- **No hardcoded values** — design tokens come from `tailwind.config.ts`; secrets, network
+- **ESLint** - run `pnpm lint` and resolve every error and warning before committing.
+- **Imports** - use the `@/*` path alias instead of deep relative paths.
+- **No hardcoded values** - design tokens come from `tailwind.config.ts`; secrets, network
   URLs, and contract IDs come from environment variables (`NEXT_PUBLIC_*` for values used in
   the browser). Never commit `.env.local`.
-- **Server vs Client Components** — default to Server Components; add `"use client"` only when
+- **Server vs Client Components** - default to Server Components; add `"use client"` only when
   a component needs state, effects, or browser APIs (e.g. wallet interactions).
 
 ---
 
 ## Component Conventions
 
-- **Naming** — component files use the existing `kebab-case` convention (e.g.
+- **Naming** - component files use the existing `kebab-case` convention (e.g.
   `wallet-button.tsx`); the exported component is `PascalCase`. One component per file.
-- **Hooks** — custom hooks use the `use` prefix.
-- **Structure** — keep presentational components pure; isolate data fetching (TanStack Query)
+- **Hooks** - custom hooks use the `use` prefix.
+- **Structure** - keep presentational components pure; isolate data fetching (TanStack Query)
   and side effects in hooks or container components.
-- **Styling** — Tailwind utility classes. Compose conditional classes with `clsx` and
+- **Styling** - Tailwind utility classes. Compose conditional classes with `clsx` and
   `tailwind-merge` (already in dependencies). Avoid inline style objects.
-- **State** — use TanStack Query for server state; do not duplicate server state into local
+- **State** - use TanStack Query for server state; do not duplicate server state into local
   state.
-- **Accessibility** — semantic HTML, `aria-*` attributes where needed, and keyboard-navigable
+- **Accessibility** - semantic HTML, `aria-*` attributes where needed, and keyboard-navigable
   interactive elements.
 
 ---
@@ -125,10 +125,10 @@ checks reviewers expect to pass.
 > A shared frontend test runner is not configured yet. Until one lands, follow these
 > expectations so new work ships verifiable:
 
-- **Unit / component tests** — Jest + React Testing Library are the intended tools for
+- **Unit / component tests** - Jest + React Testing Library are the intended tools for
   utilities, hooks, and components with logic. Co-locate tests with the file under test
   (`*.test.tsx`).
-- **End-to-end tests** — Cypress is the intended tool for critical user flows (wallet connect,
+- **End-to-end tests** - Cypress is the intended tool for critical user flows (wallet connect,
   rent payment).
 - At minimum, manually verify your change in the browser in both the **connected** and
   **disconnected** wallet states, and confirm there are no console errors.
