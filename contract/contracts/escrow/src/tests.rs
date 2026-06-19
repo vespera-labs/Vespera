@@ -48,6 +48,7 @@ fn test_escrow_lifecycle() {
     assert_eq!(token_client.balance(&depositor), amount);
     assert_eq!(token_client.balance(&client.address), 0);
 
+    let events_before = env.events().all().len();
     client.fund_escrow(&escrow_id, &depositor);
 
     let escrow = client.get_escrow(&escrow_id);
@@ -56,6 +57,9 @@ fn test_escrow_lifecycle() {
     // Check balances after funding
     assert_eq!(token_client.balance(&depositor), 0);
     assert_eq!(token_client.balance(&client.address), amount);
+    // Event should have been emitted for funding
+    let events_after_fund = env.events().all();
+    assert!(events_after_fund.len() > events_before);
 
     // 3. Approve Release (2-of-3)
     // First approval by depositor
@@ -72,6 +76,9 @@ fn test_escrow_lifecycle() {
     // Check final balances
     assert_eq!(token_client.balance(&beneficiary), amount);
     assert_eq!(token_client.balance(&client.address), 0);
+    // Full release should have emitted an event
+    let events_after_release = env.events().all();
+    assert!(events_after_release.len() > events_after_fund.len());
 }
 
 #[test]
@@ -97,6 +104,7 @@ fn test_dispute_resolution() {
     assert_eq!(escrow.dispute_reason, Some(reason));
 
     // Resolve dispute by arbiter (refund to depositor)
+    let events_before_resolve = env.events().all().len();
     client.resolve_dispute(&escrow_id, &arbiter, &depositor);
 
     let escrow = client.get_escrow(&escrow_id);
@@ -105,6 +113,8 @@ fn test_dispute_resolution() {
     let token_client = TokenClient::new(&env, &token_address);
     assert_eq!(token_client.balance(&depositor), amount);
     assert_eq!(token_client.balance(&client.address), 0);
+    let events_after_resolve = env.events().all();
+    assert!(events_after_resolve.len() > events_before_resolve);
 }
 
 #[test]
@@ -360,6 +370,7 @@ fn test_release_escrow_on_timeout_refunds_depositor() {
     client.fund_escrow(&escrow_id, &depositor);
 
     env.ledger().with_mut(|li| li.timestamp += 2 * 86_400);
+    let events_before_timeout = env.events().all().len();
     client.release_escrow_on_timeout(&escrow_id);
 
     let escrow = client.get_escrow(&escrow_id);
@@ -368,6 +379,8 @@ fn test_release_escrow_on_timeout_refunds_depositor() {
     let token_client = TokenClient::new(&env, &token_address);
     assert_eq!(token_client.balance(&depositor), amount);
     assert_eq!(token_client.balance(&client.address), 0);
+    let events_after_timeout = env.events().all();
+    assert!(events_after_timeout.len() > events_before_timeout);
 }
 
 #[test]

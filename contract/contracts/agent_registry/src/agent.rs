@@ -250,6 +250,8 @@ pub fn complete_transaction(
     env.storage()
         .persistent()
         .extend_ttl(&agent_key, 500000, 500000);
+    // Emit event so off-chain indexers can track completed transactions
+    events::transaction_completed(env, transaction_id, agent);
 
     Ok(())
 }

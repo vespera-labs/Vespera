@@ -119,6 +119,9 @@ impl EscrowContract {
         let token_client = token::Client::new(&env, &escrow.token);
         token_client.transfer(&caller, env.current_contract_address(), &escrow.amount);
 
+    // Emit event for funding
+    events::escrow_funded(&env, escrow_id, escrow.amount);
+
         Ok(())
     }
 
@@ -209,6 +212,8 @@ impl EscrowContract {
             // INTERACTIONS: Token transfer from escrow contract to release target
             let token_client = token::Client::new(&env, &escrow.token);
             token_client.transfer(&env.current_contract_address(), &release_to, &escrow.amount);
+            // Emit event for full release
+            events::escrow_released(&env, escrow_id, escrow.amount, release_to.clone());
         }
 
         Ok(())
@@ -268,8 +273,9 @@ impl EscrowContract {
             &escrow.depositor,
             &escrow.amount,
         );
-
         events::escrow_timeout(&env, escrow_id);
+        // Emit refund event for timeout refund path
+        events::escrow_refunded(&env, escrow_id, escrow.amount, escrow.depositor.clone());
         Ok(())
     }
 
