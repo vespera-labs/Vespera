@@ -921,12 +921,82 @@ fn test_calculate_voting_weight_experience_cap() {
     client.initialize(&admin, &3, &Address::generate(&env));
     client.add_arbiter(&admin, &arbiter);
 
-    // disputes_resolved=999 should cap exp_mult at 200
-    client.set_arbiter_stats(&admin, &arbiter, &50, &999);
+    // disputes_resolved=100 sits at the admin-bound cap and the
+    // experience multiplier saturates at 200.
+    client.set_arbiter_stats(&admin, &arbiter, &50, &100);
     let vw = client.get_voting_weight(&arbiter);
     assert_eq!(vw.experience_multiplier, 200);
     // total = 100×200/100 = 200
     assert_eq!(vw.total_weight, 200);
+}
+
+#[test]
+#[should_panic(expected = "Error(Contract, #29)")]
+fn test_set_arbiter_stats_rejects_overlarge_disputes_resolved() {
+    let env = Env::default();
+    let client = create_contract(&env);
+    let admin = Address::generate(&env);
+    let arbiter = Address::generate(&env);
+
+    env.mock_all_auths();
+    client.initialize(&admin, &3, &Address::generate(&env));
+    client.add_arbiter(&admin, &arbiter);
+
+    // Anything above MAX_DISPUTES_RESOLVED (100) is rejected so the
+    // weighting formula can never see a value that could overflow.
+    client.set_arbiter_stats(&admin, &arbiter, &50, &101);
+}
+
+#[test]
+#[should_panic(expected = "Error(Contract, #29)")]
+fn test_set_arbiter_stats_rejects_u32_max_disputes_resolved() {
+    let env = Env::default();
+    let client = create_contract(&env);
+    let admin = Address::generate(&env);
+    let arbiter = Address::generate(&env);
+
+    env.mock_all_auths();
+    client.initialize(&admin, &3, &Address::generate(&env));
+    client.add_arbiter(&admin, &arbiter);
+
+    // The exact value that would previously trap on `disputes_resolved
+    // * 2` before the < 200 clamp.
+    client.set_arbiter_stats(&admin, &arbiter, &50, &u32::MAX);
+}
+
+#[test]
+fn test_weighted_vote_accumulator_does_not_panic_at_extreme_weights() {
+    let env = Env::default();
+    let client = create_contract(&env);
+    let admin = Address::generate(&env);
+    let dispute_id = String::from_str(&env, "weighted-saturating");
+
+    env.mock_all_auths();
+    client.initialize(&admin, &1, &Address::generate(&env));
+    inject_open_dispute(&env, &client, &dispute_id);
+
+    // Spin up a fleet of max-stat arbiters (each casts the maximum
+    // weight of 400) and watch the accumulator handle a high-weight
+    // pile-on without trapping. Advance the ledger sequence between
+    // votes to stay under the per-block rate limit.
+    let arbiter_count: u32 = 16;
+    for i in 0..arbiter_count {
+        let arbiter = Address::generate(&env);
+        client.add_arbiter(&admin, &arbiter);
+        client.set_arbiter_stats(&admin, &arbiter, &100, &100);
+        env.ledger().with_mut(|l| l.sequence_number += 1);
+        let side = if i.is_multiple_of(2) {
+            DisputeOutcome::FavorLandlord
+        } else {
+            DisputeOutcome::FavorTenant
+        };
+        client.vote_on_dispute_weighted(&arbiter, &dispute_id, &side);
+    }
+
+    // Resolution must produce a sane outcome (an exact tie at 8 votes
+    // per side defers to the first vote — FavorLandlord).
+    let outcome = client.resolve_dispute_weighted(&dispute_id);
+    assert_eq!(outcome, DisputeOutcome::FavorLandlord);
 }
 
 #[test]

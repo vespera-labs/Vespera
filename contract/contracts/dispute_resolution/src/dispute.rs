@@ -16,6 +16,21 @@ const DEFAULT_ESCROW_TIMEOUT_DAYS: u64 = 14;
 const DEFAULT_DISPUTE_TIMEOUT_DAYS: u64 = 30;
 const DEFAULT_PAYMENT_TIMEOUT_DAYS: u64 = 7;
 
+/// Largest `rating` admissible — already enforced in `set_arbiter_stats`.
+const MAX_RATING: u32 = 100;
+
+/// Largest `disputes_resolved` admissible. The weighting formula caps
+/// the experience multiplier at 200 when `disputes_resolved * 2 >= 200`,
+/// so anything ≥ 100 is indistinguishable in the weight. Clamping here
+/// prevents `disputes_resolved * 2` from ever being evaluated near
+/// `u32::MAX` (which would panic under `overflow-checks = true`).
+const MAX_DISPUTES_RESOLVED: u32 = 100;
+
+/// Cap on the multiplier values used in the weighting formula. With
+/// rating and experience both capped at 200, the largest possible
+/// `total_weight` is `200 * 200 / 100 = 400`, comfortably inside u32.
+const MAX_MULTIPLIER: u32 = 200;
+
 pub fn get_timeout_config(env: &Env) -> TimeoutConfig {
     env.storage()
         .instance()
@@ -730,8 +745,17 @@ pub fn set_arbiter_stats(
         return Err(DisputeError::ArbiterNotFound);
     }
 
-    if rating > 100 {
+    if rating > MAX_RATING {
         return Err(DisputeError::InvalidRating);
+    }
+
+    if disputes_resolved > MAX_DISPUTES_RESOLVED {
+        // Anything beyond the cap would be clamped by the weighting
+        // formula anyway. Reject explicitly so the on-chain stat
+        // matches the value used in `calculate_voting_weight` and the
+        // admin can't accidentally write a value that triggers overflow
+        // in a future multiplier change.
+        return Err(DisputeError::InvalidDisputesResolved);
     }
 
     let stats = ArbiterStats {
@@ -773,18 +797,7 @@ pub fn calculate_voting_weight(env: &Env, arbiter: Address) -> Result<u32, Dispu
             disputes_resolved: 0,
         });
 
-    let rating_mult = stats.rating * 2; // 0–200
-    let exp_mult = if stats.disputes_resolved * 2 < 200 {
-        stats.disputes_resolved * 2
-    } else {
-        200u32
-    };
-
-    // base(100) × rating_mult/100 × exp_mult/100 = rating_mult × exp_mult / 100
-    let computed = rating_mult * exp_mult / 100;
-    let total_weight = if computed == 0 { 1 } else { computed };
-
-    Ok(total_weight)
+    Ok(weight_from_stats(&stats))
 }
 
 /// Return the full VotingWeight breakdown for an arbiter.
@@ -808,15 +821,7 @@ pub fn get_voting_weight(env: &Env, arbiter: Address) -> Result<VotingWeight, Di
             disputes_resolved: 0,
         });
 
-    let rating_mult = stats.rating * 2;
-    let exp_mult = if stats.disputes_resolved * 2 < 200 {
-        stats.disputes_resolved * 2
-    } else {
-        200u32
-    };
-
-    let computed = rating_mult * exp_mult / 100;
-    let total_weight = if computed == 0 { 1 } else { computed };
+    let (rating_mult, exp_mult, total_weight) = weight_components(&stats);
 
     Ok(VotingWeight {
         arbiter,
@@ -825,6 +830,32 @@ pub fn get_voting_weight(env: &Env, arbiter: Address) -> Result<VotingWeight, Di
         experience_multiplier: exp_mult,
         total_weight,
     })
+}
+
+/// Clamp + saturating-multiply the weighting formula so a stat value
+/// near u32::MAX cannot trap the contract.
+///
+/// Inputs are clamped to their admissible ranges BEFORE multiplication,
+/// then the multiplications themselves are `saturating_mul`. With the
+/// clamps in place saturation is unreachable, but using the saturating
+/// variant means a future change to the formula or constants cannot
+/// silently reintroduce the panic.
+fn weight_components(stats: &ArbiterStats) -> (u32, u32, u32) {
+    let clamped_rating = stats.rating.min(MAX_RATING);
+    let clamped_disputes = stats.disputes_resolved.min(MAX_DISPUTES_RESOLVED);
+
+    let rating_mult = clamped_rating.saturating_mul(2).min(MAX_MULTIPLIER); // 0–200
+    let exp_mult = clamped_disputes.saturating_mul(2).min(MAX_MULTIPLIER); // 0–200
+
+    let product = rating_mult.saturating_mul(exp_mult);
+    let computed = product / 100;
+    let total_weight = if computed == 0 { 1 } else { computed };
+
+    (rating_mult, exp_mult, total_weight)
+}
+
+fn weight_from_stats(stats: &ArbiterStats) -> u32 {
+    weight_components(stats).2
 }
 
 /// Cast a weighted vote on an open dispute.
@@ -893,9 +924,21 @@ pub fn vote_on_dispute_weighted(
                 voters: soroban_sdk::Vec::new(env),
             });
 
+    // Saturating add: even if pathological stats and a huge voter pool
+    // pushed accumulated weight beyond u32::MAX, we clamp to u32::MAX
+    // instead of trapping. The relative comparison in
+    // `resolve_dispute_weighted` still picks the correct side.
     match vote.clone() {
-        DisputeOutcome::FavorLandlord => wdisp.weighted_votes_favor_landlord += weight,
-        DisputeOutcome::FavorTenant => wdisp.weighted_votes_favor_tenant += weight,
+        DisputeOutcome::FavorLandlord => {
+            wdisp.weighted_votes_favor_landlord = wdisp
+                .weighted_votes_favor_landlord
+                .saturating_add(weight);
+        }
+        DisputeOutcome::FavorTenant => {
+            wdisp.weighted_votes_favor_tenant = wdisp
+                .weighted_votes_favor_tenant
+                .saturating_add(weight);
+        }
     }
 
     wdisp.voters.push_back(arbiter.clone());
@@ -952,7 +995,9 @@ pub fn resolve_dispute_weighted(
         return Err(DisputeError::InsufficientVotes);
     }
 
-    let total_weight = wdisp.weighted_votes_favor_landlord + wdisp.weighted_votes_favor_tenant;
+    let total_weight = wdisp
+        .weighted_votes_favor_landlord
+        .saturating_add(wdisp.weighted_votes_favor_tenant);
 
     let outcome = match wdisp
         .weighted_votes_favor_landlord

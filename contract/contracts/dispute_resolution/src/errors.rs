@@ -32,4 +32,5 @@ pub enum DisputeError {
     InvalidRating = 26,
     RateLimitExceeded = 27,
     CooldownNotMet = 28,
+    InvalidDisputesResolved = 29,
 }
