@@ -5,6 +5,7 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   Index,
+  VersionColumn,
 } from 'typeorm';
 
 export enum AnchorTransactionType {
@@ -67,6 +68,17 @@ export class AnchorTransaction {
 
   @Column({ type: 'jsonb', nullable: true })
   metadata?: Record<string, any>;
+
+  @Column({
+    name: 'processed_event_ids',
+    type: 'text',
+    array: true,
+    default: () => "'{}'",
+  })
+  processedEventIds: string[];
+
+  @VersionColumn({ default: 1 })
+  version: number;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;

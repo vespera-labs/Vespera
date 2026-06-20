@@ -1,6 +1,12 @@
 import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Brackets, IsNull, Not, Repository } from 'typeorm';
+import {
+  Brackets,
+  IsNull,
+  Not,
+  OptimisticLockVersionMismatchError,
+  Repository,
+} from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import axios, { AxiosInstance } from 'axios';
 import {
@@ -12,6 +18,15 @@ import { SupportedCurrency } from '../../transactions/entities/supported-currenc
 import { DepositRequestDto } from '../dto/deposit-request.dto';
 import { WithdrawRequestDto } from '../dto/withdraw-request.dto';
 import { QueryAnchorTransactionsDto } from '../dto/query-anchor-transactions.dto';
+import { AnchorWebhookDto } from '../dto/anchor-webhook.dto';
+
+const TERMINAL_STATUSES: ReadonlySet<AnchorTransactionStatus> = new Set([
+  AnchorTransactionStatus.COMPLETED,
+  AnchorTransactionStatus.REFUNDED,
+  AnchorTransactionStatus.FAILED,
+]);
+
+const PROCESSED_EVENT_WINDOW = 200;
 
 interface AnchorDepositResponse {
   id: string;
@@ -199,34 +214,35 @@ export class AnchorService {
       throw new BadRequestException('Transaction not found');
     }
 
-    if (transaction.anchorTransactionId) {
-      try {
-        const response =
-          await this.axiosInstance.get<AnchorTransactionResponse>(
-            `/sep24/transaction?id=${transaction.anchorTransactionId}`,
-          );
-
-        const anchorTx = response.data.transaction;
-        transaction.status = this.mapAnchorStatus(anchorTx.status);
-        transaction.stellarTransactionId = anchorTx.stellar_transaction_id;
-        transaction.metadata = {
-          ...transaction.metadata,
-          amount_in: anchorTx.amount_in,
-          amount_out: anchorTx.amount_out,
-          amount_fee: anchorTx.amount_fee,
-          external_transaction_id: anchorTx.external_transaction_id,
-          message: anchorTx.message,
-        };
-
-        await this.anchorTransactionRepo.save(transaction);
-      } catch (error) {
-        this.logger.error(
-          `Failed to fetch transaction status: ${error.message}`,
-        );
-      }
+    if (!transaction.anchorTransactionId) {
+      return transaction;
     }
 
-    return transaction;
+    try {
+      const response = await this.axiosInstance.get<AnchorTransactionResponse>(
+        `/sep24/transaction?id=${transaction.anchorTransactionId}`,
+      );
+      const anchorTx = response.data.transaction;
+
+      // Funnel polling updates through the same idempotent path as the
+      // webhook so a polling tick and a webhook delivery cannot race —
+      // both serialize on the row-level lock and both respect the
+      // terminal-state guard.
+      return await this.applyAnchorUpdate(transaction.id, {
+        id: transaction.anchorTransactionId,
+        status: anchorTx.status,
+        event_id: `poll:${anchorTx.id}:${anchorTx.status}`,
+        stellar_transaction_id: anchorTx.stellar_transaction_id,
+        external_transaction_id: anchorTx.external_transaction_id,
+        amount_in: anchorTx.amount_in,
+        amount_out: anchorTx.amount_out,
+        amount_fee: anchorTx.amount_fee,
+        message: anchorTx.message,
+      });
+    } catch (error) {
+      this.logger.error(`Failed to fetch transaction status: ${error.message}`);
+      return transaction;
+    }
   }
 
   async listTransactions(query: QueryAnchorTransactionsDto): Promise<{
@@ -372,22 +388,192 @@ export class AnchorService {
     };
   }
 
-  async handleWebhook(payload: any): Promise<void> {
-    this.logger.log(`Received webhook: ${JSON.stringify(payload)}`);
-
-    const { id, status, stellar_transaction_id } = payload;
-
-    const transaction = await this.anchorTransactionRepo.findOne({
-      where: { anchorTransactionId: id },
+  async handleWebhook(payload: AnchorWebhookDto): Promise<void> {
+    // Look up by the anchor's transaction id; the local record's primary
+    // key isn't on the wire.
+    const local = await this.anchorTransactionRepo.findOne({
+      where: { anchorTransactionId: payload.id },
+      select: ['id'],
     });
 
-    if (transaction) {
-      transaction.status = this.mapAnchorStatus(status);
-      transaction.stellarTransactionId = stellar_transaction_id;
-      transaction.metadata = { ...transaction.metadata, ...payload };
-      await this.anchorTransactionRepo.save(transaction);
-      this.logger.log(`Transaction ${transaction.id} updated via webhook`);
+    if (!local) {
+      // Webhook for a transaction we don't know about — log and drop
+      // rather than create a synthetic record.
+      this.logger.warn(
+        `Webhook for unknown anchor transaction id=${payload.id}`,
+      );
+      return;
     }
+
+    await this.applyAnchorUpdate(local.id, payload);
+  }
+
+  /**
+   * Serialize all writes for a single anchor transaction through a row
+   * lock and an event-id replay guard so concurrent webhooks and polling
+   * cannot corrupt status. Returns the post-update row.
+   *
+   * Guards applied (in order):
+   *   1. Reload under SELECT ... FOR UPDATE inside a transaction.
+   *   2. If the inbound event_id has already been processed for this
+   *      row, short-circuit (idempotent replay).
+   *   3. If the local row is in a terminal state, refuse to regress.
+   *   4. Only persist known fields from the payload — never spread the
+   *      raw body.
+   *   5. Update the @VersionColumn via save() so any racing writer that
+   *      bypasses this path triggers OptimisticLockVersionMismatchError.
+   */
+  private async applyAnchorUpdate(
+    localId: string,
+    payload: AnchorWebhookDto,
+  ): Promise<AnchorTransaction> {
+    const eventId = this.deriveEventId(payload);
+    const queryRunner =
+      this.anchorTransactionRepo.manager.connection.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      const repo = queryRunner.manager.getRepository(AnchorTransaction);
+      const transaction = await repo.findOne({
+        where: { id: localId },
+        lock: { mode: 'pessimistic_write' },
+      });
+
+      if (!transaction) {
+        await queryRunner.rollbackTransaction();
+        throw new BadRequestException('Transaction not found');
+      }
+
+      if (
+        transaction.processedEventIds &&
+        transaction.processedEventIds.includes(eventId)
+      ) {
+        this.logger.log(
+          `Anchor event ${eventId} already processed for tx=${transaction.id}; skipping`,
+        );
+        await queryRunner.commitTransaction();
+        return transaction;
+      }
+
+      // Sequence-monotonicity guard: if the anchor stamps payloads
+      // with a `sequence` and the row has already absorbed a higher
+      // one, this delivery is out-of-order and must not regress
+      // state. Recording the event id makes the eventual retry of the
+      // newer payload a no-op.
+      const lastSequence = this.readLastSequence(transaction);
+      if (
+        payload.sequence !== undefined &&
+        lastSequence !== undefined &&
+        payload.sequence < lastSequence
+      ) {
+        this.logger.warn(
+          `Dropping stale anchor delivery tx=${transaction.id} sequence=${payload.sequence} < last=${lastSequence}`,
+        );
+        transaction.processedEventIds = this.trackEventId(
+          transaction.processedEventIds,
+          eventId,
+        );
+        await repo.save(transaction);
+        await queryRunner.commitTransaction();
+        return transaction;
+      }
+
+      const newStatus = this.mapAnchorStatus(payload.status);
+
+      if (
+        TERMINAL_STATUSES.has(transaction.status) &&
+        transaction.status !== newStatus
+      ) {
+        this.logger.warn(
+          `Refusing to regress tx=${transaction.id} from terminal ${transaction.status} to ${newStatus}`,
+        );
+        transaction.processedEventIds = this.trackEventId(
+          transaction.processedEventIds,
+          eventId,
+        );
+        await repo.save(transaction);
+        await queryRunner.commitTransaction();
+        return transaction;
+      }
+
+      transaction.status = newStatus;
+      if (payload.stellar_transaction_id) {
+        transaction.stellarTransactionId = payload.stellar_transaction_id;
+      }
+      transaction.metadata = {
+        ...(transaction.metadata ?? {}),
+        ...this.extractKnownMetadata(payload),
+      };
+      transaction.processedEventIds = this.trackEventId(
+        transaction.processedEventIds,
+        eventId,
+      );
+
+      await repo.save(transaction);
+      await queryRunner.commitTransaction();
+      this.logger.log(
+        `Anchor tx=${transaction.id} advanced to ${newStatus} via event=${eventId}`,
+      );
+      return transaction;
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      if (error instanceof OptimisticLockVersionMismatchError) {
+        this.logger.warn(
+          `Optimistic lock conflict for anchor tx=${localId}; another writer won the race`,
+        );
+        const reload = await this.anchorTransactionRepo.findOne({
+          where: { id: localId },
+        });
+        if (reload) return reload;
+      }
+      throw error;
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
+  private deriveEventId(payload: AnchorWebhookDto): string {
+    if (payload.event_id) return payload.event_id;
+    if (payload.sequence !== undefined) {
+      return `${payload.id}:seq:${payload.sequence}`;
+    }
+    // No explicit identifier — collapse identical re-deliveries of the
+    // same (id, status) pair but still let real transitions through.
+    return `${payload.id}:status:${payload.status}`;
+  }
+
+  private trackEventId(
+    existing: string[] | undefined,
+    eventId: string,
+  ): string[] {
+    const next = existing ? [...existing, eventId] : [eventId];
+    // Keep the list bounded so the row doesn't grow without limit; we
+    // only need enough history to absorb in-flight redeliveries.
+    if (next.length > PROCESSED_EVENT_WINDOW) {
+      return next.slice(next.length - PROCESSED_EVENT_WINDOW);
+    }
+    return next;
+  }
+
+  private readLastSequence(transaction: AnchorTransaction): number | undefined {
+    const stored = transaction.metadata?.last_sequence;
+    return typeof stored === 'number' ? stored : undefined;
+  }
+
+  private extractKnownMetadata(
+    payload: AnchorWebhookDto,
+  ): Record<string, unknown> {
+    const known: Record<string, unknown> = {};
+    if (payload.amount_in !== undefined) known.amount_in = payload.amount_in;
+    if (payload.amount_out !== undefined) known.amount_out = payload.amount_out;
+    if (payload.amount_fee !== undefined) known.amount_fee = payload.amount_fee;
+    if (payload.external_transaction_id !== undefined) {
+      known.external_transaction_id = payload.external_transaction_id;
+    }
+    if (payload.message !== undefined) known.message = payload.message;
+    if (payload.sequence !== undefined) known.last_sequence = payload.sequence;
+    return known;
   }
 
   private async validateCurrency(currency: string): Promise<void> {

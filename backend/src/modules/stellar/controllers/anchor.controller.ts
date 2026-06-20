@@ -23,6 +23,7 @@ import { RolesGuard } from '../../auth/guards/roles.guard';
 import { UserRole } from '../../users/entities/user.entity';
 import { WebhookSecret } from '../../webhooks/decorators/webhook-secret.decorator';
 import { WebhookSignatureGuard } from '../../webhooks/guards/webhook-signature.guard';
+import { AnchorWebhookDto } from '../dto/anchor-webhook.dto';
 import { DepositRequestDto } from '../dto/deposit-request.dto';
 import { QueryAnchorTransactionsDto } from '../dto/query-anchor-transactions.dto';
 import { WithdrawRequestDto } from '../dto/withdraw-request.dto';
@@ -100,7 +101,7 @@ export class AnchorController {
     description: 'Called by anchor to notify status. Not for client use.',
   })
   @ApiResponse({ status: 200, description: 'Webhook processed' })
-  async handleWebhook(@Body() payload: Record<string, unknown>) {
+  async handleWebhook(@Body() payload: AnchorWebhookDto) {
     await this.anchorService.handleWebhook(payload);
     return { success: true };
   }
