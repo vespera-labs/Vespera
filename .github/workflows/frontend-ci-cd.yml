@@ -59,13 +59,7 @@ jobs:
           fi
 
       - name: Run unit tests
-        continue-on-error: true
-        run: |
-          if pnpm list jest --depth=0 | grep -q "jest"; then
-            pnpm test -- --coverage
-          else
-            echo "Jest not installed, skipping unit tests"
-          fi
+        run: pnpm run test
 
       - name: Run E2E tests
         continue-on-error: true
