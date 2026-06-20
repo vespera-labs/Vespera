@@ -22,6 +22,11 @@ pub enum DataKey {
     UserCallCount(soroban_sdk::Address, String), // (user, function_name)
     BlockCallCount(u64, String),                 // (block_number, function_name)
     PaymentRecord(String, u32),
+    /// Per-agreement, per-token escrowed balance. The on-chain
+    /// transfer pools all agreements into the contract address, so the
+    /// contract has to do its own accounting to release only what each
+    /// agreement deposited.
+    AgreementEscrowBalance(String, soroban_sdk::Address),
     // Multi-sig keys
     MultiSigConfig,
     AdminProposal(String),

@@ -438,6 +438,13 @@ pub fn make_payment_with_token(
     let client = soroban_sdk::token::Client::new(env, &token);
     client.transfer(&agreement.tenant, env.current_contract_address(), &amount);
 
+    // Bookkeeping: credit this agreement's escrow ledger so a later
+    // release_escrow_with_token can transfer only what THIS
+    // agreement deposited. Without this, every agreement's deposits
+    // would be pooled at the contract address and the first landlord
+    // to call release would sweep the entire balance.
+    credit_agreement_escrow(env, &agreement_id, &token, amount);
+
     // Update agreement state
     agreement.total_rent_paid += amount_in_base;
     agreement.payment_count += 1;
@@ -466,7 +473,13 @@ pub fn make_payment_with_token(
     Ok(())
 }
 
-/// Release escrow for an agreement
+/// Release the escrowed balance for a single agreement.
+///
+/// Previously this read the contract's whole token balance and shipped
+/// the entire pile to the agreement's landlord, draining funds that
+/// belonged to every other agreement using the same token. Now we
+/// release only the amount the per-agreement ledger says THIS
+/// agreement deposited, so other agreements are untouched.
 pub fn release_escrow_with_token(
     env: &Env,
     escrow_id: String,
@@ -477,22 +490,80 @@ pub fn release_escrow_with_token(
     let agreement: RentAgreement = env
         .storage()
         .persistent()
-        .get(&DataKey::Agreement(agreement_id))
+        .get(&DataKey::Agreement(agreement_id.clone()))
         .ok_or(RentalError::AgreementNotFound)?;
 
-    // Only landlord can release? Or admin?
-    // Let's assume landlord for this implementation
+    // Only the landlord on this specific agreement can release its
+    // escrow. (require_auth already does the signature check; the
+    // address came from agreement storage, not the caller.)
     agreement.landlord.require_auth();
+
+    // Releases happen on agreements that ran their course or were
+    // wound down through the platform's state machine — never on
+    // Draft/Pending agreements that never funded.
+    match agreement.status {
+        AgreementStatus::Active
+        | AgreementStatus::Completed
+        | AgreementStatus::Terminated => {}
+        _ => return Err(RentalError::InvalidState),
+    }
+
+    let owed = read_agreement_escrow(env, &agreement_id, &token);
+
+    if owed == 0 {
+        // Nothing to release for this agreement; emit a zero-amount
+        // event for observability but make no transfer (and don't
+        // touch other agreements' balances).
+        events::escrow_released_with_token(env, escrow_id, token, 0);
+        return Ok(());
+    }
 
     let contract_addr = env.current_contract_address();
     let client = soroban_sdk::token::Client::new(env, &token);
-    let balance = client.balance(&contract_addr);
+    let on_chain_balance = client.balance(&contract_addr);
 
-    if balance > 0 {
-        client.transfer(&contract_addr, &agreement.landlord, &balance);
+    // Defence-in-depth: if the ledger somehow says we owe more than
+    // the contract actually holds (which shouldn't happen unless the
+    // token state was tampered with), refuse the release rather than
+    // partially transferring.
+    if on_chain_balance < owed {
+        return Err(RentalError::EscrowInsufficientFunds);
     }
 
-    events::escrow_released_with_token(env, escrow_id, token, balance);
+    client.transfer(&contract_addr, &agreement.landlord, &owed);
+    debit_agreement_escrow(env, &agreement_id, &token, owed);
+
+    events::escrow_released_with_token(env, escrow_id, token, owed);
 
     Ok(())
+}
+
+fn read_agreement_escrow(env: &Env, agreement_id: &String, token: &Address) -> i128 {
+    env.storage()
+        .persistent()
+        .get(&DataKey::AgreementEscrowBalance(
+            agreement_id.clone(),
+            token.clone(),
+        ))
+        .unwrap_or(0)
+}
+
+fn credit_agreement_escrow(env: &Env, agreement_id: &String, token: &Address, amount: i128) {
+    let key = DataKey::AgreementEscrowBalance(agreement_id.clone(), token.clone());
+    let current: i128 = env.storage().persistent().get(&key).unwrap_or(0);
+    let next = current.saturating_add(amount);
+    env.storage().persistent().set(&key, &next);
+    env.storage()
+        .persistent()
+        .extend_ttl(&key, TTL_THRESHOLD, TTL_BUMP);
+}
+
+fn debit_agreement_escrow(env: &Env, agreement_id: &String, token: &Address, amount: i128) {
+    let key = DataKey::AgreementEscrowBalance(agreement_id.clone(), token.clone());
+    let current: i128 = env.storage().persistent().get(&key).unwrap_or(0);
+    let next = current.saturating_sub(amount);
+    env.storage().persistent().set(&key, &next);
+    env.storage()
+        .persistent()
+        .extend_ttl(&key, TTL_THRESHOLD, TTL_BUMP);
 }

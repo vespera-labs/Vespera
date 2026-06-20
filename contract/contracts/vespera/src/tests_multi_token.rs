@@ -623,3 +623,200 @@ fn test_create_agreement_with_token_stores_token() {
     let fetched_token = client.get_agreement_token(&agreement_id);
     assert_eq!(fetched_token, token_addr);
 }
+
+// ─── Issue #64: per-agreement escrow accounting ───────────────────────────
+
+/// Two agreements share the same token. After both fund the escrow,
+/// landlord A's release must only ship landlord A's deposits and leave
+/// landlord B's funds intact.
+#[test]
+fn test_release_escrow_only_transfers_owning_agreement_funds() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let client = create_contract(&env);
+    let admin = Address::generate(&env);
+    initialize_contract(&env, &client, &admin);
+
+    let token = env
+        .register_stellar_asset_contract_v2(Address::generate(&env))
+        .address();
+    client.add_supported_token(
+        &token,
+        &String::from_str(&env, "USDC"),
+        &6,
+        &1,
+        &1_000_000_000,
+    );
+
+    let tenant_a = Address::generate(&env);
+    let landlord_a = Address::generate(&env);
+    let tenant_b = Address::generate(&env);
+    let landlord_b = Address::generate(&env);
+
+    let id_a = String::from_str(&env, "AGREEMENT_A");
+    let id_b = String::from_str(&env, "AGREEMENT_B");
+
+    client.create_agreement_with_token(&AgreementInput {
+        agreement_id: id_a.clone(),
+        tenant: tenant_a.clone(),
+        landlord: landlord_a.clone(),
+        agent: None,
+        terms: AgreementTerms {
+            monthly_rent: 1_000,
+            security_deposit: 0,
+            start_date: 100,
+            end_date: 1_000_000,
+            agent_commission_rate: 0,
+        },
+        payment_token: token.clone(),
+        metadata_uri: String::from_str(&env, ""),
+        attributes: Vec::new(&env),
+    });
+    client.submit_agreement(&landlord_a, &id_a);
+    client.sign_agreement(&tenant_a, &id_a);
+
+    client.create_agreement_with_token(&AgreementInput {
+        agreement_id: id_b.clone(),
+        tenant: tenant_b.clone(),
+        landlord: landlord_b.clone(),
+        agent: None,
+        terms: AgreementTerms {
+            monthly_rent: 1_000,
+            security_deposit: 0,
+            start_date: 100,
+            end_date: 1_000_000,
+            agent_commission_rate: 0,
+        },
+        payment_token: token.clone(),
+        metadata_uri: String::from_str(&env, ""),
+        attributes: Vec::new(&env),
+    });
+    client.submit_agreement(&landlord_b, &id_b);
+    client.sign_agreement(&tenant_b, &id_b);
+
+    let sac = soroban_sdk::token::StellarAssetClient::new(&env, &token);
+    sac.mint(&tenant_a, &5_000);
+    sac.mint(&tenant_b, &5_000);
+
+    // Both agreements pay rent into the shared escrow.
+    client.make_payment_with_token(&id_a, &1_000, &token);
+    client.make_payment_with_token(&id_b, &1_000, &token);
+
+    let token_client = soroban_sdk::token::Client::new(&env, &token);
+    assert_eq!(token_client.balance(&landlord_a), 0);
+    assert_eq!(token_client.balance(&landlord_b), 0);
+
+    // Landlord A releases their escrow.
+    client.release_escrow_with_token(&id_a, &token);
+
+    // Landlord A gets exactly THEIR 1_000, not the pooled 2_000.
+    assert_eq!(token_client.balance(&landlord_a), 1_000);
+    assert_eq!(token_client.balance(&landlord_b), 0);
+
+    // Landlord B's escrow is still parked at the contract and can
+    // still be released later — proving funds were not stolen.
+    client.release_escrow_with_token(&id_b, &token);
+    assert_eq!(token_client.balance(&landlord_b), 1_000);
+}
+
+/// Releasing twice should not double-pay (the ledger is debited on
+/// the first release).
+#[test]
+fn test_release_escrow_is_idempotent_when_balance_is_drained() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let client = create_contract(&env);
+    let admin = Address::generate(&env);
+    initialize_contract(&env, &client, &admin);
+
+    let token = env
+        .register_stellar_asset_contract_v2(Address::generate(&env))
+        .address();
+    client.add_supported_token(
+        &token,
+        &String::from_str(&env, "USDC"),
+        &6,
+        &1,
+        &1_000_000_000,
+    );
+
+    let tenant = Address::generate(&env);
+    let landlord = Address::generate(&env);
+    let id = String::from_str(&env, "AGREEMENT_ONCE");
+
+    client.create_agreement_with_token(&AgreementInput {
+        agreement_id: id.clone(),
+        tenant: tenant.clone(),
+        landlord: landlord.clone(),
+        agent: None,
+        terms: AgreementTerms {
+            monthly_rent: 500,
+            security_deposit: 0,
+            start_date: 100,
+            end_date: 1_000_000,
+            agent_commission_rate: 0,
+        },
+        payment_token: token.clone(),
+        metadata_uri: String::from_str(&env, ""),
+        attributes: Vec::new(&env),
+    });
+    client.submit_agreement(&landlord, &id);
+    client.sign_agreement(&tenant, &id);
+
+    let sac = soroban_sdk::token::StellarAssetClient::new(&env, &token);
+    sac.mint(&tenant, &500);
+    client.make_payment_with_token(&id, &500, &token);
+
+    client.release_escrow_with_token(&id, &token);
+    // Second release is a no-op: per-agreement balance is now zero.
+    client.release_escrow_with_token(&id, &token);
+
+    let token_client = soroban_sdk::token::Client::new(&env, &token);
+    assert_eq!(token_client.balance(&landlord), 500);
+}
+
+/// Releasing on a Draft/Pending agreement is rejected.
+#[test]
+#[should_panic(expected = "Error(Contract, #15)")] // InvalidState
+fn test_release_escrow_rejected_on_non_active_agreement() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let client = create_contract(&env);
+    let admin = Address::generate(&env);
+    initialize_contract(&env, &client, &admin);
+
+    let token = env
+        .register_stellar_asset_contract_v2(Address::generate(&env))
+        .address();
+    client.add_supported_token(
+        &token,
+        &String::from_str(&env, "USDC"),
+        &6,
+        &1,
+        &1_000_000_000,
+    );
+
+    let tenant = Address::generate(&env);
+    let landlord = Address::generate(&env);
+    let id = String::from_str(&env, "DRAFT_AGREEMENT");
+
+    // Create-but-don't-sign — agreement stays in Draft.
+    client.create_agreement_with_token(&AgreementInput {
+        agreement_id: id.clone(),
+        tenant: tenant.clone(),
+        landlord: landlord.clone(),
+        agent: None,
+        terms: AgreementTerms {
+            monthly_rent: 1,
+            security_deposit: 0,
+            start_date: 100,
+            end_date: 1_000_000,
+            agent_commission_rate: 0,
+        },
+        payment_token: token.clone(),
+        metadata_uri: String::from_str(&env, ""),
+        attributes: Vec::new(&env),
+    });
+
+    client.release_escrow_with_token(&id, &token);
+}
