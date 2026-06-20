@@ -8,7 +8,6 @@ use soroban_sdk::{contracterror, Env, String, Vec};
 pub enum RentalError {
     // Already existed
     AlreadyInitialized = 1,
-    InvalidAdmin = 2,
     InvalidConfig = 3,
     AgreementAlreadyExists = 4,
     InvalidAmount = 5,
@@ -76,7 +75,6 @@ impl RentalError {
     pub fn message(&self, env: &Env) -> String {
         let msg = match self {
             RentalError::AlreadyInitialized => "Contract already initialized.",
-            RentalError::InvalidAdmin => "Invalid admin address provided.",
             RentalError::InvalidConfig => "Invalid configuration parameter.",
             RentalError::AgreementAlreadyExists => "Agreement already exists for the given ID.",
             RentalError::InvalidAmount => "Invalid amount provided for the operation.",
