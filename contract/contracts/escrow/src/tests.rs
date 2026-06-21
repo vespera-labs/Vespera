@@ -100,11 +100,106 @@ fn test_dispute_resolution() {
     client.resolve_dispute(&escrow_id, &arbiter, &depositor);
 
     let escrow = client.get_escrow(&escrow_id);
-    assert_eq!(escrow.status, EscrowStatus::Released); // resolve_dispute currently sets status to Released regardless of target
+    assert_eq!(escrow.status, EscrowStatus::Refunded); // Status should be Refunded when funds go to depositor
 
     let token_client = TokenClient::new(&env, &token_address);
     assert_eq!(token_client.balance(&depositor), amount);
     assert_eq!(token_client.balance(&client.address), 0);
+}
+
+#[test]
+fn test_dispute_resolution_sets_correct_status() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    // Test 1: Resolution in favor of depositor should set status to Refunded
+    let (client, depositor, beneficiary, arbiter, token_address) = setup_test(&env);
+    let amount = 1000i128;
+
+    let escrow_id = client.create(&depositor, &beneficiary, &arbiter, &amount, &token_address);
+
+    let token_admin = TokenAdminClient::new(&env, &token_address);
+    token_admin.mint(&depositor, &amount);
+    client.fund_escrow(&escrow_id, &depositor);
+
+    // Initiate dispute
+    let reason = soroban_sdk::String::from_str(&env, "Service not delivered");
+    client.initiate_dispute(&escrow_id, &beneficiary, &reason);
+
+    // Resolve dispute in favor of depositor (refund)
+    client.resolve_dispute(&escrow_id, &arbiter, &depositor);
+
+    let escrow = client.get_escrow(&escrow_id);
+    assert_eq!(escrow.status, EscrowStatus::Refunded);
+    assert_eq!(escrow.dispute_reason, None);
+    assert_eq!(escrow.disputed_at, None);
+
+    let token_client = TokenClient::new(&env, &token_address);
+    assert_eq!(token_client.balance(&depositor), amount);
+
+    // Test 2: Resolution in favor of beneficiary should set status to Released
+    let (client2, depositor2, beneficiary2, arbiter2, token_address2) = setup_test(&env);
+    let amount2 = 2000i128;
+
+    let escrow_id2 = client2.create(
+        &depositor2,
+        &beneficiary2,
+        &arbiter2,
+        &amount2,
+        &token_address2,
+    );
+
+    let token_admin2 = TokenAdminClient::new(&env, &token_address2);
+    token_admin2.mint(&depositor2, &amount2);
+    client2.fund_escrow(&escrow_id2, &depositor2);
+
+    // Initiate dispute
+    let reason2 = soroban_sdk::String::from_str(&env, "Damage to property");
+    client2.initiate_dispute(&escrow_id2, &depositor2, &reason2);
+
+    // Resolve dispute in favor of beneficiary (release)
+    client2.resolve_dispute(&escrow_id2, &arbiter2, &beneficiary2);
+
+    let escrow2 = client2.get_escrow(&escrow_id2);
+    assert_eq!(escrow2.status, EscrowStatus::Released);
+    assert_eq!(escrow2.dispute_reason, None);
+    assert_eq!(escrow2.disputed_at, None);
+
+    let token_client2 = TokenClient::new(&env, &token_address2);
+    assert_eq!(token_client2.balance(&beneficiary2), amount2);
+}
+
+#[test]
+fn test_dispute_resolution_terminal_status_enforced() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let (client, depositor, beneficiary, arbiter, token_address) = setup_test(&env);
+    let amount = 1000i128;
+
+    let escrow_id = client.create(&depositor, &beneficiary, &arbiter, &amount, &token_address);
+
+    let token_admin = TokenAdminClient::new(&env, &token_address);
+    token_admin.mint(&depositor, &amount);
+    client.fund_escrow(&escrow_id, &depositor);
+
+    // Initiate dispute
+    let reason = soroban_sdk::String::from_str(&env, "Service not delivered");
+    client.initiate_dispute(&escrow_id, &beneficiary, &reason);
+
+    // Resolve dispute in favor of depositor (Refunded status)
+    client.resolve_dispute(&escrow_id, &arbiter, &depositor);
+
+    let escrow = client.get_escrow(&escrow_id);
+    assert_eq!(escrow.status, EscrowStatus::Refunded);
+
+    // Try to resolve the dispute again (should fail because status is no longer Disputed)
+    let result = client.try_resolve_dispute(&escrow_id, &arbiter, &beneficiary);
+    assert!(result.is_err()); // Should fail with InvalidState
+
+    // Status should remain Refunded
+    let escrow = client.get_escrow(&escrow_id);
+    assert_eq!(escrow.status, EscrowStatus::Refunded);
 }
 
 #[test]

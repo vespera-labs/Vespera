@@ -103,8 +103,13 @@ impl DisputeHandler {
             return Err(EscrowError::InvalidApprovalTarget);
         }
 
-        // EFFECTS: Update status and clear dispute
-        escrow.status = EscrowStatus::Released;
+        // EFFECTS: Update status based on release target and clear dispute
+        // If funds go to beneficiary, set Released; if to depositor, set Refunded
+        escrow.status = if release_to == escrow.beneficiary {
+            EscrowStatus::Released
+        } else {
+            EscrowStatus::Refunded
+        };
         escrow.disputed_at = None;
         escrow.dispute_reason = None;
         EscrowStorage::save(&env, &escrow);
