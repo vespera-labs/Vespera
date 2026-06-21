@@ -28,7 +28,7 @@ export type PaymentFrequency =
 
 export interface RentAgreement {
   id: UUID;
-  agreementNumber: string; // e.g., "CHIOMA-2026-0001"
+  agreementNumber: string; // e.g., "VESPERA-2026-0001"
 
   // Parties
   propertyId: UUID;

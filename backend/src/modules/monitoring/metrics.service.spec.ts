@@ -89,7 +89,7 @@ describe('MetricsService', () => {
       service.recordHttpRequest('GET', '/test', 200);
       const metrics = await service.getMetrics();
       expect(metrics).toContain('http_requests');
-      expect(metrics).toContain('Chioma Backend Metrics');
+      expect(metrics).toContain('Vespera Backend Metrics');
     });
   });
 });

@@ -1,17 +1,17 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
-import { ChiomaContractService } from './chioma-contract.service';
+import { VesperaContractService } from './vespera-contract.service';
 
-describe('ChiomaContractService', () => {
-  let service: ChiomaContractService;
+describe('VesperaContractService', () => {
+  let service: VesperaContractService;
 
   const mockConfigService = {
-    get: jest.fn((key: string, defaultValue?: any) => {
-      const config = {
+    get: jest.fn((key: string, defaultValue?: unknown) => {
+      const config: Record<string, string> = {
         SOROBAN_RPC_URL: 'https://soroban-testnet.stellar.org',
-        CHIOMA_CONTRACT_ID:
+        VESPERA_CONTRACT_ID:
           'CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM',
-        STELLAR_ADMIN_SECRET_KEY: '', // Empty to skip keypair creation in tests
+        STELLAR_ADMIN_SECRET_KEY: '',
         STELLAR_NETWORK: 'testnet',
       };
       return config[key] || defaultValue;
@@ -19,9 +19,11 @@ describe('ChiomaContractService', () => {
   };
 
   beforeEach(async () => {
+    jest.clearAllMocks();
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        ChiomaContractService,
+        VesperaContractService,
         {
           provide: ConfigService,
           useValue: mockConfigService,
@@ -29,18 +31,15 @@ describe('ChiomaContractService', () => {
       ],
     }).compile();
 
-    service = module.get<ChiomaContractService>(ChiomaContractService);
+    service = module.get<VesperaContractService>(VesperaContractService);
   });
 
-  it('should be defined', () => {
+  it('reads the Vespera contract id from the rebranded environment key', () => {
     expect(service).toBeDefined();
+    expect(mockConfigService.get).toHaveBeenCalledWith('VESPERA_CONTRACT_ID');
   });
 
-  it('should have checkHealth method', () => {
-    expect(service.checkHealth).toBeDefined();
-  });
-
-  it('should have all contract methods', () => {
+  it('exposes the contract methods used by agreement workflows', () => {
     expect(service.createAgreement).toBeDefined();
     expect(service.signAgreement).toBeDefined();
     expect(service.submitAgreement).toBeDefined();

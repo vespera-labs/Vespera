@@ -19,7 +19,7 @@ import { QueryAgreementsDto } from './dto/query-agreements.dto';
 import { RenewAgreementDto } from './dto/renew-agreement.dto';
 import { AuditService } from '../audit/audit.service';
 import { ReviewPromptService } from '../reviews/review-prompt.service';
-import { ChiomaContractService } from '../stellar/services/chioma-contract.service';
+import { VesperaContractService } from '../stellar/services/vespera-contract.service';
 import { BlockchainSyncService } from './blockchain-sync.service';
 import { EscrowIntegrationService } from './escrow-integration.service';
 import { TemplateRenderingService } from './template-rendering.service';
@@ -38,7 +38,7 @@ export class AgreementsService {
     private readonly paymentRepository: Repository<Payment>,
     private readonly auditService: AuditService,
     private readonly reviewPromptService: ReviewPromptService,
-    private readonly chiomaContract: ChiomaContractService,
+    private readonly vesperaContract: VesperaContractService,
     private readonly blockchainSync: BlockchainSyncService,
     private readonly escrowIntegration: EscrowIntegrationService,
     private readonly templateService: TemplateRenderingService,
@@ -243,6 +243,6 @@ export class AgreementsService {
 
   private async generateAgreementNumber(): Promise<string> {
     const count = await this.agreementRepository.count();
-    return `CHIOMA-${new Date().getFullYear()}-${String(count + 1).padStart(4, '0')}`;
+    return `VESPERA-${new Date().getFullYear()}-${String(count + 1).padStart(4, '0')}`;
   }
 }

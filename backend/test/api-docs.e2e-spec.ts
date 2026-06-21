@@ -24,7 +24,7 @@ describe('API Documentation (e2e)', () => {
     });
 
     const config = new DocumentBuilder()
-      .setTitle('Chioma API')
+      .setTitle('Vespera API')
       .setVersion('1.0')
       .addBearerAuth(
         { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
@@ -58,7 +58,7 @@ describe('API Documentation (e2e)', () => {
         .expect(200);
       const spec = res.body;
       expect(spec.openapi).toBeDefined();
-      expect(spec.info?.title).toContain('Chioma');
+      expect(spec.info?.title).toContain('Vespera');
       expect(spec.info?.version).toBeDefined();
       expect(spec.paths).toBeDefined();
       expect(typeof spec.paths).toBe('object');

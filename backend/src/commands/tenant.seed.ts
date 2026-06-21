@@ -148,7 +148,7 @@ function getSeedConfig(options: SeedTenantOptions): SeedTenantConfig {
     email: (
       options.email ??
       process.env.TENANT_DEFAULT_EMAIL ??
-      'tenant@chioma.local'
+      'tenant@vespera.local'
     )
       .trim()
       .toLowerCase(),

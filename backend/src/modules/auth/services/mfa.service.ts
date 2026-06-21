@@ -75,7 +75,7 @@ export class MfaService {
 
     // Generate TOTP secret
     const secret = speakeasy.generateSecret({
-      name: `Chioma (${user.email})`,
+      name: `Vespera (${user.email})`,
       length: 32,
     });
 
