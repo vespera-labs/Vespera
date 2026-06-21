@@ -59,3 +59,59 @@ pub(crate) fn damage_deduction(
     }
     .publish(env);
 }
+
+#[contractevent(topics = ["escrow_funded"])]
+pub struct EscrowFunded {
+    #[topic]
+    pub escrow_id: BytesN<32>,
+    pub amount: i128,
+    pub depositor: Address,
+}
+
+pub(crate) fn escrow_funded(env: &Env, escrow_id: BytesN<32>, amount: i128, depositor: Address) {
+    EscrowFunded {
+        escrow_id,
+        amount,
+        depositor,
+    }
+    .publish(env);
+}
+
+#[contractevent(topics = ["escrow_released"])]
+pub struct EscrowReleased {
+    #[topic]
+    pub escrow_id: BytesN<32>,
+    pub amount: i128,
+    pub recipient: Address,
+}
+
+pub(crate) fn escrow_released(env: &Env, escrow_id: BytesN<32>, amount: i128, recipient: Address) {
+    EscrowReleased {
+        escrow_id,
+        amount,
+        recipient,
+    }
+    .publish(env);
+}
+
+#[contractevent(topics = ["dispute_resolved"])]
+pub struct DisputeResolved {
+    #[topic]
+    pub escrow_id: BytesN<32>,
+    pub amount: i128,
+    pub recipient: Address,
+}
+
+pub(crate) fn dispute_resolved(
+    env: &Env,
+    escrow_id: BytesN<32>,
+    amount: i128,
+    recipient: Address,
+) {
+    DisputeResolved {
+        escrow_id,
+        amount,
+        recipient,
+    }
+    .publish(env);
+}

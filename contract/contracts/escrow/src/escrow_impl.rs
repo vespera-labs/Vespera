@@ -119,6 +119,9 @@ impl EscrowContract {
         let token_client = token::Client::new(&env, &escrow.token);
         token_client.transfer(&caller, env.current_contract_address(), &escrow.amount);
 
+        // Emit event for off-chain indexers
+        events::escrow_funded(&env, escrow_id, escrow.amount, caller);
+
         Ok(())
     }
 
@@ -209,6 +212,9 @@ impl EscrowContract {
             // INTERACTIONS: Token transfer from escrow contract to release target
             let token_client = token::Client::new(&env, &escrow.token);
             token_client.transfer(&env.current_contract_address(), &release_to, &escrow.amount);
+
+            // Emit event for off-chain indexers
+            events::escrow_released(&env, escrow_id, escrow.amount, release_to);
         }
 
         Ok(())

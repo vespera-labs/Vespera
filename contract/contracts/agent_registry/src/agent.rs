@@ -3,7 +3,7 @@ use soroban_sdk::{Address, Env, String, Vec};
 use crate::errors::AgentError;
 use crate::events;
 use crate::storage::DataKey;
-use crate::types::{AgentInfo, AgentTransaction, ContractState};
+use crate::types::{AgentInfo, AgentTransaction, ContractState, Rating};
 
 pub fn register_agent(
     env: &Env,
@@ -146,7 +146,14 @@ pub fn rate_agent(
         return Err(AgentError::AlreadyRated);
     }
 
-    env.storage().persistent().set(&rating_key, &true);
+    // Persist the full Rating record for auditability
+    let rating = Rating {
+        rater: rater.clone(),
+        agent: agent.clone(),
+        score,
+        rated_at: env.ledger().timestamp(),
+    };
+    env.storage().persistent().set(&rating_key, &rating);
     env.storage()
         .persistent()
         .extend_ttl(&rating_key, 500000, 500000);
@@ -251,5 +258,21 @@ pub fn complete_transaction(
         .persistent()
         .extend_ttl(&agent_key, 500000, 500000);
 
+    events::transaction_completed(&env, transaction_id, agent, agent_info.completed_agreements);
+
     Ok(())
+}
+
+pub fn get_average_rating(env: &Env, agent: Address) -> u32 {
+    let agent_key = DataKey::Agent(agent);
+    let agent_info: AgentInfo = match env.storage().persistent().get(&agent_key) {
+        Some(info) => info,
+        None => return 0,
+    };
+    agent_info.average_rating()
+}
+
+pub fn get_rating(env: &Env, agent: Address, rater: Address) -> Option<Rating> {
+    let rating_key = DataKey::AgentRating(agent, rater);
+    env.storage().persistent().get(&rating_key)
 }

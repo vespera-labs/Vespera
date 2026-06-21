@@ -1,6 +1,7 @@
 #![no_std]
 
 use soroban_sdk::{contract, contractimpl, Address, Env, String, Vec};
+use types::Rating;
 
 mod agent;
 mod errors;
@@ -180,5 +181,28 @@ impl AgentRegistryContract {
         agent: Address,
     ) -> Result<(), AgentError> {
         agent::complete_transaction(&env, transaction_id, agent)
+    }
+
+    /// Get an agent's average rating (scaled by 100, e.g. 450 = 4.50).
+    ///
+    /// # Arguments
+    /// * `agent` - The agent address
+    ///
+    /// # Returns
+    /// * `u32` - Average rating * 100, or 0 if no ratings exist
+    pub fn get_average_rating(env: Env, agent: Address) -> u32 {
+        agent::get_average_rating(&env, agent)
+    }
+
+    /// Get a specific rating record for audit purposes.
+    ///
+    /// # Arguments
+    /// * `agent` - The agent being rated
+    /// * `rater` - The address that gave the rating
+    ///
+    /// # Returns
+    /// * `Option<Rating>` - The full rating record if it exists
+    pub fn get_rating(env: Env, agent: Address, rater: Address) -> Option<Rating> {
+        agent::get_rating(&env, agent, rater)
     }
 }

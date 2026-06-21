@@ -116,6 +116,9 @@ impl DisputeHandler {
         let token_client = token::Client::new(&env, &escrow.token);
         token_client.transfer(&env.current_contract_address(), &release_to, &escrow.amount);
 
+        // Emit event for off-chain indexers
+        events::dispute_resolved(&env, escrow_id, escrow.amount, release_to);
+
         Ok(())
     }
 

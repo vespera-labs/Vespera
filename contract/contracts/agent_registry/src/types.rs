@@ -14,11 +14,14 @@ pub struct AgentInfo {
 }
 
 impl AgentInfo {
+    /// Returns the average rating scaled by 100 (e.g. 4.50 → 450).
+    /// This avoids silent integer truncation. Divide by 100.0 to get the
+    /// human-readable value.
     pub fn average_rating(&self) -> u32 {
         if self.total_ratings == 0 {
             0
         } else {
-            self.total_score / self.total_ratings
+            (self.total_score * 100) / self.total_ratings
         }
     }
 }

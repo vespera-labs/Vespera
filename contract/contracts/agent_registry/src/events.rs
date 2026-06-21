@@ -70,3 +70,26 @@ pub(crate) fn transaction_registered(env: &Env, transaction_id: String, agent: A
     }
     .publish(env);
 }
+
+#[contractevent(topics = ["txn_completed"])]
+pub struct TransactionCompleted {
+    #[topic]
+    pub transaction_id: String,
+    #[topic]
+    pub agent: Address,
+    pub completed_agreements: u32,
+}
+
+pub(crate) fn transaction_completed(
+    env: &Env,
+    transaction_id: String,
+    agent: Address,
+    completed_agreements: u32,
+) {
+    TransactionCompleted {
+        transaction_id,
+        agent,
+        completed_agreements,
+    }
+    .publish(env);
+}
