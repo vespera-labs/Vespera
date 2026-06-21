@@ -33,8 +33,7 @@ export function Idempotent(options: IdempotentOptions): MethodDecorator {
   ) {
     const originalMethod = descriptor.value;
     descriptor.value = async function (...args: unknown[]) {
-      const idempotencyService: IdempotencyService = (this as any)
-        .idempotencyService;
+      const idempotencyService: IdempotencyService = this.idempotencyService;
       if (!idempotencyService) {
         throw new Error(
           `@Idempotent requires 'idempotencyService: IdempotencyService' to be injected on ${(target as any).constructor.name}`,

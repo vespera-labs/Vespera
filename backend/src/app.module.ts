@@ -54,6 +54,7 @@ import { ScreeningModule } from './modules/screening/screening.module';
 import { ReferralModule } from './modules/referral/referral.module';
 import { LockModule } from './common/lock';
 import { IdempotencyModule } from './common/idempotency';
+import { getRateLimitThrottlerOptions } from './common/config/rate-limit-options';
 
 const appLogger = new Logger('AppModule');
 
@@ -128,23 +129,7 @@ const appLogger = new Logger('AppModule');
           },
         }),
     AppCacheModule,
-    ThrottlerModule.forRoot([
-      {
-        name: 'default',
-        ttl: parseInt(process.env.RATE_LIMIT_TTL!),
-        limit: parseInt(process.env.RATE_LIMIT_MAX!),
-      },
-      {
-        name: 'auth',
-        ttl: parseInt(process.env.RATE_LIMIT_AUTH_TTL!),
-        limit: parseInt(process.env.RATE_LIMIT_AUTH_MAX!),
-      },
-      {
-        name: 'strict',
-        ttl: parseInt(process.env.RATE_LIMIT_STRICT_TTL!),
-        limit: parseInt(process.env.RATE_LIMIT_STRICT_MAX!),
-      },
-    ]),
+    ThrottlerModule.forRoot(getRateLimitThrottlerOptions()),
     TypeOrmModule.forRootAsync({
       inject: [],
       useFactory: () => {
@@ -251,30 +236,6 @@ const appLogger = new Logger('AppModule');
   ],
 })
 export class AppModule implements NestModule {
-  constructor() {
-    appLogger.log('Validating rate limit config');
-    this.validateRateLimitConfig();
-    appLogger.log('Rate limit config validation passed');
-  }
-
-  private validateRateLimitConfig(): void {
-    const required = [
-      'RATE_LIMIT_TTL',
-      'RATE_LIMIT_MAX',
-      'RATE_LIMIT_AUTH_TTL',
-      'RATE_LIMIT_AUTH_MAX',
-      'RATE_LIMIT_STRICT_TTL',
-      'RATE_LIMIT_STRICT_MAX',
-    ];
-
-    const missing = required.filter((key) => !process.env[key]);
-    if (missing.length > 0) {
-      throw new Error(
-        `Missing required environment variables: ${missing.join(', ')}`,
-      );
-    }
-  }
-
   configure(consumer: MiddlewareConsumer) {
     consumer.apply(LocalizationMiddleware).forRoutes('*');
 
