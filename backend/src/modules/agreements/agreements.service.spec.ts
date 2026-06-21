@@ -9,18 +9,20 @@ import {
 import { Payment } from '../rent/entities/payment.entity';
 import { AuditService } from '../audit/audit.service';
 import { ReviewPromptService } from '../reviews/review-prompt.service';
-import { ChiomaContractService } from '../stellar/services/chioma-contract.service';
+import { VesperaContractService } from '../stellar/services/vespera-contract.service';
 import { BlockchainSyncService } from './blockchain-sync.service';
 import { EscrowIntegrationService } from './escrow-integration.service';
 import { TemplateRenderingService } from './template-rendering.service';
 import { PDFGenerationService } from './pdf-generation.service';
+import { LockService } from '../../common/lock';
+import { IdempotencyService } from '../../common/idempotency';
 
 describe('AgreementsService (lease extensions)', () => {
   let service: AgreementsService;
 
   const baseAgreement = {
     id: 'agr-1',
-    agreementNumber: 'CHIOMA-2026-0001',
+    agreementNumber: 'VESPERA-2026-0001',
     propertyId: 'p1',
     landlordId: 'l1',
     tenantId: 't1',
@@ -88,7 +90,7 @@ describe('AgreementsService (lease extensions)', () => {
         { provide: getRepositoryToken(Payment), useValue: mockPaymentRepo },
         { provide: AuditService, useValue: {} },
         { provide: ReviewPromptService, useValue: {} },
-        { provide: ChiomaContractService, useValue: {} },
+        { provide: VesperaContractService, useValue: {} },
         { provide: BlockchainSyncService, useValue: {} },
         { provide: EscrowIntegrationService, useValue: {} },
         { provide: TemplateRenderingService, useValue: { render: jest.fn() } },
@@ -96,6 +98,13 @@ describe('AgreementsService (lease extensions)', () => {
           provide: PDFGenerationService,
           useValue: { generateAgreement: jest.fn() },
         },
+        {
+          provide: LockService,
+          useValue: {
+            withLock: jest.fn((_key, _ttlMs, fn) => fn()),
+          },
+        },
+        { provide: IdempotencyService, useValue: {} },
       ],
     }).compile();
 

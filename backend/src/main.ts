@@ -126,15 +126,15 @@ async function bootstrap() {
   });
 
   const config = new DocumentBuilder()
-    .setTitle('Chioma API')
+    .setTitle('Vespera API')
     .setDescription(
-      'REST API for Chioma — a Stellar blockchain-based rental payment platform. ' +
+      'REST API for Vespera — a Stellar blockchain-based rental payment platform. ' +
         'Supports landlords, agents, and tenants with JWT and Stellar (SEP-0010) authentication, ' +
         'rent agreements, payments, escrow, disputes, and KYC.',
     )
     .setVersion('1.0')
-    .setContact('Chioma', 'https://chioma.app', 'support@chioma.app')
-    .setLicense('Open Source', 'https://github.com/chioma/chioma')
+    .setContact('Vespera', 'https://vespera.app', 'support@vespera.app')
+    .setLicense('Open Source', 'https://github.com/vespera-labs/Vespera')
     .addServer(
       configService.get<string>('API_BASE_URL') || 'http://localhost:5000',
       'Default',
@@ -181,7 +181,7 @@ async function bootstrap() {
       filter: true,
       showRequestDuration: true,
     },
-    customSiteTitle: 'Chioma API Docs',
+    customSiteTitle: 'Vespera API Docs',
   });
 
   const port = process.env.PORT ?? 5000;

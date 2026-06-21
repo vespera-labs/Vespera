@@ -1,15 +1,15 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
-import { ChiomaContractService } from './chioma-contract.service';
+import { VesperaContractService } from './vespera-contract.service';
 
-describe('ChiomaContractService', () => {
-  let service: ChiomaContractService;
+describe('VesperaContractService', () => {
+  let service: VesperaContractService;
 
   const mockConfigService = {
     get: jest.fn((key: string, defaultValue?: any) => {
       const config = {
         SOROBAN_RPC_URL: 'https://soroban-testnet.stellar.org',
-        CHIOMA_CONTRACT_ID:
+        VESPERA_CONTRACT_ID:
           'CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM',
         STELLAR_ADMIN_SECRET_KEY: '', // Empty to skip keypair creation in tests
         STELLAR_NETWORK: 'testnet',
@@ -21,7 +21,7 @@ describe('ChiomaContractService', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        ChiomaContractService,
+        VesperaContractService,
         {
           provide: ConfigService,
           useValue: mockConfigService,
@@ -29,7 +29,7 @@ describe('ChiomaContractService', () => {
       ],
     }).compile();
 
-    service = module.get<ChiomaContractService>(ChiomaContractService);
+    service = module.get<VesperaContractService>(VesperaContractService);
   });
 
   it('should be defined', () => {
