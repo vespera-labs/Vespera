@@ -1,3 +1,4 @@
+import js from "@eslint/js";
 import { defineConfig } from "eslint/config";
 
 const eslintConfig = defineConfig([
@@ -10,8 +11,11 @@ const eslintConfig = defineConfig([
       "**/dist/**",
       "**/target/**",
       "**/.git/**",
+      "backend/**",
+      "frontend/**",
     ],
   },
+  js.configs.recommended,
 ]);
 
 export default eslintConfig;
