@@ -11,7 +11,7 @@ import { REDIS_CLIENT } from './redis-client.token';
         if (process.env.NODE_ENV === 'test') {
           return null; // Tests will mock LockService directly
         }
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
+
         const Redis = require('ioredis');
         const config: Record<string, unknown> = {
           host: process.env.REDIS_HOST || 'localhost',

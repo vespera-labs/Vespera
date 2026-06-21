@@ -25,7 +25,9 @@ export class AddPropertyVirtualTours1775000000000 implements MigrationInterface 
       );
     }
 
-    const hasEngagementTable = await queryRunner.hasTable('property_tour_engagements');
+    const hasEngagementTable = await queryRunner.hasTable(
+      'property_tour_engagements',
+    );
     if (!hasEngagementTable) {
       await queryRunner.createTable(
         new Table({
@@ -36,9 +38,10 @@ export class AddPropertyVirtualTours1775000000000 implements MigrationInterface 
               type: 'uuid',
               isPrimary: true,
               generationStrategy: 'uuid',
-              default: queryRunner.connection.options.type === 'postgres'
-                ? 'uuid_generate_v4()'
-                : "lower(hex(randomblob(16)))",
+              default:
+                queryRunner.connection.options.type === 'postgres'
+                  ? 'uuid_generate_v4()'
+                  : 'lower(hex(randomblob(16)))',
             },
             { name: 'property_id', type: 'uuid' },
             { name: 'user_id', type: 'uuid', isNullable: true },
@@ -51,12 +54,17 @@ export class AddPropertyVirtualTours1775000000000 implements MigrationInterface 
             {
               name: 'metadata',
               type:
-                queryRunner.connection.options.type === 'postgres' ? 'jsonb' : 'text',
+                queryRunner.connection.options.type === 'postgres'
+                  ? 'jsonb'
+                  : 'text',
               isNullable: true,
             },
             {
               name: 'created_at',
-              type: queryRunner.connection.options.type === 'postgres' ? 'timestamptz' : 'datetime',
+              type:
+                queryRunner.connection.options.type === 'postgres'
+                  ? 'timestamptz'
+                  : 'datetime',
               default:
                 queryRunner.connection.options.type === 'postgres'
                   ? 'CURRENT_TIMESTAMP'
@@ -87,7 +95,9 @@ export class AddPropertyVirtualTours1775000000000 implements MigrationInterface 
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    const hasEngagementTable = await queryRunner.hasTable('property_tour_engagements');
+    const hasEngagementTable = await queryRunner.hasTable(
+      'property_tour_engagements',
+    );
     if (hasEngagementTable) {
       await queryRunner.dropTable('property_tour_engagements');
     }

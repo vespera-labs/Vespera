@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { Reflector } from '@nestjs/core';
+import { ExecutionContext, ForbiddenException } from '@nestjs/common';
 import {
   PaymentController,
   PaymentMethodController,
@@ -20,6 +21,8 @@ import {
   PaymentGatewayWebhookDto,
   ProcessStellarRentGatewayDto,
 } from './dto/payment-gateway.dto';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { UserRole } from '../users/entities/user.entity';
 
 const mockPaymentService = {
   recordPayment: jest.fn(),
@@ -191,6 +194,22 @@ describe('Payment Controllers', () => {
   it('processes due schedules', async () => {
     await paymentScheduleController.processDueSchedules();
     expect(mockPaymentService.processDueSchedules).toHaveBeenCalled();
+  });
+
+  it('requires an admin role to process all due schedules', () => {
+    const reflector = new Reflector();
+    const guard = new RolesGuard(reflector);
+    const context = {
+      getHandler: () => paymentScheduleController.processDueSchedules,
+      getClass: () => PaymentScheduleController,
+      switchToHttp: () => ({
+        getRequest: () => ({
+          user: { id: 'tenant_1', role: UserRole.TENANT },
+        }),
+      }),
+    } as unknown as ExecutionContext;
+
+    expect(() => guard.canActivate(context)).toThrow(ForbiddenException);
   });
 
   it('processes stellar rent payment with user id', async () => {

@@ -14,7 +14,7 @@ export function Locked(options: LockedOptions): MethodDecorator {
   ) {
     const originalMethod = descriptor.value;
     descriptor.value = async function (...args: unknown[]) {
-      const lockService: LockService = (this as any).lockService;
+      const lockService: LockService = this.lockService;
       if (!lockService) {
         throw new Error(
           `@Locked requires 'lockService: LockService' to be injected on ${(target as any).constructor.name}`,
