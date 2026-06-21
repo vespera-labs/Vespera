@@ -110,7 +110,7 @@ We use automated security scanning:
 - **Trivy** - Vulnerability scanning
 - **ESLint** - Code quality and security
 - **Clippy** - Rust security linting
-- **Dependabot** - Dependency updates
+- **Dependabot** - Automatic dependency updates (configured in .github/dependabot.yml)
 
 ## Incident Response
 
@@ -166,3 +166,4 @@ Before submitting a PR, verify:
 - **Discussions**: https://github.com/vespera-labs/Vespera/discussions
 
 Thank you for helping keep Vespera secure! 🔒
+
