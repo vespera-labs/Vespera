@@ -75,9 +75,9 @@ vespera/
       health/         readiness and liveness endpoints
       common/         shared utilities
   frontend/           Next.js application (TypeScript, React)
-    app/              routes and pages
-    components/       UI components
-    contexts/         wallet and session contexts
+    app/              App Router pages and API routes
+    components/       layout and wallet UI components
+    lib/              Stellar, formatting and mock-data helpers
   scripts/            deployment and devnet tooling
 ```
 
@@ -105,8 +105,8 @@ All contracts are written in Rust with the Soroban SDK. They are tested with the
 
 - **Smart contracts**: Rust, Soroban SDK
 - **Backend**: NestJS, TypeScript, PostgreSQL, Horizon client
-- **Frontend**: Next.js 16, React, TanStack Query, Freighter wallet, Leaflet (maps), Framer Motion
-- **Tooling**: pnpm, Vitest, Storybook, Docker Compose, ESLint, Prettier
+- **Frontend**: Next.js 15, React 19 RC, TanStack Query, Freighter wallet, Tailwind CSS
+- **Tooling**: pnpm, Docker Compose, ESLint, Prettier, TypeScript
 
 ## Getting started
 
@@ -186,7 +186,7 @@ We welcome contributions across the stack. Open issues are tagged by area (`cont
 4. Submit a pull request that references the issue number.
 5. A maintainer will review within 48 hours.
 
-Read [CONTRIBUTING.md](frontend/CONTRIBUTING.md) for full coding standards and review expectations.
+Read [frontend/CONTRIBUTING.md](frontend/CONTRIBUTING.md) for full coding standards and review expectations, and [frontend/README.md](frontend/README.md) for the current frontend layout and environment variables.
 
 ## Security
 
