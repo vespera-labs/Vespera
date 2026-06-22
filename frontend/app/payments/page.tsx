@@ -1,5 +1,5 @@
 import { mockDashboard } from "@/lib/mock";
-import { formatXLM } from "@/lib/format";
+import { formatUSDC } from "@/lib/format";
 
 export default function PaymentsPage() {
   return (
@@ -18,7 +18,7 @@ export default function PaymentsPage() {
               {p.txHash}
             </div>
             <div className="text-right font-mono font-semibold">
-              {formatXLM(p.amount)}
+              {formatUSDC(p.amount)}
             </div>
           </li>
         ))}

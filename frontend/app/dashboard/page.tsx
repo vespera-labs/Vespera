@@ -1,5 +1,5 @@
 import { mockDashboard } from "@/lib/mock";
-import { formatXLM } from "@/lib/format";
+import { formatUSDC } from "@/lib/format";
 
 export default function DashboardPage() {
   const data = mockDashboard;
@@ -12,8 +12,8 @@ export default function DashboardPage() {
 
       <div className="mt-8 grid gap-4 sm:grid-cols-3">
         <Stat label="Active leases" value={data.activeLeases.toString()} />
-        <Stat label="Rent due this month" value={formatXLM(data.dueThisMonth)} />
-        <Stat label="Escrowed deposits" value={formatXLM(data.escrowed)} />
+        <Stat label="Rent due this month" value={formatUSDC(data.dueThisMonth)} />
+        <Stat label="Escrowed deposits" value={formatUSDC(data.escrowed)} />
       </div>
 
       <section className="mt-12">
@@ -25,7 +25,7 @@ export default function DashboardPage() {
                 <div className="font-medium">{p.property}</div>
                 <div className="text-sm text-ink-muted">{p.date}</div>
               </div>
-              <div className="font-mono">{formatXLM(p.amount)}</div>
+              <div className="font-mono">{formatUSDC(p.amount)}</div>
             </li>
           ))}
         </ul>

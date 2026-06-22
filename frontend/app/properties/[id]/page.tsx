@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { mockProperties } from "@/lib/mock";
-import { formatXLM } from "@/lib/format";
+import { formatUSDC } from "@/lib/format";
 import { PayRentButton } from "@/components/wallet/pay-rent-button";
 
 export default async function PropertyDetail({
@@ -23,8 +23,8 @@ export default async function PropertyDetail({
       <p className="mt-1 text-ink-muted">{property.location}</p>
 
       <dl className="mt-8 grid gap-4 sm:grid-cols-3">
-        <Field label="Rent" value={`${formatXLM(property.rentPerMonth)} / mo`} />
-        <Field label="Deposit" value={formatXLM(property.deposit)} />
+        <Field label="Rent" value={`${formatUSDC(property.rentPerMonth)} / mo`} />
+        <Field label="Deposit" value={formatUSDC(property.deposit)} />
         <Field label="Lease length" value={`${property.leaseMonths} months`} />
       </dl>
 
