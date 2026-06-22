@@ -124,8 +124,12 @@ export class PaymentService {
       throw new NotFoundException('Payment method not found');
     }
 
-    // Calculate fees (mock: 2% fee)
-    const transactionFee = dto.amount * 0.02;
+    // Use DTO currency or default to NGN
+    const currency = dto.currency ?? 'NGN';
+
+    // Derive fee rate from configuration (default 2%)
+    const feeRate = this.configService.get<number>('TRANSACTION_FEE_RATE') ?? 0.02;
+    const transactionFee = dto.amount * feeRate;
     const netAmount = dto.amount - transactionFee;
 
     // Note: In production, fetch actual user email from UsersService.findById(userId)
@@ -139,7 +143,7 @@ export class PaymentService {
       this.paymentGateway.chargePayment({
         paymentMethod,
         amount: dto.amount,
-        currency: 'NGN',
+        currency,
         userEmail,
         decryptedMetadata,
         idempotencyKey,
@@ -153,7 +157,7 @@ export class PaymentService {
         amount: dto.amount,
         transactionFee,
         netAmount,
-        currency: 'NGN',
+        currency,
         status: PaymentStatus.FAILED,
         paymentMethod: paymentMethod.paymentType,
         paymentMethodRelationId: paymentMethod.id,
@@ -167,7 +171,7 @@ export class PaymentService {
       await this.notificationsService.notify(
         userId,
         'Payment failed',
-        `Your payment of ${dto.amount} NGN could not be processed.`,
+        `Your payment of ${dto.amount} ${currency} could not be processed.`,
         'PAYMENT_FAILED',
       );
       throw new BadRequestException('Payment processing failed');

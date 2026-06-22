@@ -35,4 +35,8 @@ export class CreatePaymentRecordDto {
   @IsString()
   @IsOptional()
   idempotencyKey?: string;
+
+  @IsString()
+  @IsOptional()
+  currency?: string;
 }
