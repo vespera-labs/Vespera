@@ -77,7 +77,7 @@ vespera/
   frontend/           Next.js application (TypeScript, React)
     app/              routes and pages
     components/       UI components
-    contexts/         wallet and session contexts
+    lib/              shared utilities and helpers
   scripts/            deployment and devnet tooling
 ```
 
@@ -105,8 +105,8 @@ All contracts are written in Rust with the Soroban SDK. They are tested with the
 
 - **Smart contracts**: Rust, Soroban SDK
 - **Backend**: NestJS, TypeScript, PostgreSQL, Horizon client
-- **Frontend**: Next.js 16, React, TanStack Query, Freighter wallet, Leaflet (maps), Framer Motion
-- **Tooling**: pnpm, Vitest, Storybook, Docker Compose, ESLint, Prettier
+- **Frontend**: Next.js 15, React, TanStack Query, Freighter wallet, Vitest
+- **Tooling**: pnpm, Docker Compose, ESLint, Prettier
 
 ## Getting started
 
