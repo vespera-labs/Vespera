@@ -29,6 +29,7 @@ import { PaymentMethodFiltersDto } from './dto/payment-method-filters.dto';
 import { CreatePaymentScheduleDto } from './dto/create-payment-schedule.dto';
 import { PaymentScheduleFiltersDto } from './dto/payment-schedule-filters.dto';
 import { UpdatePaymentScheduleDto } from './dto/update-payment-schedule.dto';
+import { UsersService } from '../users/users.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import {
   addDays,
@@ -64,6 +65,7 @@ export class PaymentService {
     private readonly paymentScheduleRepository: Repository<PaymentSchedule>,
     private readonly paymentGateway: PaymentGatewayService,
     private readonly notificationsService: NotificationsService,
+    private readonly usersService: UsersService,
     private readonly paymentProcessingService: PaymentProcessingService,
     private readonly stellarService: StellarService,
     private readonly lockService: LockService,
@@ -128,9 +130,8 @@ export class PaymentService {
     const transactionFee = dto.amount * 0.02;
     const netAmount = dto.amount - transactionFee;
 
-    // Note: In production, fetch actual user email from UsersService.findById(userId)
-    // For now, using userId as fallback since UsersService has unrelated type issues
-    const userEmail = `user_${userId}@chioma.local`;
+    const user = await this.usersService.getUserById(userId);
+    const userEmail = user.email;
 
     const decryptedMetadata = decryptMetadata(paymentMethod.encryptedMetadata);
 
@@ -308,7 +309,7 @@ export class PaymentService {
       fileName: `receipt-${payment.id}.txt`,
       data: Buffer.from(
         [
-          'CHIOMA PAYMENT RECEIPT',
+          'VESPERA PAYMENT RECEIPT',
           `Payment ID: ${receipt.paymentId}`,
           `Amount: ${receipt.amount} ${receipt.currency}`,
           `Status: ${receipt.status}`,

@@ -16,6 +16,7 @@ import {
 } from './entities/payment-schedule.entity';
 import { PaymentGatewayService } from './payment-gateway.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { UsersService } from '../users/users.service';
 import { PaymentStatus } from './entities/payment.entity';
 import { CreatePaymentRecordDto } from './dto/record-payment.dto';
 import { ProcessRefundDto } from './dto/process-refund.dto';
@@ -143,7 +144,7 @@ describe('PaymentService', () => {
           useValue: mockNotificationsService,
         },
         {
-          provide: Object,
+          provide: UsersService,
           useValue: mockUsersService,
         },
         {
@@ -288,6 +289,56 @@ describe('PaymentService', () => {
         expect.stringContaining('100'),
         'PAYMENT_FAILED',
       );
+    });
+  });
+
+  describe('generateReceipt', () => {
+    beforeEach(() => {
+      jest.clearAllMocks();
+    });
+
+    it('returns receipt with real user email and Vespera branding', async () => {
+      const userEmail = 'john.doe@example.com';
+      const userId = 'user_123';
+
+      mockUsersService.getUserById.mockResolvedValue({
+        id: userId,
+        email: userEmail,
+      });
+
+      (paymentRepository.findOne as jest.Mock).mockResolvedValue({
+        id: 'pay_1',
+        amount: 150.0,
+        currency: 'NGN',
+        status: PaymentStatus.COMPLETED,
+        processedAt: new Date('2026-06-01T12:00:00Z'),
+        referenceNumber: 'ref_001',
+        user: { id: userId, email: userEmail },
+        paymentMethodRelation: {
+          paymentType: 'card',
+          lastFour: '4242',
+        },
+      });
+
+      const result = await service.generateReceipt('pay_1', userId);
+
+      expect(result.receipt.user.email).toBe(userEmail);
+      expect(result.receipt.paymentId).toBe('pay_1');
+      expect(result.contentType).toBe('text/plain');
+      expect(result.fileName).toBe('receipt-pay_1.txt');
+
+      // Decode base64 data and check for Vespera branding
+      const decoded = Buffer.from(result.data, 'base64').toString('utf8');
+      expect(decoded).toContain('VESPERA PAYMENT RECEIPT');
+      expect(decoded).toContain(userEmail);
+    });
+
+    it('throws NotFoundException when payment does not exist', async () => {
+      (paymentRepository.findOne as jest.Mock).mockResolvedValue(null);
+
+      await expect(
+        service.generateReceipt('nonexistent', 'user_1'),
+      ).rejects.toBeInstanceOf(NotFoundException);
     });
   });
 
