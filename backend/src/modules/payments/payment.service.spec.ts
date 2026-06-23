@@ -767,6 +767,7 @@ describe('PaymentService', () => {
           metadata: {},
         },
       ]);
+      (paymentRepository.findOne as jest.Mock).mockResolvedValue(null);
       const recordSpy = jest
         .spyOn(service, 'recordPayment')
         .mockResolvedValue({ id: 'retry_success' } as Payment);
@@ -778,7 +779,65 @@ describe('PaymentService', () => {
       const result = await service.retryFailedPayments('user_1', 10);
 
       expect(result.retried).toBe(1);
+      expect(result.skipped).toBe(0);
       expect(recordSpy).toHaveBeenCalled();
+    });
+
+    it('deduplicates retries via stable idempotency key', async () => {
+      (paymentRepository.find as jest.Mock).mockResolvedValue([
+        {
+          id: 'pay_dup',
+          userId: 'user_1',
+          status: PaymentStatus.FAILED,
+          amount: 150,
+          paymentMethodRelationId: 2,
+          agreementId: 'agreement_1',
+          referenceNumber: 'ref_1',
+          metadata: {},
+        },
+      ]);
+
+      const recordSpy = jest
+        .spyOn(service, 'recordPayment')
+        .mockResolvedValue({ id: 'retry_1' } as Payment);
+      (paymentRepository.save as jest.Mock).mockResolvedValue({
+        id: 'pay_dup',
+        metadata: { retryAttempts: 1 },
+      });
+
+      (paymentRepository.findOne as jest.Mock)
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ id: 'retry_1', idempotencyKey: 'pay_dup-retry' });
+
+      const firstResult = await service.retryFailedPayments('user_1', 10);
+      expect(firstResult.retried).toBe(1);
+      expect(firstResult.skipped).toBe(0);
+      expect(recordSpy).toHaveBeenCalledTimes(1);
+
+      const secondResult = await service.retryFailedPayments('user_1', 10);
+      expect(secondResult.retried).toBe(0);
+      expect(secondResult.skipped).toBe(1);
+      expect(recordSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('clamps retry limit to MAX_RETRY_LIMIT', async () => {
+      (paymentRepository.find as jest.Mock).mockResolvedValue([]);
+
+      await service.retryFailedPayments('user_1', 500);
+
+      expect(paymentRepository.find).toHaveBeenCalledWith(
+        expect.objectContaining({ take: 50 } as Partial<Record<string, unknown>>),
+      );
+    });
+
+    it('clamps reconciliation limit to MAX_RECONCILIATION_LIMIT', async () => {
+      (paymentRepository.find as jest.Mock).mockResolvedValue([]);
+
+      await service.reconcileStellarPayments('user_1', 500);
+
+      expect(paymentRepository.find).toHaveBeenCalledWith(
+        expect.objectContaining({ take: 100 } as Partial<Record<string, unknown>>),
+      );
     });
 
     it('builds payment analytics summary', async () => {

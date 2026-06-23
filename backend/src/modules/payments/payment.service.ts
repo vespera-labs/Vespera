@@ -845,12 +845,30 @@ export class PaymentService {
     });
   }
 
+  /**
+   * Maximum number of payments to scan in a single reconciliation run.
+   * Bounded to prevent unbounded external Stellar RPC calls and memory
+   * pressure when a user has a large payment history.
+   */
+  private static readonly MAX_RECONCILIATION_LIMIT = 100;
+
+  /**
+   * Maximum number of failed payments to retry in a single batch.
+   * Bounded to prevent storming the payment gateway on retry storms.
+   */
+  private static readonly MAX_RETRY_LIMIT = 50;
+
+  @Locked({
+    key: (userId: string) => `payment:reconcile:${userId}`,
+    ttlMs: 30_000,
+  })
   async reconcileStellarPayments(userId: string, limit = 50) {
     ensureUserId(userId);
+    const boundedLimit = Math.min(limit, PaymentService.MAX_RECONCILIATION_LIMIT);
     const candidates = await this.paymentRepository.find({
       where: { userId },
       order: { updatedAt: 'DESC' },
-      take: limit,
+      take: boundedLimit,
     });
 
     const stellarPayments = candidates.filter((payment) => {
@@ -925,12 +943,17 @@ export class PaymentService {
     };
   }
 
+  @Locked({
+    key: (userId: string) => `payment:retry:${userId}`,
+    ttlMs: 30_000,
+  })
   async retryFailedPayments(userId: string, limit = 20) {
     ensureUserId(userId);
+    const boundedLimit = Math.min(limit, PaymentService.MAX_RETRY_LIMIT);
     const failedPayments = await this.paymentRepository.find({
       where: { userId, status: PaymentStatus.FAILED },
       order: { updatedAt: 'DESC' },
-      take: limit,
+      take: boundedLimit,
     });
 
     let retried = 0;
@@ -942,7 +965,17 @@ export class PaymentService {
         continue;
       }
 
+      const retryIdempotencyKey = `${payment.id}-retry`;
+
       try {
+        const existingRetry = await this.paymentRepository.findOne({
+          where: { userId, idempotencyKey: retryIdempotencyKey },
+        });
+        if (existingRetry) {
+          skipped += 1;
+          continue;
+        }
+
         await this.recordPayment(
           {
             agreementId: payment.agreementId ?? undefined,
@@ -950,7 +983,7 @@ export class PaymentService {
             paymentMethodId: String(payment.paymentMethodRelationId),
             notes: payment.notes ?? undefined,
             referenceNumber: payment.referenceNumber ?? undefined,
-            idempotencyKey: `${payment.id}-retry-${Date.now()}`,
+            idempotencyKey: retryIdempotencyKey,
           },
           userId,
         );
