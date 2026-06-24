@@ -186,9 +186,7 @@ impl DisputeHandler {
             &escrow.depositor,
             &escrow.amount,
         );
-    events::dispute_timeout(&env, escrow_id);
-    // Emit refund event for timeout resolution path
-    events::escrow_refunded(&env, escrow_id, escrow.amount, escrow.depositor.clone());
+        events::dispute_timeout(&env, escrow_id.clone());
         Ok(())
     }
 }

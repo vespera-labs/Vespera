@@ -119,8 +119,8 @@ impl EscrowContract {
         let token_client = token::Client::new(&env, &escrow.token);
         token_client.transfer(&caller, env.current_contract_address(), &escrow.amount);
 
-    // Emit event for funding
-    events::escrow_funded(&env, escrow_id, escrow.amount);
+        // Emit event for funding
+        events::escrow_funded(&env, escrow_id, escrow.amount);
 
         Ok(())
     }
@@ -273,9 +273,7 @@ impl EscrowContract {
             &escrow.depositor,
             &escrow.amount,
         );
-        events::escrow_timeout(&env, escrow_id);
-        // Emit refund event for timeout refund path
-        events::escrow_refunded(&env, escrow_id, escrow.amount, escrow.depositor.clone());
+        events::escrow_timeout(&env, escrow_id.clone());
         Ok(())
     }
 
