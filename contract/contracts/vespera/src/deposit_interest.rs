@@ -1,6 +1,6 @@
 //! Security Deposit Interest Accrual logic for the Vespera rental contract.
 
-use soroban_sdk::{Env, String, Vec};
+use soroban_sdk::{Address, Env, String, Vec};
 
 use crate::errors::RentalError;
 use crate::events;
@@ -32,6 +32,30 @@ fn periods_per_year(freq: &CompoundingFrequency) -> u64 {
         CompoundingFrequency::Quarterly => 4,
         CompoundingFrequency::Annually => 1,
     }
+}
+
+// ─── Interest reserve accounting ────────────────────────────────────────────────
+//
+// Interest is *accrued* purely in storage; nothing funds it on-chain. If
+// `distribute_interest` simply transferred the accrued amount out of the
+// contract address it would draw down the pooled rent and deposit balances
+// that belong to every *other* agreement. To prevent that, each escrow keeps
+// its own `InterestReserve` balance: distribution may only pay out of this
+// pool, so one escrow's interest payout can never under-collateralise another.
+
+/// Read the funds reserved to pay this escrow's interest (0 if none).
+fn get_interest_reserve(env: &Env, escrow_id: &String) -> i128 {
+    env.storage()
+        .persistent()
+        .get(&DataKey::InterestReserve(escrow_id.clone()))
+        .unwrap_or(0)
+}
+
+/// Persist the funds reserved to pay this escrow's interest.
+fn set_interest_reserve(env: &Env, escrow_id: &String, amount: i128) {
+    env.storage()
+        .persistent()
+        .set(&DataKey::InterestReserve(escrow_id.clone()), &amount);
 }
 
 // ─── Config ───────────────────────────────────────────────────────────────────
@@ -257,6 +281,53 @@ pub fn get_accrual_history(
 /// NOTE: actual token transfers require a token client.  We accept the
 /// agreement's `payment_token` and the `tenant` / `landlord` addresses from
 /// the on-chain agreement record.
+/// Read the funds currently reserved to pay this escrow's interest.
+pub fn get_interest_reserve_balance(env: Env, escrow_id: String) -> Result<i128, RentalError> {
+    Ok(get_interest_reserve(&env, &escrow_id))
+}
+
+/// Fund the interest reserve for a single escrow.
+///
+/// Pulls `amount` of the agreement's payment token from `funder` into the
+/// contract and earmarks it for *this* escrow's interest. `distribute_interest`
+/// can then only pay against this per-escrow balance, so funding one escrow's
+/// interest never lets a payout draw down another agreement's pooled funds.
+///
+/// Out of scope (issue #75): where the yield ultimately comes from. This is the
+/// minimal accounting hook so the reserve can be capitalised explicitly.
+pub fn fund_interest_reserve(
+    env: Env,
+    escrow_id: String,
+    funder: Address,
+    amount: i128,
+) -> Result<(), RentalError> {
+    if amount <= 0 {
+        return Err(RentalError::InvalidAmount);
+    }
+
+    funder.require_auth();
+
+    // The escrow must be a configured interest-bearing deposit.
+    let _config = get_deposit_interest_config(env.clone(), escrow_id.clone())?;
+
+    let agreement = env
+        .storage()
+        .persistent()
+        .get::<DataKey, crate::types::RentAgreement>(&DataKey::Agreement(escrow_id.clone()))
+        .ok_or(RentalError::AgreementNotFound)?;
+
+    // Move real tokens into the contract before crediting the reserve.
+    let token_client = soroban_sdk::token::Client::new(&env, &agreement.payment_token);
+    let contract_self = env.current_contract_address();
+    token_client.transfer(&funder, &contract_self, &amount);
+
+    let new_reserve = get_interest_reserve(&env, &escrow_id).saturating_add(amount);
+    set_interest_reserve(&env, &escrow_id, new_reserve);
+
+    events::interest_reserve_funded(&env, escrow_id, amount, new_reserve);
+    Ok(())
+}
+
 pub fn distribute_interest(env: Env, escrow_id: String) -> Result<(), RentalError> {
     let config = get_deposit_interest_config(env.clone(), escrow_id.clone())?;
 
@@ -269,6 +340,14 @@ pub fn distribute_interest(env: Env, escrow_id: String) -> Result<(), RentalErro
     let total = di.accrued_interest;
     if total <= 0 {
         return Ok(());
+    }
+
+    // Interest may only be paid out of funds actually reserved for THIS
+    // escrow. Without this gate the transfer would silently draw from the
+    // pooled rent/deposit balances of other agreements.
+    let reserve = get_interest_reserve(&env, &escrow_id);
+    if reserve < total {
+        return Err(RentalError::PaymentInsufficientFunds);
     }
 
     let agreement = env
@@ -296,6 +375,10 @@ pub fn distribute_interest(env: Env, escrow_id: String) -> Result<(), RentalErro
     if landlord_share > 0 {
         token_client.transfer(&contract_self, &agreement.landlord, &landlord_share);
     }
+
+    // Draw the paid interest down from this escrow's own reserve so it can
+    // never be spent twice or against another escrow's funds.
+    set_interest_reserve(&env, &escrow_id, reserve - total);
 
     // Reset accrued interest; principal remains.
     di.accrued_interest = 0;

@@ -65,6 +65,46 @@ fn create_agreement_helper(
     id
 }
 
+/// Capitalise an escrow's interest reserve with freshly minted tokens so its
+/// accrued interest can actually be paid out.
+fn fund_reserve(env: &Env, client: &ContractClient<'_>, id: &String, amount: i128) {
+    let token = client.get_agreement(id).unwrap().payment_token;
+    let funder = Address::generate(env);
+    TokenAdminClient::new(env, &token).mint(&funder, &amount);
+    client.fund_interest_reserve(id, &funder, &amount);
+}
+
+/// Create an Active-able agreement on a caller-supplied token and id, minting
+/// `deposit` into the contract pool. Used to place two agreements behind the
+/// same pooled token balance so reserve isolation can be asserted.
+fn create_agreement_on_token(
+    env: &Env,
+    client: &ContractClient<'_>,
+    id: &String,
+    token: &Address,
+    tenant: &Address,
+    landlord: &Address,
+    deposit: i128,
+) {
+    TokenAdminClient::new(env, token).mint(&client.address, &deposit);
+    client.create_agreement(&AgreementInput {
+        agreement_id: id.clone(),
+        landlord: landlord.clone(),
+        tenant: tenant.clone(),
+        agent: None,
+        terms: AgreementTerms {
+            monthly_rent: 1000,
+            security_deposit: deposit,
+            start_date: 100,
+            end_date: 1_000_000,
+            agent_commission_rate: 0,
+        },
+        payment_token: token.clone(),
+        metadata_uri: String::from_str(env, "").clone(),
+        attributes: Vec::new(env).clone(),
+    });
+}
+
 // ─── tests ────────────────────────────────────────────────────────────────────
 
 #[test]
@@ -538,6 +578,9 @@ fn test_distribute_interest_to_tenant() {
     let di_before = client.get_deposit_interest(&id);
     assert!(di_before.accrued_interest > 0);
 
+    // Interest must be reserved before it can be distributed.
+    fund_reserve(&env, &client, &id, di_before.accrued_interest);
+
     // Distribute interest
     client.distribute_interest(&id);
 
@@ -572,6 +615,9 @@ fn test_distribute_interest_to_landlord() {
     let di_before = client.get_deposit_interest(&id);
     assert!(di_before.accrued_interest > 0);
 
+    // Interest must be reserved before it can be distributed.
+    fund_reserve(&env, &client, &id, di_before.accrued_interest);
+
     // Distribute interest
     client.distribute_interest(&id);
 
@@ -604,6 +650,9 @@ fn test_distribute_interest_split_50_50() {
 
     let di_before = client.get_deposit_interest(&id);
     let _accrued = di_before.accrued_interest;
+
+    // Interest must be reserved before it can be distributed.
+    fund_reserve(&env, &client, &id, di_before.accrued_interest);
 
     // Distribute interest
     client.distribute_interest(&id);
@@ -876,4 +925,146 @@ fn test_multiple_accruals_sum_correctly() {
     }
 
     assert_eq!(di.accrued_interest, total_accrued);
+}
+
+// ─── issue #75: interest reserve accounting ─────────────────────────────────────
+
+#[test]
+fn test_distribute_interest_fails_without_reserve() {
+    let env = Env::default();
+    env.mock_all_auths();
+    env.ledger().with_mut(|li| li.timestamp = 0);
+    let (client, _admin) = setup(&env);
+
+    let tenant = Address::generate(&env);
+    let landlord = Address::generate(&env);
+    let id = create_agreement_helper(&env, &client, &tenant, &landlord, 10_000);
+
+    client.set_deposit_interest_config(
+        &id,
+        &1000,
+        &CompoundingFrequency::Monthly,
+        &InterestRecipient::Tenant,
+    );
+
+    env.ledger().with_mut(|li| li.timestamp = 30 * 86_400);
+    client.accrue_interest(&id);
+    assert!(client.get_deposit_interest(&id).accrued_interest > 0);
+
+    // No reserve was funded, so distribution must fail rather than silently
+    // draining the pooled deposit/rent balance held by the contract.
+    let res = client.try_distribute_interest(&id);
+    assert_eq!(res, Err(Ok(RentalError::PaymentInsufficientFunds)));
+
+    // Accrued interest is untouched — nothing was paid out.
+    assert!(client.get_deposit_interest(&id).accrued_interest > 0);
+}
+
+#[test]
+fn test_fund_interest_reserve_accumulates() {
+    let env = Env::default();
+    env.mock_all_auths();
+    env.ledger().with_mut(|li| li.timestamp = 0);
+    let (client, _admin) = setup(&env);
+
+    let tenant = Address::generate(&env);
+    let landlord = Address::generate(&env);
+    let id = create_agreement_helper(&env, &client, &tenant, &landlord, 10_000);
+
+    client.set_deposit_interest_config(
+        &id,
+        &1000,
+        &CompoundingFrequency::Monthly,
+        &InterestRecipient::Tenant,
+    );
+
+    assert_eq!(client.get_interest_reserve_balance(&id), 0);
+    fund_reserve(&env, &client, &id, 400);
+    fund_reserve(&env, &client, &id, 600);
+    assert_eq!(client.get_interest_reserve_balance(&id), 1000);
+}
+
+#[test]
+fn test_distribute_draws_down_only_own_reserve() {
+    let env = Env::default();
+    env.mock_all_auths();
+    env.ledger().with_mut(|li| li.timestamp = 0);
+    let (client, _admin) = setup(&env);
+
+    let tenant = Address::generate(&env);
+    let landlord = Address::generate(&env);
+    let id = create_agreement_helper(&env, &client, &tenant, &landlord, 10_000);
+
+    client.set_deposit_interest_config(
+        &id,
+        &1000,
+        &CompoundingFrequency::Monthly,
+        &InterestRecipient::Tenant,
+    );
+
+    env.ledger().with_mut(|li| li.timestamp = 30 * 86_400);
+    client.accrue_interest(&id);
+    let accrued = client.get_deposit_interest(&id).accrued_interest;
+    assert!(accrued > 0);
+
+    // Over-fund the reserve, then distribute: the reserve should drop by
+    // exactly the distributed interest, never more.
+    fund_reserve(&env, &client, &id, accrued + 500);
+    client.distribute_interest(&id);
+    assert_eq!(client.get_interest_reserve_balance(&id), 500);
+    assert_eq!(client.get_deposit_interest(&id).accrued_interest, 0);
+}
+
+/// The core fund-safety property from issue #75: funding ONE escrow's interest
+/// must not let another escrow's distribution draw from the shared pool.
+#[test]
+fn test_reserve_isolation_between_escrows() {
+    let env = Env::default();
+    env.mock_all_auths();
+    env.ledger().with_mut(|li| li.timestamp = 0);
+    let (client, _admin) = setup(&env);
+
+    // Two agreements share one pooled token.
+    let token_admin = Address::generate(&env);
+    let token = create_token_mock(&env, &token_admin);
+
+    let tenant_a = Address::generate(&env);
+    let landlord_a = Address::generate(&env);
+    let id_a = String::from_str(&env, "ESCROW_A");
+    create_agreement_on_token(&env, &client, &id_a, &token, &tenant_a, &landlord_a, 10_000);
+
+    let tenant_b = Address::generate(&env);
+    let landlord_b = Address::generate(&env);
+    let id_b = String::from_str(&env, "ESCROW_B");
+    create_agreement_on_token(&env, &client, &id_b, &token, &tenant_b, &landlord_b, 10_000);
+
+    for id in [&id_a, &id_b] {
+        client.set_deposit_interest_config(
+            id,
+            &1000,
+            &CompoundingFrequency::Monthly,
+            &InterestRecipient::Tenant,
+        );
+    }
+
+    env.ledger().with_mut(|li| li.timestamp = 30 * 86_400);
+    client.accrue_interest(&id_a);
+    client.accrue_interest(&id_b);
+
+    // Fund ONLY escrow A's reserve.
+    let accrued_a = client.get_deposit_interest(&id_a).accrued_interest;
+    fund_reserve(&env, &client, &id_a, accrued_a);
+
+    // A distributes fine against its own reserve.
+    client.distribute_interest(&id_a);
+    assert_eq!(client.get_deposit_interest(&id_a).accrued_interest, 0);
+
+    // B has accrued interest and the contract still pools both deposits plus
+    // A's leftover funds, yet B has no reserve of its own — distribution must
+    // be rejected, proving it cannot drain another escrow's balance.
+    assert!(client.get_deposit_interest(&id_b).accrued_interest > 0);
+    assert_eq!(client.get_interest_reserve_balance(&id_b), 0);
+    let res = client.try_distribute_interest(&id_b);
+    assert_eq!(res, Err(Ok(RentalError::PaymentInsufficientFunds)));
+    assert!(client.get_deposit_interest(&id_b).accrued_interest > 0);
 }

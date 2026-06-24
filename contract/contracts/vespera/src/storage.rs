@@ -14,6 +14,11 @@ pub enum DataKey {
     AgreementToken(String),
     DepositInterestConfig(String),
     DepositInterest(String),
+    /// Per-escrow pool of funds actually reserved to pay this deposit's
+    /// interest. `distribute_interest` may only pay out of this balance, so
+    /// one escrow's interest can never be drawn from another's pooled rent
+    /// or deposit funds.
+    InterestReserve(String),
     ErrorLog(u32),
     ErrorLogCount,
     RoyaltyConfig(String),

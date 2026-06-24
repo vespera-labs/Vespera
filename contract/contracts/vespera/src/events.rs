@@ -296,6 +296,13 @@ pub struct InterestDistributed {
     pub landlord_share: i128,
 }
 
+#[contractevent]
+pub struct InterestReserveFunded {
+    pub escrow_id: String,
+    pub amount: i128,
+    pub total_reserve: i128,
+}
+
 pub(crate) fn interest_config_set(env: &Env, agreement_id: String, annual_rate: u32) {
     InterestConfigSet {
         agreement_id,
@@ -323,6 +330,20 @@ pub(crate) fn interest_distributed(
         escrow_id,
         tenant_share,
         landlord_share,
+    }
+    .publish(env);
+}
+
+pub(crate) fn interest_reserve_funded(
+    env: &Env,
+    escrow_id: String,
+    amount: i128,
+    total_reserve: i128,
+) {
+    InterestReserveFunded {
+        escrow_id,
+        amount,
+        total_reserve,
     }
     .publish(env);
 }

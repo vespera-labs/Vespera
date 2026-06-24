@@ -662,6 +662,23 @@ impl Contract {
         deposit_interest::get_accrual_history(env, escrow_id)
     }
 
+    /// Fund the per-escrow interest reserve so accrued interest can be paid
+    /// without drawing on other agreements' pooled funds.
+    pub fn fund_interest_reserve(
+        env: Env,
+        escrow_id: String,
+        funder: Address,
+        amount: i128,
+    ) -> Result<(), RentalError> {
+        Self::check_paused(&env)?;
+        deposit_interest::fund_interest_reserve(env, escrow_id, funder, amount)
+    }
+
+    /// Read the funds currently reserved to pay an escrow's interest.
+    pub fn get_interest_reserve_balance(env: Env, escrow_id: String) -> Result<i128, RentalError> {
+        deposit_interest::get_interest_reserve_balance(env, escrow_id)
+    }
+
     /// Distribute all accrued interest to tenant / landlord per configuration.
     pub fn distribute_interest(env: Env, escrow_id: String) -> Result<(), RentalError> {
         Self::check_paused(&env)?;
