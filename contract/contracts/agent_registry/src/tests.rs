@@ -1,3 +1,4 @@
+use soroban_sdk::testutils::Events;
 use super::*;
 use soroban_sdk::{testutils::Address as _, vec, Address, Env, String};
 
