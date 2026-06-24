@@ -6,15 +6,21 @@ on:
       - main
       - develop
     paths:
+      - "eslint.config.js"
       - "frontend/**"
       - ".github/workflows/frontend-ci-cd.yml"
+      - "package.json"
+      - "pnpm-lock.yaml"
   pull_request:
     branches:
       - main
       - develop
     paths:
+      - "eslint.config.js"
       - "frontend/**"
       - ".github/workflows/frontend-ci-cd.yml"
+      - "package.json"
+      - "pnpm-lock.yaml"
 
 env:
   IS_PR: ${{ github.event_name == 'pull_request' }}
@@ -39,9 +45,19 @@ jobs:
         with:
           node-version: "20"
           cache: "pnpm"
-          cache-dependency-path: "./frontend/pnpm-lock.yaml"
+          cache-dependency-path: |
+            ./pnpm-lock.yaml
+            ./frontend/pnpm-lock.yaml
 
-      - name: Install dependencies
+      - name: Install root dependencies
+        working-directory: .
+        run: pnpm install --frozen-lockfile
+
+      - name: Run root ESLint
+        working-directory: .
+        run: pnpm run lint
+
+      - name: Install frontend dependencies
         run: pnpm install --frozen-lockfile
 
       - name: Run npm audit
