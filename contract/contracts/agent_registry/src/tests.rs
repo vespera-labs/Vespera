@@ -272,14 +272,16 @@ fn test_register_and_complete_transaction() {
     let result = client.try_register_transaction(&txn_id, &agent, &parties);
     assert!(result.is_ok());
 
-    // Ensure events are emitted for transaction registration/completion
+        // Ensure events are emitted for transaction registration/completion
     let events_before = env.events().all().len();
 
     let result = client.try_complete_transaction(&txn_id, &agent);
     assert!(result.is_ok());
 
-    let events_after = env.events().all();
-    assert!(events_after.len() > events_before);
+    let events_after_len = env.events().all().len();
+    
+    // 🛠️ This will explicitly show us the before and after counts in the error log:
+    assert_eq!(events_after_len, events_before + 1);
 
     let agent_info = client.get_agent_info(&agent).unwrap();
     assert_eq!(agent_info.completed_agreements, 1);
