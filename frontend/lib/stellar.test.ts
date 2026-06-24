@@ -5,6 +5,7 @@ vi.mock("@stellar/freighter-api", () => ({
   isAllowed: vi.fn(),
   setAllowed: vi.fn(),
   getAddress: vi.fn(),
+  getNetwork: vi.fn(),
   signTransaction: vi.fn(),
 }));
 
@@ -13,11 +14,14 @@ import {
   isAllowed,
   setAllowed,
   getAddress,
+  getNetwork,
   signTransaction,
 } from "@stellar/freighter-api";
 import {
   connectFreighter,
   getFreighterAddress,
+  getFreighterNetwork,
+  isNetworkMismatch,
   signRentPayment,
 } from "./stellar";
 
@@ -79,6 +83,68 @@ describe("connectFreighter", () => {
   });
 });
 
+describe("getFreighterNetwork", () => {
+  it("returns null when Freighter is not connected", async () => {
+    vi.mocked(isConnected).mockResolvedValue({ isConnected: false });
+
+    await expect(getFreighterNetwork()).resolves.toBeNull();
+    expect(getNetwork).not.toHaveBeenCalled();
+  });
+
+  it("returns the network details when connected", async () => {
+    vi.mocked(isConnected).mockResolvedValue({ isConnected: true });
+    vi.mocked(getNetwork).mockResolvedValue({
+      network: "TESTNET",
+      networkPassphrase: "Test SDF Network ; September 2015",
+    });
+
+    const result = await getFreighterNetwork();
+    expect(result).toEqual({
+      network: "TESTNET",
+      networkPassphrase: "Test SDF Network ; September 2015",
+    });
+  });
+
+  it("returns null when getNetwork returns an error", async () => {
+    vi.mocked(isConnected).mockResolvedValue({ isConnected: true });
+    vi.mocked(getNetwork).mockResolvedValue({
+      network: "",
+      networkPassphrase: "",
+      error: { code: 1, message: "error" },
+    });
+
+    await expect(getFreighterNetwork()).resolves.toBeNull();
+  });
+});
+
+describe("isNetworkMismatch", () => {
+  it("returns false when Freighter is not connected", async () => {
+    vi.mocked(isConnected).mockResolvedValue({ isConnected: false });
+
+    await expect(isNetworkMismatch()).resolves.toBe(false);
+  });
+
+  it("returns false when wallet network matches env", async () => {
+    vi.mocked(isConnected).mockResolvedValue({ isConnected: true });
+    vi.mocked(getNetwork).mockResolvedValue({
+      network: "TESTNET",
+      networkPassphrase: "Test SDF Network ; September 2015",
+    });
+
+    await expect(isNetworkMismatch()).resolves.toBe(false);
+  });
+
+  it("returns true when wallet network differs from env", async () => {
+    vi.mocked(isConnected).mockResolvedValue({ isConnected: true });
+    vi.mocked(getNetwork).mockResolvedValue({
+      network: "PUBLIC",
+      networkPassphrase: "Public Global Stellar Network ; September 2015",
+    });
+
+    await expect(isNetworkMismatch()).resolves.toBe(true);
+  });
+});
+
 describe("signRentPayment", () => {
   it("connects, builds a placeholder tx, and returns the signed XDR", async () => {
     vi.mocked(isAllowed).mockResolvedValue({ isAllowed: true });
@@ -108,9 +174,6 @@ describe("signRentPayment", () => {
   it("returns an empty string when Freighter signs but yields no XDR", async () => {
     vi.mocked(isAllowed).mockResolvedValue({ isAllowed: true });
     vi.mocked(getAddress).mockResolvedValue({ address: FAKE_ADDR });
-    // Empty signedTxXdr collapses to "" via the `?? ""` fallback in
-    // signRentPayment. The full shape keeps the freighter return type
-    // happy under `tsc --noEmit`.
     vi.mocked(signTransaction).mockResolvedValue({
       signedTxXdr: "",
       signerAddress: FAKE_ADDR,

@@ -3,6 +3,7 @@ import {
   isAllowed,
   setAllowed,
   getAddress,
+  getNetwork,
   signTransaction,
 } from "@stellar/freighter-api";
 import { Networks, TransactionBuilder, Account, BASE_FEE } from "@stellar/stellar-sdk";
@@ -30,6 +31,23 @@ export async function connectFreighter(): Promise<string> {
   const res = await getAddress();
   if (!res?.address) throw new Error("no address");
   return res.address;
+}
+
+export async function getFreighterNetwork(): Promise<{
+  network: string;
+  networkPassphrase: string;
+} | null> {
+  const conn = await isConnected();
+  if (!conn?.isConnected) return null;
+  const net = await getNetwork();
+  if (net?.error) return null;
+  return { network: net.network, networkPassphrase: net.networkPassphrase };
+}
+
+export async function isNetworkMismatch(): Promise<boolean> {
+  const walletNet = await getFreighterNetwork();
+  if (!walletNet) return false;
+  return walletNet.networkPassphrase !== PASSPHRASE;
 }
 
 export async function signRentPayment(_input: {
