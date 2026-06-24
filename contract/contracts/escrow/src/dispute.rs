@@ -121,6 +121,13 @@ impl DisputeHandler {
         let token_client = token::Client::new(&env, &escrow.token);
         token_client.transfer(&env.current_contract_address(), &release_to, &escrow.amount);
 
+        // Emit event distinguishing release vs refund
+        if release_to == escrow.depositor {
+            events::escrow_refunded(&env, escrow_id, escrow.amount, escrow.depositor.clone());
+        } else {
+            events::escrow_released(&env, escrow_id, escrow.amount, release_to.clone());
+        }
+
         Ok(())
     }
 
@@ -179,8 +186,7 @@ impl DisputeHandler {
             &escrow.depositor,
             &escrow.amount,
         );
-
-        events::dispute_timeout(&env, escrow_id);
+        events::dispute_timeout(&env, escrow_id.clone());
         Ok(())
     }
 }

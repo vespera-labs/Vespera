@@ -237,7 +237,7 @@ pub fn complete_transaction(
         .persistent()
         .extend_ttl(&txn_key, 500000, 500000);
 
-    let agent_key = DataKey::Agent(agent);
+    let agent_key = DataKey::Agent(agent.clone());
     let mut agent_info: AgentInfo = env
         .storage()
         .persistent()
@@ -250,6 +250,10 @@ pub fn complete_transaction(
     env.storage()
         .persistent()
         .extend_ttl(&agent_key, 500000, 500000);
+
+    // Emit event so off-chain indexers can track completed transactions
+    // clone values to avoid moving them if callers reuse variables
+    events::transaction_completed(env, transaction_id.clone(), agent.clone());
 
     Ok(())
 }

@@ -38,6 +38,14 @@ pub struct TransactionRegistered {
     pub agent: Address,
 }
 
+#[contractevent(topics = ["txn_comp"])]
+pub struct TransactionCompleted {
+    #[topic]
+    pub transaction_id: String,
+    #[topic]
+    pub agent: Address,
+}
+
 pub(crate) fn contract_initialized(env: &Env, admin: Address) {
     ContractInitialized { admin }.publish(env);
 }
@@ -65,6 +73,14 @@ pub(crate) fn agent_rated(env: &Env, agent: Address, rater: Address, score: u32)
 
 pub(crate) fn transaction_registered(env: &Env, transaction_id: String, agent: Address) {
     TransactionRegistered {
+        transaction_id,
+        agent,
+    }
+    .publish(env);
+}
+
+pub(crate) fn transaction_completed(env: &Env, transaction_id: String, agent: Address) {
+    TransactionCompleted {
         transaction_id,
         agent,
     }
