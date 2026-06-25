@@ -1,55 +1,41 @@
-import 'reflect-metadata';
-import * as path from 'path';
-import { DataSource } from 'typeorm';
-import { SnakeNamingStrategy } from 'typeorm-naming-strategies';
-import * as dotenv from 'dotenv';
+
+import "reflect-metadata";
+import * as path from "path";
+import { DataSource } from "typeorm";
+import { SnakeNamingStrategy } from "typeorm-naming-strategies";
+import * as dotenv from "dotenv";
 
 dotenv.config();
 
-/** e.g. .../src or .../dist/src */
-const rootDir = path.join(__dirname, '..');
-/** repo backend root (holds extra migrations not under src/) */
-const backendRootDir = path.join(rootDir, '..');
+/** Repo-root backend directory */
+const backendDir = path.join(__dirname, "..", "..");
 
 /**
- * TypeORM CLI DataSource (migrations:generate / run / revert / show).
- * - Development: run from repo root with ts-node (`src/database/data-source.ts`).
- * - Production: use compiled file (`dist/src/database/data-source.js`) after `pnpm run build`.
+ * FIX #27: Canonical DataSource used by both the NestJS runtime and
+ * the TypeORM CLI.  A single migrations glob from backend/migrations/
+ * is used exclusively so discovery and run-order are always identical.
  *
- * Connection: prefer `DATABASE_URL` when set; otherwise `DB_HOST`, `DB_PORT`, etc.
+ * The three files that previously shared timestamp 1790000000000 have
+ * been renamed to 1790000000000, 1790000000001, and 1790000000002
+ * to enforce deterministic ordering.
  */
 export const AppDataSource = new DataSource({
-  type: 'postgres',
+  type: "postgres",
   url: process.env.DATABASE_URL || undefined,
-  host: process.env.DATABASE_URL
-    ? undefined
-    : process.env.DB_HOST || 'localhost',
-  port: process.env.DATABASE_URL
-    ? undefined
-    : parseInt(process.env.DB_PORT || '5432', 10),
-  username: process.env.DATABASE_URL
-    ? undefined
-    : process.env.DB_USERNAME || 'postgres',
-  password: process.env.DATABASE_URL
-    ? undefined
-    : process.env.DB_PASSWORD || 'password',
-  database: process.env.DATABASE_URL
-    ? undefined
-    : process.env.DB_NAME || 'chioma_db',
-  ssl:
-    process.env.DB_SSL === 'true'
-      ? {
-          rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED === 'true',
-        }
-      : false,
+  host: process.env.DATABASE_URL ? undefined : (process.env.DB_HOST || "localhost"),
+  port: process.env.DATABASE_URL ? undefined : parseInt(process.env.DB_PORT || "5432", 10),
+  username: process.env.DATABASE_URL ? undefined : (process.env.DB_USERNAME || "postgres"),
+  password: process.env.DATABASE_URL ? undefined : (process.env.DB_PASSWORD || "password"),
+  database: process.env.DATABASE_URL ? undefined : (process.env.DB_NAME || "chioma_db"),
+  ssl: process.env.DB_SSL === "true"
+    ? { rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED === "true" }
+    : false,
   namingStrategy: new SnakeNamingStrategy(),
-  entities: [path.join(rootDir, 'modules', '**', '*.entity{.ts,.js}')],
-  migrations: [
-    path.join(rootDir, 'migrations', '*{.ts,.js}'),
-    path.join(backendRootDir, 'migrations', '*{.ts,.js}'),
-  ],
-  migrationsTableName: 'migrations',
-  migrationsTransactionMode: 'each',
+  entities: [path.join(backendDir, "src", "modules", "**", "*.entity{.ts,.js}")],
+  // FIXED: single canonical glob - no duplicate/divergent paths
+  migrations: [path.join(backendDir, "migrations", "*{.ts,.js}")],
+  migrationsTableName: "migrations",
+  migrationsTransactionMode: "each",
   synchronize: false,
-  logging: process.env.TYPEORM_LOGGING === 'true',
+  logging: process.env.TYPEORM_LOGGING === "true",
 });
