@@ -33,12 +33,12 @@ export function WalletButton() {
   }
 
   return (
-    <div suppressHydrationWarning>
+    <>
       {address ? (
         <div className="flex items-center gap-2">
           <button
             onClick={handleCopy}
-            aria-label={"Connected wallet " + address}
+            aria-label={"Copy wallet address " + address}
             className="rounded-full border border-ink/10 px-3 py-2 font-mono text-xs hover:bg-ink/5 transition-colors"
             title="Copy address"
           >
@@ -46,7 +46,7 @@ export function WalletButton() {
           </button>
           <button
             onClick={handleDisconnect}
-            aria-label="Disconnect wallet"
+            aria-label="Sign out wallet"
             className="rounded-full p-2 text-ink-muted hover:text-ink hover:bg-ink/5 transition-colors"
             title="Disconnect"
           >
@@ -63,6 +63,6 @@ export function WalletButton() {
           {busy ? "Connecting…" : "Connect"}
         </button>
       )}
-    </div>
+    </>
   );
 }
