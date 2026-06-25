@@ -184,7 +184,7 @@ export class PaymentService {
       amount: dto.amount,
       transactionFee,
       netAmount,
-      currency: 'NGN',
+      currency,
       status: PaymentStatus.COMPLETED,
       paymentMethod: paymentMethod.paymentType,
       paymentMethodRelationId: paymentMethod.id,
