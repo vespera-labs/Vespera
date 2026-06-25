@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { mockProperties } from "@/lib/mock";
-import { formatXLM } from "@/lib/format";
+import { formatUSDC } from "@/lib/format";
 import { PayRentButton } from "@/components/wallet/pay-rent-button";
 
 export default async function PropertyDetail({

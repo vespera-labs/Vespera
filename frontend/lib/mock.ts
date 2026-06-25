@@ -22,7 +22,7 @@ export interface Payment {
   txHash: string;
 }
 
-const mockProperties: Property[] = [
+export const mockProperties: Property[] = [
   {
     id: "p1",
     title: "2BR loft, Yaba",
