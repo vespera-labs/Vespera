@@ -66,7 +66,7 @@ jobs:
         run: cd backend && pnpm run test:cov
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v7
         with:
           files: ./backend/coverage/coverage-final.json
           flags: unittests
