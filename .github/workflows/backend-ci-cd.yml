@@ -311,7 +311,7 @@ jobs:
           cd backend && node -e "const s=require('./openapi.json'); if(!s.openapi||!s.paths) throw new Error('Invalid OpenAPI'); console.log('OpenAPI', s.info?.version, 'paths:', Object.keys(s.paths).length);"
 
       - name: Upload OpenAPI spec artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: openapi-spec
           path: backend/openapi.json
