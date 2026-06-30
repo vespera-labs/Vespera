@@ -1,9 +1,9 @@
 use super::*;
-use crate::dispute::RentAgreement;
+use crate::dispute::{AgreementStatus, RentAgreement};
 use soroban_sdk::{
     contract, contractimpl,
     testutils::{Address as _, Ledger},
-    Address, Env, String,
+    Address, Env, Map, String,
 };
 
 // ── Weighted Voting Helpers ────────────────────────────────────────────────
@@ -42,6 +42,46 @@ impl MockRentalContract {
         // Retrieve the pre-stored mock agreement
         env.storage().instance().get::<_, RentAgreement>(&0u32)
     }
+}
+
+/// Register a `MockRentalContract` pre-loaded with one Active agreement and
+/// return `(mock_rental_address, tenant, landlord)`.
+///
+/// `raise_dispute` performs a cross-contract `get_agr` call and then enforces
+/// that the agreement is `Active` and that the raiser is the tenant or
+/// landlord, so the core-flow tests need a rental contract that answers with a
+/// concrete agreement. The returned tenant/landlord are the only addresses
+/// authorized to raise a dispute against this agreement.
+fn setup_mock_rental(env: &Env) -> (Address, Address, Address) {
+    let mock_rental = env.register(MockRentalContract, ());
+    let tenant = Address::generate(env);
+    let landlord = Address::generate(env);
+    let token = Address::generate(env);
+
+    let agreement = RentAgreement {
+        agreement_id: String::from_str(env, "agreement_001"),
+        landlord: landlord.clone(),
+        tenant: tenant.clone(),
+        agent: None,
+        monthly_rent: 1_000,
+        security_deposit: 2_000,
+        start_date: 0,
+        end_date: 1_000,
+        agent_commission_rate: 0,
+        status: AgreementStatus::Active,
+        total_rent_paid: 0,
+        payment_count: 0,
+        signed_at: None,
+        payment_token: token,
+        next_payment_due: 0,
+        payment_history: Map::new(env),
+    };
+
+    env.as_contract(&mock_rental, || {
+        env.storage().instance().set(&0u32, &agreement);
+    });
+
+    (mock_rental, tenant, landlord)
 }
 
 fn create_contract(env: &Env) -> DisputeResolutionContractClient<'_> {
@@ -151,26 +191,27 @@ fn test_add_arbiter_fails_when_already_exists() {
     client.add_arbiter(&admin, &arbiter);
 }
 
-// NOTE: Tests for raise_dispute require a mock rental contract
-// These tests are temporarily disabled until integration test setup is complete
-// See INTEGRATION.md for cross-contract testing approach
+// ── Core dispute flow (cross-contract via MockRentalContract) ───────────────
+// These exercise raise_dispute, vote_on_dispute, and resolve_dispute end to
+// end against a registered rental contract, which is why they were previously
+// disabled. `setup_mock_rental` supplies the missing mock.
 
-/*
 #[test]
 fn test_raise_dispute_success() {
     let env = Env::default();
     let client = create_contract(&env);
 
     let admin = Address::generate(&env);
+    let (mock_rental, tenant, _landlord) = setup_mock_rental(&env);
 
     env.mock_all_auths();
 
-    client.initialize(&admin, &3, &Address::generate(&env));
+    client.initialize(&admin, &3, &mock_rental);
 
     let agreement_id = String::from_str(&env, "agreement_001");
     let details_hash = String::from_str(&env, "QmXoypizjW3WknFiJnKLwHCnL72vedxjQkDDP1mXWo6uco");
 
-    let result = client.try_raise_dispute(&Address::generate(&env), &agreement_id, &details_hash);
+    let result = client.try_raise_dispute(&tenant, &agreement_id, &details_hash);
     assert!(result.is_ok());
 
     let dispute = client.get_dispute(&agreement_id).unwrap();
@@ -181,13 +222,28 @@ fn test_raise_dispute_success() {
     assert_eq!(dispute.votes_favor_tenant, 0);
     assert!(dispute.get_outcome().is_none());
 }
-*/
 
-// NOTE: Tests for raise_dispute require a mock rental contract
-// These tests are temporarily disabled until integration test setup is complete
-// See INTEGRATION.md for cross-contract testing approach
+#[test]
+#[should_panic(expected = "Error(Contract, #3)")]
+fn test_raise_dispute_fails_for_non_party() {
+    let env = Env::default();
+    let client = create_contract(&env);
 
-/*
+    let admin = Address::generate(&env);
+    let (mock_rental, _tenant, _landlord) = setup_mock_rental(&env);
+    let stranger = Address::generate(&env);
+
+    env.mock_all_auths();
+
+    client.initialize(&admin, &3, &mock_rental);
+
+    let agreement_id = String::from_str(&env, "agreement_001");
+    let details_hash = String::from_str(&env, "QmXoypizjW3WknFiJnKLwHCnL72vedxjQkDDP1mXWo6uco");
+
+    // A caller that is neither tenant nor landlord must be rejected (#3 Unauthorized).
+    client.raise_dispute(&stranger, &agreement_id, &details_hash);
+}
+
 #[test]
 #[should_panic(expected = "Error(Contract, #7)")]
 fn test_raise_dispute_fails_when_already_exists() {
@@ -207,9 +263,7 @@ fn test_raise_dispute_fails_when_already_exists() {
     client.raise_dispute(&tenant, &agreement_id, &details_hash);
     client.raise_dispute(&tenant, &agreement_id, &details_hash);
 }
-*/
 
-/*
 #[test]
 #[should_panic(expected = "Error(Contract, #10)")]
 fn test_raise_dispute_fails_with_empty_details_hash() {
@@ -227,9 +281,7 @@ fn test_raise_dispute_fails_with_empty_details_hash() {
 
     client.raise_dispute(&Address::generate(&env), &agreement_id, &details_hash);
 }
-*/
 
-/*
 #[test]
 fn test_vote_on_dispute_success() {
     let env = Env::default();
@@ -261,9 +313,7 @@ fn test_vote_on_dispute_success() {
     assert_eq!(vote.agreement_id, agreement_id);
     assert!(vote.favor_landlord);
 }
-*/
 
-/*
 #[test]
 #[should_panic(expected = "Error(Contract, #5)")]
 fn test_vote_fails_when_not_arbiter() {
@@ -284,7 +334,6 @@ fn test_vote_fails_when_not_arbiter() {
     client.raise_dispute(&tenant, &agreement_id, &details_hash);
     client.vote_on_dispute(&non_arbiter, &agreement_id, &true);
 }
-*/
 
 #[test]
 #[should_panic(expected = "Error(Contract, #6)")]
@@ -305,7 +354,6 @@ fn test_vote_fails_when_dispute_not_found() {
     client.vote_on_dispute(&arbiter, &agreement_id, &true);
 }
 
-/*
 #[test]
 #[should_panic(expected = "Error(Contract, #9)")]
 fn test_vote_fails_when_already_voted() {
@@ -328,9 +376,7 @@ fn test_vote_fails_when_already_voted() {
     client.vote_on_dispute(&arbiter, &agreement_id, &true);
     client.vote_on_dispute(&arbiter, &agreement_id, &false);
 }
-*/
 
-/*
 #[test]
 fn test_resolve_dispute_favor_landlord() {
     let env = Env::default();
@@ -371,9 +417,7 @@ fn test_resolve_dispute_favor_landlord() {
     assert_eq!(dispute.votes_favor_landlord, 2);
     assert_eq!(dispute.votes_favor_tenant, 1);
 }
-*/
 
-/*
 #[test]
 fn test_resolve_dispute_favor_tenant() {
     let env = Env::default();
@@ -410,9 +454,7 @@ fn test_resolve_dispute_favor_tenant() {
     assert_eq!(dispute.votes_favor_landlord, 1);
     assert_eq!(dispute.votes_favor_tenant, 2);
 }
-*/
 
-/*
 #[test]
 #[should_panic(expected = "Error(Contract, #11)")]
 fn test_resolve_dispute_fails_with_insufficient_votes() {
@@ -436,9 +478,7 @@ fn test_resolve_dispute_fails_with_insufficient_votes() {
 
     client.resolve_dispute(&admin, &agreement_id);
 }
-*/
 
-/*
 #[test]
 #[should_panic(expected = "Error(Contract, #8)")]
 fn test_resolve_dispute_fails_when_already_resolved() {
@@ -470,9 +510,7 @@ fn test_resolve_dispute_fails_when_already_resolved() {
     client.resolve_dispute(&admin, &agreement_id);
     client.resolve_dispute(&admin, &agreement_id);
 }
-*/
 
-/*
 #[test]
 #[should_panic(expected = "Error(Contract, #8)")]
 fn test_vote_fails_after_dispute_resolved() {
@@ -507,9 +545,7 @@ fn test_vote_fails_after_dispute_resolved() {
 
     client.vote_on_dispute(&arbiter4, &agreement_id, &false);
 }
-*/
 
-/*
 #[test]
 fn test_multiple_disputes() {
     let env = Env::default();
@@ -549,7 +585,6 @@ fn test_multiple_disputes() {
     let outcome2 = client.resolve_dispute(&admin, &agreement_id2);
     assert_eq!(outcome2, DisputeOutcome::FavorTenant);
 }
-*/
 
 #[test]
 fn test_get_arbiter_count() {
