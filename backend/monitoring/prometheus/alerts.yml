@@ -1,5 +1,5 @@
 groups:
-  - name: chioma_alerts
+  - name: vespera_alerts
     interval: 30s
     rules:
       - alert: HighErrorRate

@@ -43,13 +43,13 @@ async function generate() {
   app.enableVersioning({ type: VersioningType.URI, defaultVersion: '1' });
 
   const config = new DocumentBuilder()
-    .setTitle('Chioma API')
+    .setTitle('Vespera API')
     .setDescription(
-      'REST API for Chioma — Stellar blockchain-based rental payment platform.',
+      'REST API for Vespera — Stellar blockchain-based rental payment platform.',
     )
     .setVersion('1.0')
-    .setContact('Chioma', 'https://chioma.app', 'support@chioma.app')
-    .setLicense('Open Source', 'https://github.com/chioma/chioma')
+    .setContact('Vespera', 'https://vespera.app', 'support@vespera.app')
+    .setLicense('Open Source', 'https://github.com/vespera-labs/Vespera')
     .addServer('http://localhost:5000', 'Default')
     .addBearerAuth(
       {

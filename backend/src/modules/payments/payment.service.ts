@@ -4,7 +4,6 @@ import {
   BadRequestException,
   ForbiddenException,
   Logger,
-  UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -29,6 +28,7 @@ import { PaymentMethodFiltersDto } from './dto/payment-method-filters.dto';
 import { CreatePaymentScheduleDto } from './dto/create-payment-schedule.dto';
 import { PaymentScheduleFiltersDto } from './dto/payment-schedule-filters.dto';
 import { UpdatePaymentScheduleDto } from './dto/update-payment-schedule.dto';
+import { UsersService } from '../users/users.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import {
   addDays,
@@ -38,7 +38,10 @@ import {
   ensureUserId,
   getIdempotencyKey,
 } from './payment.helpers';
-import { PaymentProcessingService } from '../stellar/services/payment-processing.service';
+import {
+  PaymentProcessingService,
+  TransactionPollTimeoutError,
+} from '../stellar/services/payment-processing.service';
 import { StellarService } from '../stellar/services/stellar.service';
 import * as StellarSdk from '@stellar/stellar-sdk';
 import { Locked, LockService } from '../../common/lock';
@@ -64,6 +67,7 @@ export class PaymentService {
     private readonly paymentScheduleRepository: Repository<PaymentSchedule>,
     private readonly paymentGateway: PaymentGatewayService,
     private readonly notificationsService: NotificationsService,
+    private readonly usersService: UsersService,
     private readonly paymentProcessingService: PaymentProcessingService,
     private readonly stellarService: StellarService,
     private readonly lockService: LockService,
@@ -124,13 +128,19 @@ export class PaymentService {
       throw new NotFoundException('Payment method not found');
     }
 
-    // Calculate fees (mock: 2% fee)
-    const transactionFee = dto.amount * 0.02;
+    // Currency comes from the DTO or falls back to the configured default
+    const currency =
+      dto.currency ??
+      this.configService.get<string>('PAYMENT_DEFAULT_CURRENCY') ??
+      'NGN';
+
+    // Fee rate is configurable via PAYMENT_FEE_RATE (default 0.02 = 2%)
+    const feeRate = this.configService.get<number>('PAYMENT_FEE_RATE') ?? 0.02;
+    const transactionFee = dto.amount * feeRate;
     const netAmount = dto.amount - transactionFee;
 
-    // Note: In production, fetch actual user email from UsersService.findById(userId)
-    // For now, using userId as fallback since UsersService has unrelated type issues
-    const userEmail = `user_${userId}@vespera.local`;
+    const user = await this.usersService.getUserById(userId);
+    const userEmail = user.email;
 
     const decryptedMetadata = decryptMetadata(paymentMethod.encryptedMetadata);
 
@@ -139,7 +149,7 @@ export class PaymentService {
       this.paymentGateway.chargePayment({
         paymentMethod,
         amount: dto.amount,
-        currency: 'NGN',
+        currency: currency,
         userEmail,
         decryptedMetadata,
         idempotencyKey,
@@ -153,7 +163,7 @@ export class PaymentService {
         amount: dto.amount,
         transactionFee,
         netAmount,
-        currency: 'NGN',
+        currency,
         status: PaymentStatus.FAILED,
         paymentMethod: paymentMethod.paymentType,
         paymentMethodRelationId: paymentMethod.id,
@@ -167,7 +177,7 @@ export class PaymentService {
       await this.notificationsService.notify(
         userId,
         'Payment failed',
-        `Your payment of ${dto.amount} NGN could not be processed.`,
+        `Your payment of ${dto.amount} ${currency} could not be processed.`,
         'PAYMENT_FAILED',
       );
       throw new BadRequestException('Payment processing failed');
@@ -180,7 +190,7 @@ export class PaymentService {
       amount: dto.amount,
       transactionFee,
       netAmount,
-      currency: 'NGN',
+      currency,
       status: PaymentStatus.COMPLETED,
       paymentMethod: paymentMethod.paymentType,
       paymentMethodRelationId: paymentMethod.id,
@@ -495,7 +505,10 @@ export class PaymentService {
       agreementId: dto.agreementId ?? null,
       paymentMethodId: paymentMethod.id,
       amount: dto.amount,
-      currency: dto.currency ?? 'NGN',
+      currency:
+        dto.currency ??
+        this.configService.get<string>('PAYMENT_DEFAULT_CURRENCY') ??
+        'NGN',
       interval: dto.interval,
       nextRunAt,
       maxRetries: dto.maxRetries ?? 3,
@@ -671,6 +684,33 @@ export class PaymentService {
           ? this.scrubSecret(error.message, secret)
           : 'Payment failed';
 
+      // A polling timeout is NOT a definitive failure: the transaction was
+      // submitted and may still settle on-chain. Persist it as PENDING with
+      // the submitted hash so reconcileStellarPayments can later confirm it,
+      // instead of marking it FAILED and losing the hash.
+      if (error instanceof TransactionPollTimeoutError) {
+        const pendingPayment = this.paymentRepository.create({
+          userId,
+          agreementId: scrubbed.agreementId,
+          amount: Number(scrubbed.amount),
+          transactionFee: 0,
+          netAmount: Number(scrubbed.amount),
+          currency: 'XLM',
+          status: PaymentStatus.PENDING,
+          referenceNumber: error.hash,
+          metadata: {
+            gateway: 'stellar',
+            flow: 'rent',
+            transactionHash: error.hash,
+            tenantAddress: scrubbed.tenantAddress,
+            // Deliberately no reconciledAt — leaves it for the
+            // reconciliation sweep to resolve.
+          } as PaymentMetadata,
+        });
+        await this.paymentRepository.save(pendingPayment);
+        throw error;
+      }
+
       const failedPayment = this.paymentRepository.create({
         userId,
         agreementId: scrubbed.agreementId,
@@ -845,12 +885,30 @@ export class PaymentService {
     });
   }
 
+  /**
+   * Maximum number of payments to scan in a single reconciliation run.
+   * Bounded to prevent unbounded external Stellar RPC calls and memory
+   * pressure when a user has a large payment history.
+   */
+  private static readonly MAX_RECONCILIATION_LIMIT = 100;
+
+  /**
+   * Maximum number of failed payments to retry in a single batch.
+   * Bounded to prevent storming the payment gateway on retry storms.
+   */
+  private static readonly MAX_RETRY_LIMIT = 50;
+
+  @Locked({
+    key: (userId: string) => `payment:reconcile:${userId}`,
+    ttlMs: 30_000,
+  })
   async reconcileStellarPayments(userId: string, limit = 50) {
     ensureUserId(userId);
+    const boundedLimit = Math.min(limit, PaymentService.MAX_RECONCILIATION_LIMIT);
     const candidates = await this.paymentRepository.find({
       where: { userId },
       order: { updatedAt: 'DESC' },
-      take: limit,
+      take: boundedLimit,
     });
 
     const stellarPayments = candidates.filter((payment) => {
@@ -925,12 +983,17 @@ export class PaymentService {
     };
   }
 
+  @Locked({
+    key: (userId: string) => `payment:retry:${userId}`,
+    ttlMs: 30_000,
+  })
   async retryFailedPayments(userId: string, limit = 20) {
     ensureUserId(userId);
+    const boundedLimit = Math.min(limit, PaymentService.MAX_RETRY_LIMIT);
     const failedPayments = await this.paymentRepository.find({
       where: { userId, status: PaymentStatus.FAILED },
       order: { updatedAt: 'DESC' },
-      take: limit,
+      take: boundedLimit,
     });
 
     let retried = 0;
@@ -942,7 +1005,17 @@ export class PaymentService {
         continue;
       }
 
+      const retryIdempotencyKey = `${payment.id}-retry`;
+
       try {
+        const existingRetry = await this.paymentRepository.findOne({
+          where: { userId, idempotencyKey: retryIdempotencyKey },
+        });
+        if (existingRetry) {
+          skipped += 1;
+          continue;
+        }
+
         await this.recordPayment(
           {
             agreementId: payment.agreementId ?? undefined,
@@ -950,7 +1023,7 @@ export class PaymentService {
             paymentMethodId: String(payment.paymentMethodRelationId),
             notes: payment.notes ?? undefined,
             referenceNumber: payment.referenceNumber ?? undefined,
-            idempotencyKey: `${payment.id}-retry-${Date.now()}`,
+            idempotencyKey: retryIdempotencyKey,
           },
           userId,
         );
@@ -976,15 +1049,7 @@ export class PaymentService {
     };
   }
 
-  async handlePaymentGatewayWebhook(
-    dto: PaymentGatewayWebhookDto,
-    secretHeader?: string,
-  ) {
-    const configuredSecret = process.env.PAYMENT_WEBHOOK_SECRET;
-    if (configuredSecret && secretHeader !== configuredSecret) {
-      throw new UnauthorizedException('Invalid payment webhook secret');
-    }
-
+  async handlePaymentGatewayWebhook(dto: PaymentGatewayWebhookDto) {
     const payment = dto.paymentId
       ? await this.paymentRepository.findOne({ where: { id: dto.paymentId } })
       : dto.referenceNumber

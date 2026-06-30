@@ -8,8 +8,6 @@ dotenv.config();
 
 /** e.g. .../src or .../dist/src */
 const rootDir = path.join(__dirname, '..');
-/** repo backend root (holds extra migrations not under src/) */
-const backendRootDir = path.join(rootDir, '..');
 
 /**
  * TypeORM CLI DataSource (migrations:generate / run / revert / show).
@@ -44,10 +42,10 @@ export const AppDataSource = new DataSource({
       : false,
   namingStrategy: new SnakeNamingStrategy(),
   entities: [path.join(rootDir, 'modules', '**', '*.entity{.ts,.js}')],
-  migrations: [
-    path.join(rootDir, 'migrations', '*{.ts,.js}'),
-    path.join(backendRootDir, 'migrations', '*{.ts,.js}'),
-  ],
+  // Single canonical migrations directory (src/migrations). Must stay in sync
+  // with the runtime glob in app.module.ts so the CLI and the app apply the
+  // identical, deterministically ordered migration set.
+  migrations: [path.join(rootDir, 'migrations', '*{.ts,.js}')],
   migrationsTableName: 'migrations',
   migrationsTransactionMode: 'each',
   synchronize: false,

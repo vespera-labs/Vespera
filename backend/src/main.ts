@@ -45,7 +45,7 @@ async function bootstrap() {
   app.enableCors({
     origin: corsOrigins,
     credentials:
-      configService.get<string>('CORS_CREDENTIALS') === 'true' || true,
+      configService.get<string>('CORS_CREDENTIALS') === 'true',
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: [
       'Content-Type',
@@ -134,7 +134,7 @@ async function bootstrap() {
     )
     .setVersion('1.0')
     .setContact('Vespera', 'https://vespera.app', 'support@vespera.app')
-    .setLicense('Open Source', 'https://github.com/vespera/vespera')
+    .setLicense('Open Source', 'https://github.com/vespera-labs/Vespera')
     .addServer(
       configService.get<string>('API_BASE_URL') || 'http://localhost:5000',
       'Default',
