@@ -133,7 +133,7 @@ fn test_dispute_resolution_sets_correct_status() {
     env.mock_all_auths();
 
     // Test 1: Resolution in favor of depositor should set status to Refunded
-    let (client, depositor, beneficiary, arbiter, token_address) = setup_test(&env);
+    let (client, _admin, depositor, beneficiary, arbiter, token_address) = setup_test(&env);
     let amount = 1000i128;
 
     let escrow_id = client.create(&depositor, &beneficiary, &arbiter, &amount, &token_address);
@@ -158,7 +158,7 @@ fn test_dispute_resolution_sets_correct_status() {
     assert_eq!(token_client.balance(&depositor), amount);
 
     // Test 2: Resolution in favor of beneficiary should set status to Released
-    let (client2, depositor2, beneficiary2, arbiter2, token_address2) = setup_test(&env);
+    let (client2, _admin2, depositor2, beneficiary2, arbiter2, token_address2) = setup_test(&env);
     let amount2 = 2000i128;
 
     let escrow_id2 = client2.create(
@@ -194,7 +194,7 @@ fn test_dispute_resolution_terminal_status_enforced() {
     let env = Env::default();
     env.mock_all_auths();
 
-    let (client, depositor, beneficiary, arbiter, token_address) = setup_test(&env);
+    let (client, _admin, depositor, beneficiary, arbiter, token_address) = setup_test(&env);
     let amount = 1000i128;
 
     let escrow_id = client.create(&depositor, &beneficiary, &arbiter, &amount, &token_address);
@@ -831,7 +831,7 @@ fn test_partial_release_rejects_non_party_caller() {
     let env = Env::default();
     env.mock_all_auths();
 
-    let (client, depositor, beneficiary, arbiter, token_address) = setup_test(&env);
+    let (client, _admin, depositor, beneficiary, arbiter, token_address) = setup_test(&env);
     let amount = 1000i128;
     let partial_amount = 300i128;
 
@@ -866,7 +866,7 @@ fn test_deduction_rejects_non_party_caller() {
     let env = Env::default();
     env.mock_all_auths();
 
-    let (client, depositor, beneficiary, arbiter, token_address) = setup_test(&env);
+    let (client, _admin, depositor, beneficiary, arbiter, token_address) = setup_test(&env);
     let amount = 1000i128;
     let damage_amount = 200i128;
 
@@ -896,7 +896,7 @@ fn test_deduction_cannot_redirect_depositor_approvals_to_beneficiary() {
     let env = Env::default();
     env.mock_all_auths();
 
-    let (client, depositor, beneficiary, arbiter, token_address) = setup_test(&env);
+    let (client, _admin, depositor, beneficiary, arbiter, token_address) = setup_test(&env);
     let amount = 1000i128;
     let damage_amount = 200i128;
 
@@ -927,7 +927,7 @@ fn test_partial_release_amount_binding_enforced() {
     let env = Env::default();
     env.mock_all_auths();
 
-    let (client, depositor, beneficiary, arbiter, token_address) = setup_test(&env);
+    let (client, _admin, depositor, beneficiary, arbiter, token_address) = setup_test(&env);
     let amount = 1000i128;
 
     let escrow_id = client.create(&depositor, &beneficiary, &arbiter, &amount, &token_address);
@@ -958,7 +958,7 @@ fn test_cross_escrow_isolation() {
     let env = Env::default();
     env.mock_all_auths();
 
-    let (client, depositor, beneficiary, arbiter, token_address) = setup_test(&env);
+    let (client, _admin, depositor, beneficiary, arbiter, token_address) = setup_test(&env);
     let beneficiary2 = Address::generate(&env);
     let amount_a = 1000i128;
     let amount_b = 500i128;
@@ -1346,6 +1346,69 @@ fn test_authorization_resolve_dispute_beneficiary_fails() {
     // Beneficiary cannot resolve
     let result = client.try_resolve_dispute(&escrow_id, &beneficiary, &depositor);
     assert!(result.is_err());
+}
+
+// ─── Issue #88: TTL — funded escrow must survive its timeout window ─────────
+
+/// A funded escrow's persistent entry must outlive its timeout window. With a
+/// deliberately small default persistent TTL, an entry that is written without
+/// an explicit `extend_ttl` would be archived long before the 14-day escrow
+/// timeout, freezing the deposited funds. After the fix every escrow write
+/// bumps the entry to `EscrowStorage::TTL_BUMP` ledgers, so the escrow stays
+/// both readable and operable after the ledger advances well past that window.
+#[test]
+fn test_funded_escrow_survives_past_timeout_window() {
+    use crate::types::DataKey;
+    use soroban_sdk::testutils::storage::Persistent as _;
+
+    let env = Env::default();
+    env.mock_all_auths();
+
+    // Small default persistent TTL: an unextended entry would live only ~1_000
+    // ledgers. The 14-day escrow window is ~240_000 ledgers at ~5s/ledger.
+    env.ledger().with_mut(|li| {
+        li.sequence_number = 1;
+        li.min_persistent_entry_ttl = 1_000;
+        li.max_entry_ttl = 1_000_000;
+    });
+
+    let (client, _admin, depositor, beneficiary, arbiter, token_address) = setup_test(&env);
+    let amount = 1000i128;
+
+    let escrow_id = client.create(&depositor, &beneficiary, &arbiter, &amount, &token_address);
+    let token_admin = TokenAdminClient::new(&env, &token_address);
+    token_admin.mint(&depositor, &amount);
+    client.fund_escrow(&escrow_id, &depositor);
+    assert_eq!(client.get_escrow(&escrow_id).status, EscrowStatus::Funded);
+
+    // The funded escrow entry must be extended far past the small default
+    // persistent TTL (1_000), sized to outlive the ~240_000-ledger 14-day
+    // window. Without the extend_ttl fix the entry's TTL would stay ~1_000 and
+    // the funded escrow could be archived — freezing the deposit.
+    let ttl = env.as_contract(&client.address, || {
+        env.storage()
+            .persistent()
+            .get_ttl(&DataKey::Escrow(escrow_id.clone()))
+    });
+    assert!(
+        ttl >= 400_000,
+        "funded escrow TTL not extended: {ttl} (expected ~500_000)"
+    );
+
+    // Advance the ledger far past the small default TTL but within the extended
+    // lifetime, then confirm the escrow is still readable...
+    env.ledger().with_mut(|li| {
+        li.sequence_number += 250_000;
+    });
+    let escrow = client.get_escrow(&escrow_id);
+    assert_eq!(escrow.status, EscrowStatus::Funded);
+    assert_eq!(escrow.amount, amount);
+
+    // ...and still operable: a state-changing entrypoint succeeds against the
+    // same long-lived entry (no token movement needed to prove operability).
+    let reason = soroban_sdk::String::from_str(&env, "delayed past timeout");
+    client.initiate_dispute(&escrow_id, &beneficiary, &reason);
+    assert_eq!(client.get_escrow(&escrow_id).status, EscrowStatus::Disputed);
 }
 
 // ─── Issue #650: Rate Limiting Tests ───────────────────────────────────────

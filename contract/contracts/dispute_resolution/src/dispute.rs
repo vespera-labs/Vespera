@@ -3,7 +3,7 @@ use soroban_sdk::{contracttype, Address, Env, Map, String};
 use crate::errors::DisputeError;
 use crate::events;
 use crate::rate_limit;
-use crate::storage::DataKey;
+use crate::storage::{DataKey, TTL_BUMP, TTL_THRESHOLD};
 use crate::types::{
     AppealStatus, AppealVote, Arbiter, ArbiterStats, ContractState, Dispute, DisputeAppeal,
     DisputeOutcome, PauseState, TimeoutConfig, Vote, VotingWeight, WeightedDisputeVotes,
@@ -31,6 +31,30 @@ const MAX_DISPUTES_RESOLVED: u32 = 100;
 /// rating and experience both capped at 200, the largest possible
 /// `total_weight` is `200 * 200 / 100 = 400`, comfortably inside u32.
 const MAX_MULTIPLIER: u32 = 200;
+
+/// Re-extend the TTL of the contract's instance storage.
+///
+/// Instance storage holds the admin/`State` entry. It must be bumped on every
+/// state-reading or mutating entrypoint — not only at `initialize`/config writes
+/// — otherwise the admin entry can be archived while per-record persistent
+/// entries are kept alive, making subsequent reads fail with `NotInitialized`.
+fn bump_instance_ttl(env: &Env) {
+    env.storage().instance().extend_ttl(TTL_THRESHOLD, TTL_BUMP);
+}
+
+/// Load the contract `State`, re-extending the instance TTL on the way.
+///
+/// Centralises the `State`-read + instance-TTL bump so every entrypoint that
+/// depends on the admin/state entry keeps it alive with one consistent lifetime.
+fn load_state(env: &Env) -> Result<ContractState, DisputeError> {
+    let state: ContractState = env
+        .storage()
+        .instance()
+        .get(&DataKey::State)
+        .ok_or(DisputeError::NotInitialized)?;
+    bump_instance_ttl(env);
+    Ok(state)
+}
 
 fn check_paused(env: &Env) -> Result<(), DisputeError> {
     if env
@@ -61,11 +85,7 @@ pub fn set_timeout_config(
     admin: Address,
     config: TimeoutConfig,
 ) -> Result<(), DisputeError> {
-    let state: ContractState = env
-        .storage()
-        .instance()
-        .get(&DataKey::State)
-        .ok_or(DisputeError::NotInitialized)?;
+    let state: ContractState = load_state(env)?;
 
     admin.require_auth();
     if admin != state.admin {
@@ -82,7 +102,7 @@ pub fn set_timeout_config(
     env.storage()
         .instance()
         .set(&DataKey::TimeoutConfig, &config);
-    env.storage().instance().extend_ttl(500000, 500000);
+    env.storage().instance().extend_ttl(TTL_THRESHOLD, TTL_BUMP);
     Ok(())
 }
 
@@ -130,11 +150,7 @@ pub struct PaymentSplit {
 }
 
 pub fn add_arbiter(env: &Env, admin: Address, arbiter: Address) -> Result<(), DisputeError> {
-    let state: ContractState = env
-        .storage()
-        .instance()
-        .get(&DataKey::State)
-        .ok_or(DisputeError::NotInitialized)?;
+    let state: ContractState = load_state(env)?;
 
     check_paused(env)?;
 
@@ -156,7 +172,9 @@ pub fn add_arbiter(env: &Env, admin: Address, arbiter: Address) -> Result<(), Di
     };
 
     env.storage().persistent().set(&key, &arbiter_info);
-    env.storage().persistent().extend_ttl(&key, 500000, 500000);
+    env.storage()
+        .persistent()
+        .extend_ttl(&key, TTL_THRESHOLD, TTL_BUMP);
 
     let list_key = DataKey::ArbiterList;
     let mut arbiter_list: soroban_sdk::Vec<Address> = env
@@ -168,14 +186,14 @@ pub fn add_arbiter(env: &Env, admin: Address, arbiter: Address) -> Result<(), Di
     env.storage().persistent().set(&list_key, &arbiter_list);
     env.storage()
         .persistent()
-        .extend_ttl(&list_key, 500000, 500000);
+        .extend_ttl(&list_key, TTL_THRESHOLD, TTL_BUMP);
 
     let count_key = DataKey::ArbiterCount;
     let count: u32 = env.storage().persistent().get(&count_key).unwrap_or(0);
     env.storage().persistent().set(&count_key, &(count + 1));
     env.storage()
         .persistent()
-        .extend_ttl(&count_key, 500000, 500000);
+        .extend_ttl(&count_key, TTL_THRESHOLD, TTL_BUMP);
 
     events::arbiter_added(env, admin, arbiter);
 
@@ -195,11 +213,7 @@ pub fn raise_dispute(
     // Rate limiting check
     rate_limit::check_rate_limit(env, &raiser, "raise_dispute")?;
 
-    let state: ContractState = env
-        .storage()
-        .instance()
-        .get(&DataKey::State)
-        .ok_or(DisputeError::NotInitialized)?;
+    let state: ContractState = load_state(env)?;
 
     if details_hash.is_empty() {
         return Err(DisputeError::InvalidDetailsHash);
@@ -241,7 +255,9 @@ pub fn raise_dispute(
     };
 
     env.storage().persistent().set(&key, &dispute);
-    env.storage().persistent().extend_ttl(&key, 500000, 500000);
+    env.storage()
+        .persistent()
+        .extend_ttl(&key, TTL_THRESHOLD, TTL_BUMP);
 
     events::dispute_raised(env, agreement_id, details_hash);
 
@@ -257,6 +273,9 @@ pub fn vote_on_dispute(
     if !env.storage().persistent().has(&DataKey::Initialized) {
         return Err(DisputeError::NotInitialized);
     }
+    // Keep the instance/admin entry alive on this mutating entrypoint too, so it
+    // is not archived while the per-record persistent entries are kept extended.
+    bump_instance_ttl(env);
 
     arbiter.require_auth();
 
@@ -300,7 +319,7 @@ pub fn vote_on_dispute(
     env.storage().persistent().set(&vote_key, &vote);
     env.storage()
         .persistent()
-        .extend_ttl(&vote_key, 500000, 500000);
+        .extend_ttl(&vote_key, TTL_THRESHOLD, TTL_BUMP);
 
     if favor_landlord {
         dispute.votes_favor_landlord += 1;
@@ -312,7 +331,7 @@ pub fn vote_on_dispute(
     env.storage().persistent().set(&dispute_key, &dispute);
     env.storage()
         .persistent()
-        .extend_ttl(&dispute_key, 500000, 500000);
+        .extend_ttl(&dispute_key, TTL_THRESHOLD, TTL_BUMP);
 
     events::vote_cast(env, agreement_id, arbiter, favor_landlord);
 
@@ -345,11 +364,7 @@ pub fn resolve_dispute(
     resolver: Address,
     agreement_id: String,
 ) -> Result<DisputeOutcome, DisputeError> {
-    let state: ContractState = env
-        .storage()
-        .instance()
-        .get(&DataKey::State)
-        .ok_or(DisputeError::NotInitialized)?;
+    let state: ContractState = load_state(env)?;
 
     let dispute_key = DataKey::Dispute(agreement_id.clone());
     let mut dispute: Dispute = env
@@ -376,7 +391,7 @@ pub fn resolve_dispute(
     env.storage().persistent().set(&dispute_key, &dispute);
     env.storage()
         .persistent()
-        .extend_ttl(&dispute_key, 500000, 500000);
+        .extend_ttl(&dispute_key, TTL_THRESHOLD, TTL_BUMP);
 
     let outcome = if dispute.votes_favor_landlord > dispute.votes_favor_tenant {
         DisputeOutcome::FavorLandlord
@@ -423,7 +438,7 @@ pub fn resolve_dispute_on_timeout(
     env.storage().persistent().set(&dispute_key, &dispute);
     env.storage()
         .persistent()
-        .extend_ttl(&dispute_key, 500000, 500000);
+        .extend_ttl(&dispute_key, TTL_THRESHOLD, TTL_BUMP);
 
     let outcome = if dispute.votes_favor_landlord > dispute.votes_favor_tenant {
         DisputeOutcome::FavorLandlord
@@ -471,6 +486,9 @@ pub fn create_appeal(
     if !env.storage().persistent().has(&DataKey::Initialized) {
         return Err(DisputeError::NotInitialized);
     }
+    // Keep the instance/admin entry alive on this mutating entrypoint too, so it
+    // is not archived while the per-record persistent entries are kept extended.
+    bump_instance_ttl(env);
 
     appellant.require_auth();
 
@@ -562,28 +580,32 @@ pub fn create_appeal(
     env.storage().persistent().set(&appeal_key, &appeal);
     env.storage()
         .persistent()
-        .extend_ttl(&appeal_key, 500000, 500000);
+        .extend_ttl(&appeal_key, TTL_THRESHOLD, TTL_BUMP);
 
     env.storage()
         .persistent()
         .set(&existing_appeal_key, &appeal_id);
     env.storage()
         .persistent()
-        .extend_ttl(&existing_appeal_key, 500000, 500000);
+        .extend_ttl(&existing_appeal_key, TTL_THRESHOLD, TTL_BUMP);
 
     env.storage()
         .persistent()
         .set(&appeal_count_key, &next_count);
     env.storage()
         .persistent()
-        .extend_ttl(&appeal_count_key, 500000, 500000);
+        .extend_ttl(&appeal_count_key, TTL_THRESHOLD, TTL_BUMP);
 
+    let fee_paid_key = DataKey::AppealFeePaid(appeal_id.clone());
+    env.storage().persistent().set(&fee_paid_key, &APPEAL_FEE);
     env.storage()
         .persistent()
-        .set(&DataKey::AppealFeePaid(appeal_id.clone()), &APPEAL_FEE);
+        .extend_ttl(&fee_paid_key, TTL_THRESHOLD, TTL_BUMP);
+    let fee_refunded_key = DataKey::AppealFeeRefunded(appeal_id.clone());
+    env.storage().persistent().set(&fee_refunded_key, &false);
     env.storage()
         .persistent()
-        .set(&DataKey::AppealFeeRefunded(appeal_id.clone()), &false);
+        .extend_ttl(&fee_refunded_key, TTL_THRESHOLD, TTL_BUMP);
 
     events::appeal_created(env, appeal_id.clone(), dispute_id);
 
@@ -599,6 +621,9 @@ pub fn vote_on_appeal(
     if !env.storage().persistent().has(&DataKey::Initialized) {
         return Err(DisputeError::NotInitialized);
     }
+    // Keep the instance/admin entry alive on this mutating entrypoint too, so it
+    // is not archived while the per-record persistent entries are kept extended.
+    bump_instance_ttl(env);
 
     arbiter.require_auth();
 
@@ -648,7 +673,7 @@ pub fn vote_on_appeal(
     env.storage().persistent().set(&appeal_key, &appeal);
     env.storage()
         .persistent()
-        .extend_ttl(&appeal_key, 500000, 500000);
+        .extend_ttl(&appeal_key, TTL_THRESHOLD, TTL_BUMP);
 
     events::appeal_voted(env, appeal_id, arbiter);
 
@@ -656,11 +681,7 @@ pub fn vote_on_appeal(
 }
 
 pub fn resolve_appeal(env: &Env, resolver: Address, appeal_id: String) -> Result<(), DisputeError> {
-    let state: ContractState = env
-        .storage()
-        .instance()
-        .get(&DataKey::State)
-        .ok_or(DisputeError::NotInitialized)?;
+    let state: ContractState = load_state(env)?;
 
     let appeal_key = DataKey::Appeal(appeal_id.clone());
     let mut appeal: DisputeAppeal = env
@@ -709,24 +730,24 @@ pub fn resolve_appeal(env: &Env, resolver: Address, appeal_id: String) -> Result
         .get_outcome()
         .ok_or(DisputeError::DisputeAlreadyResolved)?;
 
+    let fee_refunded_key = DataKey::AppealFeeRefunded(appeal_id.clone());
     if appeal_outcome != original_outcome {
         appeal.status = AppealStatus::Approved;
-        env.storage()
-            .persistent()
-            .set(&DataKey::AppealFeeRefunded(appeal_id.clone()), &true);
+        env.storage().persistent().set(&fee_refunded_key, &true);
     } else {
         appeal.status = AppealStatus::Rejected;
-        env.storage()
-            .persistent()
-            .set(&DataKey::AppealFeeRefunded(appeal_id.clone()), &false);
+        env.storage().persistent().set(&fee_refunded_key, &false);
     }
+    env.storage()
+        .persistent()
+        .extend_ttl(&fee_refunded_key, TTL_THRESHOLD, TTL_BUMP);
 
     appeal.resolved_at = Some(env.ledger().timestamp());
 
     env.storage().persistent().set(&appeal_key, &appeal);
     env.storage()
         .persistent()
-        .extend_ttl(&appeal_key, 500000, 500000);
+        .extend_ttl(&appeal_key, TTL_THRESHOLD, TTL_BUMP);
 
     events::appeal_resolved(env, appeal_id, appeal_outcome);
 
@@ -737,6 +758,9 @@ pub fn cancel_appeal(env: &Env, appellant: Address, appeal_id: String) -> Result
     if !env.storage().persistent().has(&DataKey::Initialized) {
         return Err(DisputeError::NotInitialized);
     }
+    // Keep the instance/admin entry alive on this mutating entrypoint too, so it
+    // is not archived while the per-record persistent entries are kept extended.
+    bump_instance_ttl(env);
 
     appellant.require_auth();
 
@@ -762,7 +786,7 @@ pub fn cancel_appeal(env: &Env, appellant: Address, appeal_id: String) -> Result
     env.storage().persistent().set(&appeal_key, &appeal);
     env.storage()
         .persistent()
-        .extend_ttl(&appeal_key, 500000, 500000);
+        .extend_ttl(&appeal_key, TTL_THRESHOLD, TTL_BUMP);
 
     events::appeal_cancelled(env, appeal_id);
 
@@ -784,11 +808,7 @@ pub fn set_arbiter_stats(
     rating: u32,
     disputes_resolved: u32,
 ) -> Result<(), DisputeError> {
-    let state: ContractState = env
-        .storage()
-        .instance()
-        .get(&DataKey::State)
-        .ok_or(DisputeError::NotInitialized)?;
+    let state: ContractState = load_state(env)?;
 
     admin.require_auth();
     if admin != state.admin {
@@ -822,7 +842,9 @@ pub fn set_arbiter_stats(
     };
     let key = DataKey::ArbiterStats(arbiter.clone());
     env.storage().persistent().set(&key, &stats);
-    env.storage().persistent().extend_ttl(&key, 500000, 500000);
+    env.storage()
+        .persistent()
+        .extend_ttl(&key, TTL_THRESHOLD, TTL_BUMP);
 
     Ok(())
 }
@@ -926,6 +948,9 @@ pub fn vote_on_dispute_weighted(
     if !env.storage().persistent().has(&DataKey::Initialized) {
         return Err(DisputeError::NotInitialized);
     }
+    // Keep the instance/admin entry alive on this mutating entrypoint too, so it
+    // is not archived while the per-record persistent entries are kept extended.
+    bump_instance_ttl(env);
 
     arbiter.require_auth();
 
@@ -969,7 +994,7 @@ pub fn vote_on_dispute_weighted(
     env.storage().persistent().set(&wvote_key, &weighted_vote);
     env.storage()
         .persistent()
-        .extend_ttl(&wvote_key, 500000, 500000);
+        .extend_ttl(&wvote_key, TTL_THRESHOLD, TTL_BUMP);
 
     let wdisp_key = DataKey::WeightedDisputeVotes(dispute_id.clone());
     let mut wdisp: WeightedDisputeVotes =
@@ -1002,7 +1027,7 @@ pub fn vote_on_dispute_weighted(
     env.storage().persistent().set(&wdisp_key, &wdisp);
     env.storage()
         .persistent()
-        .extend_ttl(&wdisp_key, 500000, 500000);
+        .extend_ttl(&wdisp_key, TTL_THRESHOLD, TTL_BUMP);
 
     events::weighted_vote_cast(env, dispute_id, arbiter, weight);
 
@@ -1020,11 +1045,7 @@ pub fn resolve_dispute_weighted(
     resolver: Address,
     dispute_id: String,
 ) -> Result<DisputeOutcome, DisputeError> {
-    let state: ContractState = env
-        .storage()
-        .instance()
-        .get(&DataKey::State)
-        .ok_or(DisputeError::NotInitialized)?;
+    let state: ContractState = load_state(env)?;
 
     let dispute_key = DataKey::Dispute(dispute_id.clone());
     let mut dispute: Dispute = env
@@ -1081,7 +1102,7 @@ pub fn resolve_dispute_weighted(
     env.storage().persistent().set(&dispute_key, &dispute);
     env.storage()
         .persistent()
-        .extend_ttl(&dispute_key, 500000, 500000);
+        .extend_ttl(&dispute_key, TTL_THRESHOLD, TTL_BUMP);
 
     events::dispute_resolved_by_weight(env, dispute_id, outcome.clone(), total_weight);
 
