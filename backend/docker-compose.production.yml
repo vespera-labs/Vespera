@@ -2,8 +2,8 @@ version: '3.8'
 
 services:
   backend:
-    image: ${DOCKER_IMAGE:-chioma-backend:latest}
-    container_name: chioma-backend-${ENVIRONMENT:-production}
+    image: ${DOCKER_IMAGE:-vespera-backend:latest}
+    container_name: vespera-backend-${ENVIRONMENT:-production}
     restart: unless-stopped
     ports:
       - "${PORT:-3000}:3000"
@@ -21,7 +21,7 @@ services:
       - SOROBAN_RPC_URL=${SOROBAN_RPC_URL}
       - SENTRY_DSN=${SENTRY_DSN}
     networks:
-      - chioma-network
+      - vespera-network
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
       interval: 30s
@@ -36,7 +36,7 @@ services:
 
   postgres:
     image: postgres:16-alpine
-    container_name: chioma-postgres-${ENVIRONMENT:-production}
+    container_name: vespera-postgres-${ENVIRONMENT:-production}
     restart: unless-stopped
     environment:
       - POSTGRES_USER=${DB_USERNAME}
@@ -45,7 +45,7 @@ services:
     volumes:
       - postgres-data:/var/lib/postgresql/data
     networks:
-      - chioma-network
+      - vespera-network
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME}"]
       interval: 10s
@@ -54,13 +54,13 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: chioma-redis-${ENVIRONMENT:-production}
+    container_name: vespera-redis-${ENVIRONMENT:-production}
     restart: unless-stopped
     command: redis-server --requirepass ${REDIS_PASSWORD}
     volumes:
       - redis-data:/data
     networks:
-      - chioma-network
+      - vespera-network
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -68,7 +68,7 @@ services:
       retries: 3
 
 networks:
-  chioma-network:
+  vespera-network:
     driver: bridge
 
 volumes:

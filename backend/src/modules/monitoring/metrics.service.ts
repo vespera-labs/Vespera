@@ -73,7 +73,7 @@ export class MetricsService {
 
   // Get metrics in Prometheus format
   async getMetrics(): Promise<string> {
-    let output = '# Chioma Backend Metrics\n';
+    let output = '# Vespera Backend Metrics\n';
 
     for (const [key, value] of this.metrics.entries()) {
       if (typeof value === 'number') {

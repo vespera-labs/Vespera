@@ -23,8 +23,8 @@ export interface PaymentSplit {
 }
 
 @Injectable()
-export class ChiomaContractService {
-  private readonly logger = new Logger(ChiomaContractService.name);
+export class VesperaContractService {
+  private readonly logger = new Logger(VesperaContractService.name);
   private readonly server: SorobanRpc.Server;
   private readonly contract?: Contract;
   private readonly networkPassphrase: string;
@@ -36,7 +36,7 @@ export class ChiomaContractService {
       this.configService.get<string>('SOROBAN_RPC_URL') ||
       'https://soroban-testnet.stellar.org';
     const contractId =
-      this.configService.get<string>('CHIOMA_CONTRACT_ID') || '';
+      this.configService.get<string>('VESPERA_CONTRACT_ID') || '';
     const adminSecret =
       this.configService.get<string>('STELLAR_ADMIN_SECRET_KEY') || '';
     const network = this.configService.get<string>(
@@ -52,7 +52,7 @@ export class ChiomaContractService {
       this.isConfigured = true;
     } else {
       this.logger.warn(
-        'CHIOMA_CONTRACT_ID not set - on-chain features will be disabled',
+        'VESPERA_CONTRACT_ID not set - on-chain features will be disabled',
       );
       this.isConfigured = false;
     }

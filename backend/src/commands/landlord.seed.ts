@@ -148,7 +148,7 @@ function getSeedConfig(options: SeedLandlordOptions): SeedLandlordConfig {
     email: (
       options.email ??
       process.env.LANDLORD_DEFAULT_EMAIL ??
-      'landlord@chioma.local'
+      'landlord@vespera.local'
     )
       .trim()
       .toLowerCase(),
