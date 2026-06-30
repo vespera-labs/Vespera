@@ -12,11 +12,28 @@ impl EscrowStorage {
     pub const DEFAULT_DISPUTE_TIMEOUT_DAYS: u64 = 30;
     pub const DEFAULT_PAYMENT_TIMEOUT_DAYS: u64 = 7;
 
+    /// Ledger-count threshold below which a persistent or instance entry is bumped.
+    /// Matches the workspace-wide TTL policy (see `contracts/vespera`) and is sized to
+    /// comfortably outlive the longest escrow/dispute window (30-day dispute timeout),
+    /// so a funded escrow can never be archived before its timeout elapses.
+    pub const TTL_THRESHOLD: u32 = 500_000;
+    /// Number of ledgers a bumped entry's life is extended to.
+    pub const TTL_BUMP: u32 = 500_000;
+
     /// Retrieve an escrow by ID.
     /// Returns None if escrow doesn't exist.
+    ///
+    /// Re-extends the entry's TTL on read so that a funded escrow being inspected or
+    /// operated on stays live for the full timeout window, not only when first written.
     pub fn get(env: &Env, id: &BytesN<32>) -> Option<Escrow> {
         let key = DataKey::Escrow(id.clone());
-        env.storage().persistent().get::<_, Escrow>(&key)
+        let escrow = env.storage().persistent().get::<_, Escrow>(&key);
+        if escrow.is_some() {
+            env.storage()
+                .persistent()
+                .extend_ttl(&key, Self::TTL_THRESHOLD, Self::TTL_BUMP);
+        }
+        escrow
     }
 
     /// Save or update an escrow.
@@ -24,6 +41,9 @@ impl EscrowStorage {
     pub fn save(env: &Env, escrow: &Escrow) {
         let key = DataKey::Escrow(escrow.id.clone());
         env.storage().persistent().set(&key, escrow);
+        env.storage()
+            .persistent()
+            .extend_ttl(&key, Self::TTL_THRESHOLD, Self::TTL_BUMP);
     }
 
     /// Retrieve all approvals for an escrow release.
@@ -47,6 +67,9 @@ impl EscrowStorage {
         approvals.push_back(approval);
         let key = DataKey::Approvals(escrow_id.clone());
         env.storage().persistent().set(&key, &approvals);
+        env.storage()
+            .persistent()
+            .extend_ttl(&key, Self::TTL_THRESHOLD, Self::TTL_BUMP);
     }
 
     /// Clear all approvals for an escrow.
@@ -71,6 +94,9 @@ impl EscrowStorage {
         let count = Self::get_approval_count_for_target(env, escrow_id, release_to);
         let key = DataKey::ApprovalCount(escrow_id.clone(), release_to.clone());
         env.storage().persistent().set(&key, &(count + 1));
+        env.storage()
+            .persistent()
+            .extend_ttl(&key, Self::TTL_THRESHOLD, Self::TTL_BUMP);
     }
 
     /// Check if a specific signer has already approved a specific target (O(1) lookup).
@@ -96,6 +122,9 @@ impl EscrowStorage {
     ) {
         let key = DataKey::SignerApproved(escrow_id.clone(), signer.clone(), release_to.clone());
         env.storage().persistent().set(&key, &true);
+        env.storage()
+            .persistent()
+            .extend_ttl(&key, Self::TTL_THRESHOLD, Self::TTL_BUMP);
     }
 
     /// Get the amount-bound approval count for a (release_to, amount) pair (O(1) lookup).
@@ -121,6 +150,9 @@ impl EscrowStorage {
         let count = Self::get_amount_approval_count(env, escrow_id, release_to, amount);
         let key = DataKey::AmountApprovalCount(escrow_id.clone(), release_to.clone(), amount);
         env.storage().persistent().set(&key, &(count + 1));
+        env.storage()
+            .persistent()
+            .extend_ttl(&key, Self::TTL_THRESHOLD, Self::TTL_BUMP);
     }
 
     /// Check if a signer has already approved a specific (release_to, amount) pair.
@@ -158,6 +190,9 @@ impl EscrowStorage {
             amount,
         );
         env.storage().persistent().set(&key, &true);
+        env.storage()
+            .persistent()
+            .extend_ttl(&key, Self::TTL_THRESHOLD, Self::TTL_BUMP);
     }
 
     /// Clear the amount-bound approval count and per-signer flags for a (release_to, amount)
@@ -214,6 +249,9 @@ impl EscrowStorage {
         env.storage()
             .instance()
             .set(&DataKey::EscrowCount, &(count + 1));
+        env.storage()
+            .instance()
+            .extend_ttl(Self::TTL_THRESHOLD, Self::TTL_BUMP);
     }
 
     /// Fetch timeout config or return defaults.
@@ -233,6 +271,9 @@ impl EscrowStorage {
         env.storage()
             .instance()
             .set(&DataKey::TimeoutConfig, config);
+        env.storage()
+            .instance()
+            .extend_ttl(Self::TTL_THRESHOLD, Self::TTL_BUMP);
     }
 
     /// Retrieve release history for an escrow.
@@ -256,5 +297,8 @@ impl EscrowStorage {
         history.push_back(record);
         let key = DataKey::ReleaseHistory(escrow_id.clone());
         env.storage().persistent().set(&key, &history);
+        env.storage()
+            .persistent()
+            .extend_ttl(&key, Self::TTL_THRESHOLD, Self::TTL_BUMP);
     }
 }

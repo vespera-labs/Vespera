@@ -53,9 +53,11 @@ impl DisputeResolutionContract {
         admin.require_auth();
 
         env.storage().persistent().set(&DataKey::Initialized, &true);
-        env.storage()
-            .persistent()
-            .extend_ttl(&DataKey::Initialized, 500000, 500000);
+        env.storage().persistent().extend_ttl(
+            &DataKey::Initialized,
+            storage::TTL_THRESHOLD,
+            storage::TTL_BUMP,
+        );
 
         let state = ContractState {
             admin: admin.clone(),
@@ -65,7 +67,9 @@ impl DisputeResolutionContract {
         };
 
         env.storage().instance().set(&DataKey::State, &state);
-        env.storage().instance().extend_ttl(500000, 500000);
+        env.storage()
+            .instance()
+            .extend_ttl(storage::TTL_THRESHOLD, storage::TTL_BUMP);
 
         events::contract_initialized(&env, admin, min_votes_required);
 
@@ -74,10 +78,21 @@ impl DisputeResolutionContract {
 
     /// Get the current contract state.
     ///
+    /// Re-extends the instance-storage TTL whenever the state is present so the
+    /// admin/`State` entry stays alive on every read, not only at `initialize`.
+    /// Every admin entrypoint (`pause`, `unpause`, `propose_admin`,
+    /// `accept_admin`) routes through here and therefore bumps the TTL too.
+    ///
     /// # Returns
     /// * `Option<ContractState>` - The contract state if initialized
     pub fn get_state(env: Env) -> Option<ContractState> {
-        env.storage().instance().get(&DataKey::State)
+        let state = env.storage().instance().get(&DataKey::State);
+        if state.is_some() {
+            env.storage()
+                .instance()
+                .extend_ttl(storage::TTL_THRESHOLD, storage::TTL_BUMP);
+        }
+        state
     }
 
     /// Add a verified arbiter to handle disputes (admin only).
@@ -326,7 +341,9 @@ impl DisputeResolutionContract {
         env.storage()
             .instance()
             .set(&storage::DataKey::PauseState, &pause_state);
-        env.storage().instance().extend_ttl(500000, 500000);
+        env.storage()
+            .instance()
+            .extend_ttl(storage::TTL_THRESHOLD, storage::TTL_BUMP);
 
         events::paused(&env, reason, admin);
         Ok(())
@@ -376,7 +393,9 @@ impl DisputeResolutionContract {
         env.storage()
             .instance()
             .set(&storage::DataKey::PendingAdmin, &new_admin);
-        env.storage().instance().extend_ttl(500000, 500000);
+        env.storage()
+            .instance()
+            .extend_ttl(storage::TTL_THRESHOLD, storage::TTL_BUMP);
 
         events::admin_proposed(&env, admin, new_admin);
         Ok(())
@@ -404,7 +423,9 @@ impl DisputeResolutionContract {
         env.storage()
             .instance()
             .set(&storage::DataKey::State, &state);
-        env.storage().instance().extend_ttl(500000, 500000);
+        env.storage()
+            .instance()
+            .extend_ttl(storage::TTL_THRESHOLD, storage::TTL_BUMP);
         env.storage()
             .instance()
             .remove(&storage::DataKey::PendingAdmin);
@@ -447,7 +468,9 @@ impl DisputeResolutionContract {
 
         arbiter_data.active = false;
         env.storage().persistent().set(&key, &arbiter_data);
-        env.storage().persistent().extend_ttl(&key, 500000, 500000);
+        env.storage()
+            .persistent()
+            .extend_ttl(&key, storage::TTL_THRESHOLD, storage::TTL_BUMP);
 
         events::arbiter_deactivated(&env, admin, arbiter);
         Ok(())
@@ -480,7 +503,9 @@ impl DisputeResolutionContract {
 
         arbiter_data.active = true;
         env.storage().persistent().set(&key, &arbiter_data);
-        env.storage().persistent().extend_ttl(&key, 500000, 500000);
+        env.storage()
+            .persistent()
+            .extend_ttl(&key, storage::TTL_THRESHOLD, storage::TTL_BUMP);
 
         events::arbiter_reactivated(&env, admin, arbiter);
         Ok(())

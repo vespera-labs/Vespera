@@ -1401,3 +1401,47 @@ fn test_vote_on_appeal_rejects_after_voting_window() {
     let result = client.try_vote_on_appeal(&arbiter_1, &appeal_id, &DisputeOutcome::FavorTenant);
     assert_eq!(result, Err(Ok(DisputeError::AppealWindowExpired)));
 }
+
+// ── Issue #88: instance State TTL re-extended on state-reading entrypoints ──
+
+/// The admin/`State` lives in instance storage and is only bumped at
+/// `initialize`/config writes. Between those writes a long-lived contract could
+/// see the entry decay and be archived while per-record persistent entries are
+/// kept alive — making subsequent reads fail with `NotInitialized`. After the
+/// fix every state-reading entrypoint (here `get_state`) re-extends the instance
+/// TTL, so it is restored to the full lifetime on each read.
+#[test]
+fn test_instance_state_ttl_reextended_on_read() {
+    use soroban_sdk::testutils::storage::Instance as _;
+
+    let env = Env::default();
+    env.mock_all_auths();
+    env.ledger().with_mut(|li| {
+        li.sequence_number = 1;
+        li.min_persistent_entry_ttl = 1_000;
+        li.min_temp_entry_ttl = 1_000;
+        li.max_entry_ttl = 1_000_000;
+    });
+
+    let client = create_contract(&env);
+    let admin = Address::generate(&env);
+    client.initialize(&admin, &3, &Address::generate(&env));
+
+    // Advance far enough that the instance TTL set at initialize has decayed
+    // below the assertion threshold, so only a re-extension on read can lift it.
+    env.ledger().with_mut(|li| li.sequence_number += 150_000);
+    let decayed = env.as_contract(&client.address, || env.storage().instance().get_ttl());
+    assert!(
+        decayed < 400_000,
+        "precondition: instance TTL should have decayed below 400_000, got {decayed}"
+    );
+
+    // A pure state-reading entrypoint must re-extend the instance TTL.
+    let _ = client.get_state();
+
+    let ttl = env.as_contract(&client.address, || env.storage().instance().get_ttl());
+    assert!(
+        ttl >= 450_000,
+        "instance State TTL not re-extended on read: {ttl} (expected ~500_000)"
+    );
+}
