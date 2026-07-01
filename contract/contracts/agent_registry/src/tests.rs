@@ -534,3 +534,54 @@ fn test_rate_agent_fails_when_already_rated() {
     client.rate_agent(&tenant, &agent, &5, &txn_id);
     client.rate_agent(&tenant, &agent, &4, &txn_id);
 }
+
+// ─── Issue #96: complete_transaction emits a TransactionCompleted event ─────
+
+/// Returns true if an event whose first topic is the symbol `name` was published.
+fn event_emitted(env: &Env, name: &str) -> bool {
+    use soroban_sdk::testutils::Events;
+    use soroban_sdk::{Symbol, TryFromVal};
+    let target = Symbol::new(env, name);
+    env.events().all().iter().any(|(_id, topics, _data)| {
+        topics
+            .get(0)
+            .and_then(|t| Symbol::try_from_val(env, &t).ok())
+            .map(|s| s == target)
+            .unwrap_or(false)
+    })
+}
+
+#[test]
+fn test_complete_transaction_emits_completed_event() {
+    let env = Env::default();
+    let client = create_contract(&env);
+
+    let admin = Address::generate(&env);
+    let agent = Address::generate(&env);
+    let tenant = Address::generate(&env);
+    let landlord = Address::generate(&env);
+
+    env.mock_all_auths();
+
+    client.initialize(&admin);
+
+    let profile_hash = String::from_str(&env, "QmXoypizjW3WknFiJnKLwHCnL72vedxjQkDDP1mXWo6uco");
+    client.register_agent(&agent, &profile_hash);
+
+    let txn_id = String::from_str(&env, "TXN-001");
+    let parties = vec![&env, tenant.clone(), landlord.clone()];
+    client.register_transaction(&txn_id, &agent, &parties);
+
+    // No completion event before the transaction is completed.
+    assert!(
+        !event_emitted(&env, "txn_done"),
+        "txn_done must not fire before completion"
+    );
+
+    client.complete_transaction(&txn_id, &agent);
+
+    assert!(
+        event_emitted(&env, "txn_done"),
+        "complete_transaction must publish a TransactionCompleted (txn_done) event"
+    );
+}
