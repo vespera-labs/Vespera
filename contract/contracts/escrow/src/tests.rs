@@ -133,7 +133,7 @@ fn test_dispute_resolution_sets_correct_status() {
     env.mock_all_auths();
 
     // Test 1: Resolution in favor of depositor should set status to Refunded
-    let (client, depositor, beneficiary, arbiter, token_address) = setup_test(&env);
+    let (client, _admin, depositor, beneficiary, arbiter, token_address) = setup_test(&env);
     let amount = 1000i128;
 
     let escrow_id = client.create(&depositor, &beneficiary, &arbiter, &amount, &token_address);
@@ -158,7 +158,7 @@ fn test_dispute_resolution_sets_correct_status() {
     assert_eq!(token_client.balance(&depositor), amount);
 
     // Test 2: Resolution in favor of beneficiary should set status to Released
-    let (client2, depositor2, beneficiary2, arbiter2, token_address2) = setup_test(&env);
+    let (client2, _admin2, depositor2, beneficiary2, arbiter2, token_address2) = setup_test(&env);
     let amount2 = 2000i128;
 
     let escrow_id2 = client2.create(
@@ -194,7 +194,7 @@ fn test_dispute_resolution_terminal_status_enforced() {
     let env = Env::default();
     env.mock_all_auths();
 
-    let (client, depositor, beneficiary, arbiter, token_address) = setup_test(&env);
+    let (client, _admin, depositor, beneficiary, arbiter, token_address) = setup_test(&env);
     let amount = 1000i128;
 
     let escrow_id = client.create(&depositor, &beneficiary, &arbiter, &amount, &token_address);
@@ -831,7 +831,7 @@ fn test_partial_release_rejects_non_party_caller() {
     let env = Env::default();
     env.mock_all_auths();
 
-    let (client, depositor, beneficiary, arbiter, token_address) = setup_test(&env);
+    let (client, _admin, depositor, beneficiary, arbiter, token_address) = setup_test(&env);
     let amount = 1000i128;
     let partial_amount = 300i128;
 
@@ -866,7 +866,7 @@ fn test_deduction_rejects_non_party_caller() {
     let env = Env::default();
     env.mock_all_auths();
 
-    let (client, depositor, beneficiary, arbiter, token_address) = setup_test(&env);
+    let (client, _admin, depositor, beneficiary, arbiter, token_address) = setup_test(&env);
     let amount = 1000i128;
     let damage_amount = 200i128;
 
@@ -896,7 +896,7 @@ fn test_deduction_cannot_redirect_depositor_approvals_to_beneficiary() {
     let env = Env::default();
     env.mock_all_auths();
 
-    let (client, depositor, beneficiary, arbiter, token_address) = setup_test(&env);
+    let (client, _admin, depositor, beneficiary, arbiter, token_address) = setup_test(&env);
     let amount = 1000i128;
     let damage_amount = 200i128;
 
@@ -927,7 +927,7 @@ fn test_partial_release_amount_binding_enforced() {
     let env = Env::default();
     env.mock_all_auths();
 
-    let (client, depositor, beneficiary, arbiter, token_address) = setup_test(&env);
+    let (client, _admin, depositor, beneficiary, arbiter, token_address) = setup_test(&env);
     let amount = 1000i128;
 
     let escrow_id = client.create(&depositor, &beneficiary, &arbiter, &amount, &token_address);
@@ -958,7 +958,7 @@ fn test_cross_escrow_isolation() {
     let env = Env::default();
     env.mock_all_auths();
 
-    let (client, depositor, beneficiary, arbiter, token_address) = setup_test(&env);
+    let (client, _admin, depositor, beneficiary, arbiter, token_address) = setup_test(&env);
     let beneficiary2 = Address::generate(&env);
     let amount_a = 1000i128;
     let amount_b = 500i128;
@@ -1352,3 +1352,126 @@ fn test_authorization_resolve_dispute_beneficiary_fails() {
 
 // Rate limit tests removed - rate limit config is not exposed as a public method
 // The rate limiting is tested implicitly through other tests
+
+// ─── Issue #96: Events on funding, full release, and dispute resolution ─────
+
+/// Returns true if an event whose first topic is the symbol `name` was published.
+fn event_emitted(env: &Env, name: &str) -> bool {
+    use soroban_sdk::testutils::Events;
+    use soroban_sdk::{Symbol, TryFromVal};
+    let target = Symbol::new(env, name);
+    env.events().all().iter().any(|(_id, topics, _data)| {
+        topics
+            .get(0)
+            .and_then(|t| Symbol::try_from_val(env, &t).ok())
+            .map(|s| s == target)
+            .unwrap_or(false)
+    })
+}
+
+#[test]
+fn test_fund_escrow_emits_escrow_funded_event() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let (client, _admin, depositor, beneficiary, arbiter, token_address) = setup_test(&env);
+    let amount = 1000i128;
+
+    let escrow_id = client.create(&depositor, &beneficiary, &arbiter, &amount, &token_address);
+    let token_admin = TokenAdminClient::new(&env, &token_address);
+    token_admin.mint(&depositor, &amount);
+
+    client.fund_escrow(&escrow_id, &depositor);
+
+    assert!(
+        event_emitted(&env, "escrow_funded"),
+        "fund_escrow must publish an escrow_funded event"
+    );
+}
+
+#[test]
+fn test_full_release_emits_escrow_released_event() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let (client, _admin, depositor, beneficiary, arbiter, token_address) = setup_test(&env);
+    let amount = 1000i128;
+
+    let escrow_id = client.create(&depositor, &beneficiary, &arbiter, &amount, &token_address);
+    let token_admin = TokenAdminClient::new(&env, &token_address);
+    token_admin.mint(&depositor, &amount);
+    client.fund_escrow(&escrow_id, &depositor);
+
+    // Two approvals trigger the full-release branch.
+    client.approve_release(&escrow_id, &depositor, &beneficiary);
+    // No release event should exist until the 2-of-3 threshold executes.
+    assert!(
+        !event_emitted(&env, "escrow_released"),
+        "escrow_released must not fire before the release threshold"
+    );
+    client.approve_release(&escrow_id, &arbiter, &beneficiary);
+
+    // `events().all()` reflects the most recent invocation, so assert the
+    // event before any subsequent read call (e.g. get_escrow) resets it.
+    assert!(
+        event_emitted(&env, "escrow_released"),
+        "full release must publish an escrow_released event"
+    );
+    assert_eq!(client.get_escrow(&escrow_id).status, EscrowStatus::Released);
+}
+
+#[test]
+fn test_resolve_dispute_release_emits_dispute_resolved_event() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let (client, _admin, depositor, beneficiary, arbiter, token_address) = setup_test(&env);
+    let amount = 1000i128;
+
+    let escrow_id = client.create(&depositor, &beneficiary, &arbiter, &amount, &token_address);
+    let token_admin = TokenAdminClient::new(&env, &token_address);
+    token_admin.mint(&depositor, &amount);
+    client.fund_escrow(&escrow_id, &depositor);
+    client.initiate_dispute(
+        &escrow_id,
+        &beneficiary,
+        &soroban_sdk::String::from_str(&env, "dispute"),
+    );
+
+    // Release to beneficiary (not a refund).
+    client.resolve_dispute(&escrow_id, &arbiter, &beneficiary);
+
+    assert!(
+        event_emitted(&env, "dispute_resolved"),
+        "resolve_dispute must publish a dispute_resolved event"
+    );
+    assert_eq!(client.get_escrow(&escrow_id).status, EscrowStatus::Released);
+}
+
+#[test]
+fn test_resolve_dispute_refund_emits_dispute_resolved_event() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let (client, _admin, depositor, beneficiary, arbiter, token_address) = setup_test(&env);
+    let amount = 1000i128;
+
+    let escrow_id = client.create(&depositor, &beneficiary, &arbiter, &amount, &token_address);
+    let token_admin = TokenAdminClient::new(&env, &token_address);
+    token_admin.mint(&depositor, &amount);
+    client.fund_escrow(&escrow_id, &depositor);
+    client.initiate_dispute(
+        &escrow_id,
+        &beneficiary,
+        &soroban_sdk::String::from_str(&env, "dispute"),
+    );
+
+    // Refund to depositor.
+    client.resolve_dispute(&escrow_id, &arbiter, &depositor);
+
+    assert!(
+        event_emitted(&env, "dispute_resolved"),
+        "resolve_dispute refund must publish a dispute_resolved event"
+    );
+    assert_eq!(client.get_escrow(&escrow_id).status, EscrowStatus::Refunded);
+}

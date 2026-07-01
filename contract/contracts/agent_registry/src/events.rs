@@ -38,6 +38,16 @@ pub struct TransactionRegistered {
     pub agent: Address,
 }
 
+#[contractevent(topics = ["txn_done"])]
+pub struct TransactionCompleted {
+    #[topic]
+    pub transaction_id: String,
+    #[topic]
+    pub agent: Address,
+    /// The agent's running total of completed agreements after this completion.
+    pub completed_agreements: u32,
+}
+
 #[contractevent(topics = ["paused"])]
 pub struct Paused {
     pub reason: String,
@@ -90,6 +100,20 @@ pub(crate) fn transaction_registered(env: &Env, transaction_id: String, agent: A
     TransactionRegistered {
         transaction_id,
         agent,
+    }
+    .publish(env);
+}
+
+pub(crate) fn transaction_completed(
+    env: &Env,
+    transaction_id: String,
+    agent: Address,
+    completed_agreements: u32,
+) {
+    TransactionCompleted {
+        transaction_id,
+        agent,
+        completed_agreements,
     }
     .publish(env);
 }
