@@ -1,7 +1,7 @@
 {
   "private": true,
   "scripts": {
-    "lint": "pnpm --recursive --stream lint",
+    "lint": "eslint .",
     "test": "pnpm --recursive --stream test",
     "build": "pnpm --recursive --stream build",
     "prepare": "husky install",
