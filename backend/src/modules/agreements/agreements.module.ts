@@ -18,6 +18,7 @@ import { NFTTransfer } from './entities/nft-transfer.entity';
 import { AuditModule } from '../audit/audit.module';
 import { ReviewsModule } from '../reviews/reviews.module';
 import { StellarModule } from '../stellar/stellar.module';
+import { KycModule } from '../kyc/kyc.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { StellarModule } from '../stellar/stellar.module';
     AuditModule,
     ReviewsModule,
     StellarModule,
+    KycModule,
   ],
   controllers: [AgreementsController, AgreementNftController],
   providers: [

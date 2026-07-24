@@ -4,6 +4,7 @@
 import { useEffect, useState } from "react";
 import { Wallet } from "lucide-react";
 import { connectFreighter, getFreighterAddress } from "@/lib/stellar";
+import { shortAddress } from "@/lib/format";
 
 /**
  * FIX #10: Eliminates hydration mismatch by gating address-dependent rendering
@@ -52,11 +53,11 @@ export function WalletButton() {
   }
 
   if (address) {
-    const short = ;
+    const short = shortAddress(address);
     return (
       <button
         onClick={handleDisconnect}
-        aria-label={}
+        aria-label={`Disconnect wallet ${short}`}
         title="Click to disconnect"
         className="rounded-full border border-ink/10 px-4 py-2 font-mono text-xs hover:border-destructive hover:text-destructive transition-colors"
       >

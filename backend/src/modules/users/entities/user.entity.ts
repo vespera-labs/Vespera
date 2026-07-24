@@ -8,7 +8,7 @@ import {
   Index,
 } from 'typeorm';
 import { Exclude } from 'class-transformer';
-import { KycStatus } from '../../kyc/kyc-status.enum';
+import { KycStatus, ScreeningStatus } from '../../kyc/kyc-status.enum';
 
 export enum UserRole {
   USER = 'user',
@@ -98,6 +98,14 @@ export class User {
     default: KycStatus.PENDING,
   })
   kycStatus: KycStatus;
+
+  @Column({
+    name: 'screening_status',
+    type: 'enum',
+    enum: ScreeningStatus,
+    default: ScreeningStatus.CLEAR,
+  })
+  screeningStatus: ScreeningStatus;
 
   @Exclude()
   @Column({ name: 'verification_token', nullable: true, type: 'varchar' })

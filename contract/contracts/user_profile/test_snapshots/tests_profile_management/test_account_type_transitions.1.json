@@ -202,10 +202,26 @@
                     },
                     {
                       "key": {
+                        "symbol": "kyc_status"
+                      },
+                      "val": {
+                        "u32": 0
+                      }
+                    },
+                    {
+                      "key": {
                         "symbol": "last_updated"
                       },
                       "val": {
                         "u64": "0"
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "screening_status"
+                      },
+                      "val": {
+                        "u32": 0
                       }
                     },
                     {
@@ -222,7 +238,7 @@
             },
             "ext": "v0"
           },
-          4095
+          500000
         ]
       ],
       [

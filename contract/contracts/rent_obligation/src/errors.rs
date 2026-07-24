@@ -14,4 +14,8 @@ pub enum ObligationError {
     BurnRecordNotFound = 8,
     CannotBurnActiveObligation = 9,
     InvalidBurnReason = 10,
+    /// Caller's KYC status is not Verified
+    KycNotVerified = 11,
+    /// Caller's screening status is not Clear
+    ScreeningNotClear = 12,
 }

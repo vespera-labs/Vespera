@@ -1,6 +1,6 @@
 //! Core escrow lifecycle logic: creation, funding, approvals, and release.
 //! Implements checks-effects-interactions pattern for reentrancy safety.
-use soroban_sdk::{contract, contractimpl, token, xdr::ToXdr, Address, BytesN, Env};
+use soroban_sdk::{contract, contractimpl, token, xdr::ToXdr, Address, BytesN, Env, Symbol, Vec};
 
 use crate::access::AccessControl;
 use crate::dispute::DisputeHandler;
@@ -53,6 +53,59 @@ impl EscrowContract {
     /// Get the current contract state.
     pub fn get_state(env: Env) -> Option<crate::types::ContractState> {
         env.storage().instance().get(&crate::types::DataKey::State)
+    }
+
+    /// Set the user profile contract address for KYC/screening enforcement.
+    pub fn set_user_profile_contract(
+        env: Env,
+        caller: Address,
+        contract_id: Address,
+    ) -> Result<(), EscrowError> {
+        caller.require_auth();
+        let state = Self::get_state(env.clone()).ok_or(EscrowError::NotInitialized)?;
+        if caller != state.admin {
+            return Err(EscrowError::Unauthorized);
+        }
+        env.storage()
+            .instance()
+            .set(&crate::types::DataKey::UserProfileContractId, &contract_id);
+        env.storage().instance().extend_ttl(500000, 500000);
+        Ok(())
+    }
+
+    /// Assert that a party is KYC Verified and Screening Clear by reading
+    /// the user_profile contract. Returns typed errors on failure.
+    /// Skips check if no user_profile contract is configured.
+    fn assert_cleared_for_party(env: &Env, party: &Address) -> Result<(), EscrowError> {
+        let user_profile_contract_id: Address = match env
+            .storage()
+            .instance()
+            .get(&crate::types::DataKey::UserProfileContractId)
+        {
+            Some(id) => id,
+            None => return Ok(()), // No enforcement configured — skip
+        };
+
+        let result: Option<crate::types::UserProfile> = env.invoke_contract(
+            &user_profile_contract_id,
+            &Symbol::new(env, "get_profile"),
+            Vec::from_array(env, [party.to_val()]),
+        );
+
+        let profile = match result {
+            Some(p) => p,
+            None => return Err(EscrowError::NotAuthorized),
+        };
+
+        if profile.kyc_status != crate::types::KycStatus::Verified {
+            return Err(EscrowError::KycNotVerified);
+        }
+
+        if profile.screening_status != crate::types::ScreeningStatus::Clear {
+            return Err(EscrowError::ScreeningNotClear);
+        }
+
+        Ok(())
     }
 
     /// Pause the contract (admin only).
@@ -270,6 +323,9 @@ impl EscrowContract {
         // Authorize the deposit
         caller.require_auth();
 
+        // KYC/Screening enforcement
+        Self::assert_cleared_for_party(&env, &caller)?;
+
         // EFFECTS: Update status
         escrow.status = EscrowStatus::Funded;
         EscrowStorage::save(&env, &escrow);
@@ -316,6 +372,9 @@ impl EscrowContract {
 
         // Authorize the approval
         caller.require_auth();
+
+        // KYC/Screening enforcement
+        Self::assert_cleared_for_party(&env, &caller)?;
 
         // Rate limiting check
         rate_limit::check_rate_limit(&env, &caller, "approve_release")?;
@@ -589,6 +648,9 @@ impl EscrowContract {
         AccessControl::is_party(&escrow, &caller)?;
         caller.require_auth();
 
+        // KYC/Screening enforcement
+        Self::assert_cleared_for_party(&env, &caller)?;
+
         // Verify escrow is in Funded state
         if escrow.status != EscrowStatus::Funded {
             return Err(EscrowError::InvalidState);
@@ -687,6 +749,9 @@ impl EscrowContract {
         // unrelated address cannot trigger fund movement once approvals exist.
         AccessControl::is_party(&escrow, &caller)?;
         caller.require_auth();
+
+        // KYC/Screening enforcement
+        Self::assert_cleared_for_party(&env, &caller)?;
 
         // Verify escrow is in Funded state
         if escrow.status != EscrowStatus::Funded {

@@ -10,4 +10,6 @@ pub enum DataKey {
     BurnRecord(String),
     BurnedNfts(String),
     BurnCount,
+    /// User profile contract ID for KYC/screening checks
+    UserProfileContractId,
 }

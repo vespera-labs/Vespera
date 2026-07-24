@@ -9,6 +9,25 @@ pub enum AccountType {
     Agent = 2,
 }
 
+/// KYC verification status
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum KycStatus {
+    Unverified = 0,
+    Pending = 1,
+    Verified = 2,
+    Rejected = 3,
+}
+
+/// Sanctions/screening status
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum ScreeningStatus {
+    Clear = 0,
+    Flagged = 1,
+    Blocked = 2,
+}
+
 /// On-chain user profile structure (SEP-29 compliant)
 /// Minimal data stored on-chain for gas efficiency
 #[contracttype]
@@ -29,13 +48,20 @@ pub struct UserProfile {
     /// Hash of complete off-chain profile data (IPFS CID or SHA-256)
     pub data_hash: Bytes,
 
-    /// KYC/verification status
+    /// Deprecated: use kyc_status == Verified instead
     pub is_verified: bool,
+
+    /// KYC verification status
+    pub kyc_status: KycStatus,
+
+    /// Sanctions/screening status
+    pub screening_status: ScreeningStatus,
 }
 
 impl UserProfile {
     /// Create a new profile
     pub fn new(
+        env: &soroban_sdk::Env,
         account_id: Address,
         account_type: AccountType,
         data_hash: Bytes,
@@ -43,11 +69,13 @@ impl UserProfile {
     ) -> Self {
         Self {
             account_id,
-            version: String::from_str(&soroban_sdk::Env::default(), "1.0"),
+            version: String::from_str(env, "1.0"),
             account_type,
             last_updated: timestamp,
             data_hash,
             is_verified: false,
+            kyc_status: KycStatus::Unverified,
+            screening_status: ScreeningStatus::Clear,
         }
     }
 }

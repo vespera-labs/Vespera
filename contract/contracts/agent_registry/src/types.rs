@@ -15,7 +15,9 @@ pub struct AgentInfo {
 
 impl AgentInfo {
     pub fn average_rating(&self) -> u32 {
-        self.total_score.checked_div(self.total_ratings).unwrap_or(0)
+        self.total_score
+            .checked_div(self.total_ratings)
+            .unwrap_or(0)
     }
 }
 

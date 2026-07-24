@@ -7,6 +7,14 @@ export interface Property {
   leaseMonths: number;
 }
 
+export type KycStatus = "UNVERIFIED" | "PENDING" | "VERIFIED" | "REJECTED";
+export type ScreeningStatus = "CLEAR" | "FLAGGED" | "BLOCKED";
+
+export interface UserProfile {
+  kycStatus: KycStatus;
+  screeningStatus: ScreeningStatus;
+}
+
 export interface DashboardData {
   activeLeases: number;
   dueThisMonth: number;
@@ -80,6 +88,11 @@ const mockDashboard: DashboardData = {
   recent: mockPayments,
 };
 
+const mockUserProfile: UserProfile = {
+  kycStatus: "VERIFIED",
+  screeningStatus: "CLEAR",
+};
+
 function simulateFetch<T>(data: T, delayMs = 300): Promise<T> {
   return new Promise((resolve) => {
     setTimeout(() => resolve(data), delayMs);
@@ -96,4 +109,8 @@ export async function fetchProperties(): Promise<Property[]> {
 
 export async function fetchPayments(): Promise<Payment[]> {
   return simulateFetch([...mockPayments]);
+}
+
+export async function fetchUserProfile(): Promise<UserProfile> {
+  return simulateFetch({ ...mockUserProfile });
 }
