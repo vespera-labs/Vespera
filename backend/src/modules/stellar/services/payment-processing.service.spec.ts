@@ -5,6 +5,7 @@ import {
   PaymentProcessingService,
   TransactionPollTimeoutError,
 } from './payment-processing.service';
+import { AgreementStatus, RentAgreement } from '../../rent/entities/rent-contract.entity';
 
 /**
  * Unit tests for the polling/submission resilience added for issue #39:
@@ -30,12 +31,18 @@ describe('PaymentProcessingService — polling resilience (#39)', () => {
   function buildService(): {
     service: PaymentProcessingService;
     server: { getTransaction: jest.Mock; sendTransaction: jest.Mock };
+    rentAgreementRepository: { findOne: jest.Mock };
   } {
     const configService = {
       get: jest.fn((key: string) => fastConfig[key]),
     } as unknown as ConfigService;
+    const rentAgreementRepository = {
+      findOne: jest.fn(),
+    };
     const dataSource = {
-      getRepository: jest.fn(() => ({})),
+      getRepository: jest.fn((entity?: unknown) =>
+        entity === RentAgreement ? rentAgreementRepository : {},
+      ),
     } as unknown as DataSource;
 
     const service = new PaymentProcessingService(configService, dataSource);
@@ -45,7 +52,7 @@ describe('PaymentProcessingService — polling resilience (#39)', () => {
     };
     // Swap the real Soroban RPC server for our mock.
     (service as unknown as { server: typeof server }).server = server;
-    return { service, server };
+    return { service, server, rentAgreementRepository };
   }
 
   const poll = (service: PaymentProcessingService, hash: string) =>
@@ -176,6 +183,24 @@ describe('PaymentProcessingService — polling resilience (#39)', () => {
         'Transaction submission rejected',
       );
       expect(server.sendTransaction).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('agreement freeze guard', () => {
+    it('rejects a disputed agreement before building a payment transaction', async () => {
+      const { service, rentAgreementRepository } = buildService();
+      rentAgreementRepository.findOne.mockResolvedValue({
+        id: 'agreement_1',
+        status: AgreementStatus.DISPUTED,
+      });
+
+      await expect(
+        (
+          service as unknown as {
+            ensureAgreementIsNotDisputed: (agreementId: string) => Promise<void>;
+          }
+        ).ensureAgreementIsNotDisputed('agreement_1'),
+      ).rejects.toThrow('Rent agreement is disputed; settlement is frozen');
     });
   });
 });
