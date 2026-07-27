@@ -576,4 +576,197 @@ describe('AnchorService', () => {
       expect(result.status).toBe(AnchorTransactionStatus.COMPLETED);
     });
   });
+
+  describe('initiateWithdrawal failure paths', () => {
+    const withdrawalDto = {
+      amount: 50,
+      currency: 'USD',
+      destination: 'bank-account',
+      walletAddress: 'GTEST...',
+    };
+
+    const armWithdrawalRepos = () => {
+      mockSupportedCurrencyRepo.findOne.mockResolvedValue({
+        code: 'USD',
+        isActive: true,
+      });
+      const row: any = {
+        id: 'wd-1',
+        status: AnchorTransactionStatus.PENDING,
+      };
+      mockAnchorTransactionRepo.create.mockReturnValue(row);
+      mockAnchorTransactionRepo.save.mockImplementation(async (v) => v);
+      return row;
+    };
+
+    const transient5xx = () =>
+      Object.assign(new Error('Service Unavailable'), {
+        response: { status: 503 },
+      });
+    const timeoutErr = () => new Error('socket hang up: network timeout');
+    const deterministic4xx = () =>
+      Object.assign(new Error('Bad Request'), {
+        response: { status: 400 },
+      });
+
+    it('keeps the withdrawal PENDING and throws 503 when transient errors exhaust retries', async () => {
+      const row = armWithdrawalRepos();
+      httpClient.post.mockRejectedValue(timeoutErr());
+
+      await expect(
+        service.initiateWithdrawal(withdrawalDto),
+      ).rejects.toBeInstanceOf(ServiceUnavailableException);
+
+      expect(httpClient.post).toHaveBeenCalledTimes(3);
+      expect(row.status).not.toBe(AnchorTransactionStatus.FAILED);
+    });
+
+    it('fails fast and marks FAILED on a deterministic 4xx without retrying', async () => {
+      const row = armWithdrawalRepos();
+      httpClient.post.mockRejectedValue(deterministic4xx());
+
+      await expect(
+        service.initiateWithdrawal(withdrawalDto),
+      ).rejects.toBeInstanceOf(BadRequestException);
+
+      expect(httpClient.post).toHaveBeenCalledTimes(1);
+      expect(row.status).toBe(AnchorTransactionStatus.FAILED);
+    });
+
+    it('retries a transient 5xx on withdrawal and then succeeds', async () => {
+      const row = armWithdrawalRepos();
+      httpClient.post
+        .mockRejectedValueOnce(transient5xx())
+        .mockResolvedValueOnce({
+          data: {
+            id: 'anchor-wd-1',
+            account_id: 'GDEST...',
+            memo_type: 'text',
+            memo: 'test-memo',
+          },
+        });
+
+      const result = await service.initiateWithdrawal(withdrawalDto);
+
+      expect(httpClient.post).toHaveBeenCalledTimes(2);
+      expect(result.anchorTransactionId).toBe('anchor-wd-1');
+      expect(row.status).toBe(AnchorTransactionStatus.PENDING);
+    });
+  });
+
+  describe('mapAnchorStatus', () => {
+    it('maps all known anchor statuses to internal statuses', async () => {
+      const mapping: Record<string, AnchorTransactionStatus> = {
+        pending_user_transfer_start: AnchorTransactionStatus.PENDING,
+        pending_anchor: AnchorTransactionStatus.PROCESSING,
+        pending_stellar: AnchorTransactionStatus.PROCESSING,
+        pending_external: AnchorTransactionStatus.PROCESSING,
+        pending_trust: AnchorTransactionStatus.PROCESSING,
+        pending_user: AnchorTransactionStatus.PROCESSING,
+        completed: AnchorTransactionStatus.COMPLETED,
+        refunded: AnchorTransactionStatus.REFUNDED,
+        expired: AnchorTransactionStatus.FAILED,
+        error: AnchorTransactionStatus.FAILED,
+      };
+
+      // Access the private method via (service as any) to test all mappings.
+      for (const [anchorStatus, expectedInternal] of Object.entries(mapping)) {
+        const result = (service as any).mapAnchorStatus(anchorStatus);
+        expect(result).toBe(expectedInternal);
+      }
+    });
+
+    it('falls back to PENDING for unknown anchor statuses', async () => {
+      const result = (service as any).mapAnchorStatus('totally_unknown_status');
+      expect(result).toBe(AnchorTransactionStatus.PENDING);
+    });
+  });
+
+  describe('handleWebhook edge cases', () => {
+    const buildRow = (
+      overrides: Partial<AnchorTransaction> = {},
+    ): AnchorTransaction =>
+      ({
+        id: 'local-tx-2',
+        anchorTransactionId: 'anchor-tx-456',
+        status: AnchorTransactionStatus.PENDING,
+        metadata: {},
+        processedEventIds: [],
+        version: 1,
+        ...overrides,
+      }) as AnchorTransaction;
+
+    it('generates a fallback event_id from status when no event_id or sequence is provided', async () => {
+      const payload = {
+        id: 'anchor-tx-456',
+        status: 'completed',
+      };
+
+      const row = buildRow();
+      mockAnchorTransactionRepo.findOne.mockResolvedValue({ id: row.id });
+      txRepo.findOne.mockResolvedValue(row);
+      txRepo.save.mockImplementation((value) => value);
+
+      await service.handleWebhook(payload);
+
+      expect(txRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          processedEventIds: ['anchor-tx-456:status:completed'],
+        }),
+      );
+    });
+
+    it('generates a sequence-based event_id when sequence is provided but no event_id', async () => {
+      const payload = {
+        id: 'anchor-tx-456',
+        status: 'pending_anchor',
+        sequence: 7,
+      };
+
+      const row = buildRow();
+      mockAnchorTransactionRepo.findOne.mockResolvedValue({ id: row.id });
+      txRepo.findOne.mockResolvedValue(row);
+      txRepo.save.mockImplementation((value) => value);
+
+      await service.handleWebhook(payload);
+
+      expect(txRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          processedEventIds: ['anchor-tx-456:seq:7'],
+        }),
+      );
+    });
+
+    it('propagates amount_in, amount_out, amount_fee, and external_transaction_id into metadata', async () => {
+      const payload = {
+        id: 'anchor-tx-456',
+        status: 'completed',
+        event_id: 'evt-full',
+        amount_in: '100.00',
+        amount_out: '98.50',
+        amount_fee: '1.50',
+        external_transaction_id: 'ext-tx-789',
+        message: 'All good',
+      };
+
+      const row = buildRow();
+      mockAnchorTransactionRepo.findOne.mockResolvedValue({ id: row.id });
+      txRepo.findOne.mockResolvedValue(row);
+      txRepo.save.mockImplementation((value) => value);
+
+      await service.handleWebhook(payload);
+
+      expect(txRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          metadata: expect.objectContaining({
+            amount_in: '100.00',
+            amount_out: '98.50',
+            amount_fee: '1.50',
+            external_transaction_id: 'ext-tx-789',
+            message: 'All good',
+          }),
+        }),
+      );
+    });
+  });
 });
