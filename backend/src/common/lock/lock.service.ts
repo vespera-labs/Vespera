@@ -238,8 +238,12 @@ export class LockService implements OnModuleInit {
     fn: () => Promise<T>,
     retryOptions?: LockRetryOptions,
   ): Promise<T> {
+    const { retryCount = DEFAULT_RETRY_OPTIONS.retryCount, retryDelayMs = DEFAULT_RETRY_OPTIONS.retryDelayMs } =
+      retryOptions ?? {};
+
     return this.withLock(key, ttlMs, fn, {
-      ...retryOptions,
+      retryCount,
+      retryDelayMs,
       requireDistributed: true,
     });
   }

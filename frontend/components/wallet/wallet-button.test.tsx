@@ -37,7 +37,7 @@ describe("WalletButton", () => {
     // component.
     expect(await screen.findByText("GA5ZSE…KZVN")).toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: /connect/i }),
+      screen.queryByRole("button", { name: /^connect freighter wallet$/i }),
     ).not.toBeInTheDocument();
   });
 
@@ -47,7 +47,9 @@ describe("WalletButton", () => {
 
     render(<WalletButton />);
 
-    const button = await screen.findByRole("button", { name: /connect/i });
+    const button = await screen.findByRole("button", {
+      name: /^connect freighter wallet$/i,
+    });
     await userEvent.click(button);
 
     expect(await screen.findByText("GA5ZSE…KZVN")).toBeInTheDocument();
@@ -65,7 +67,9 @@ describe("WalletButton", () => {
     render(<WalletButton />);
 
     expect(
-      await screen.findByRole("button", { name: /connect/i }),
+      await screen.findByRole("button", {
+        name: /^connect freighter wallet$/i,
+      }),
     ).toBeInTheDocument();
   });
 });

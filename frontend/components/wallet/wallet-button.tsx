@@ -3,7 +3,10 @@
 
 import { useEffect, useState } from "react";
 import { Wallet } from "lucide-react";
-import { connectFreighter, getFreighterAddress } from "@/lib/stellar";
+import {
+  connectFreighter,
+  getFreighterAddress,
+} from "@/lib/stellar";
 import { shortAddress } from "@/lib/format";
 
 /**

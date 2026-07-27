@@ -5,6 +5,7 @@ export interface Property {
   rentPerMonth: number;
   deposit: number;
   leaseMonths: number;
+  status: "active" | "disputed";
 }
 
 export type KycStatus = "UNVERIFIED" | "PENDING" | "VERIFIED" | "REJECTED";
@@ -38,6 +39,7 @@ export const mockProperties: Property[] = [
     rentPerMonth: 320,
     deposit: 640,
     leaseMonths: 12,
+    status: "active",
   },
   {
     id: "p2",
@@ -46,6 +48,7 @@ export const mockProperties: Property[] = [
     rentPerMonth: 180,
     deposit: 360,
     leaseMonths: 6,
+    status: "disputed",
   },
   {
     id: "p3",
@@ -54,6 +57,7 @@ export const mockProperties: Property[] = [
     rentPerMonth: 540,
     deposit: 1080,
     leaseMonths: 12,
+    status: "active",
   },
 ];
 
