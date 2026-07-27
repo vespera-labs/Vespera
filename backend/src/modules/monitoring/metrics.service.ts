@@ -71,6 +71,19 @@ export class MetricsService {
     this.incrementMetric(key);
   }
 
+  // Search index consistency metrics
+  recordSearchOutboxRelay(
+    outcome: 'success' | 'retry' | 'dead_letter',
+  ): void {
+    this.incrementMetric(`search_outbox_relay_${outcome}`);
+  }
+
+  recordSearchReconcile(
+    kind: 'drifted' | 'missing' | 'orphaned' | 'ok',
+  ): void {
+    this.incrementMetric(`search_reconcile_${kind}`);
+  }
+
   // Get metrics in Prometheus format
   async getMetrics(): Promise<string> {
     let output = '# Chioma Backend Metrics\n';

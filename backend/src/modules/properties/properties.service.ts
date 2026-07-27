@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as crypto from 'crypto';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import {
   Property,
   ListingStatus,
@@ -27,6 +27,7 @@ import {
   CACHE_PREFIX_PROPERTIES_LIST,
   TTL_PUBLIC_PROPERTY_LIST_MS,
 } from '../../common/cache/cache.constants';
+import { SearchOutboxService } from '../search/search-outbox.service';
 
 @Injectable()
 export class PropertiesService {
@@ -42,6 +43,8 @@ export class PropertiesService {
     @InjectRepository(PropertyListingDraft)
     private readonly propertyListingDraftRepository: Repository<PropertyListingDraft>,
     private readonly cacheService: CacheService,
+    private readonly dataSource: DataSource,
+    private readonly searchOutboxService: SearchOutboxService,
   ) {}
 
   private generateCacheKey(query: QueryPropertyDto): string {
@@ -240,47 +243,48 @@ export class PropertiesService {
       delete safePatch.verificationStatus;
     }
 
-    Object.assign(property, safePatch);
-    await this.propertyRepository.save(property);
+    await this.dataSource.transaction(async (manager) => {
+      Object.assign(property, safePatch);
+      await manager.save(Property, property);
 
-    if (images !== undefined) {
-      await this.imageRepository.delete({ propertyId: id });
-      if (images.length > 0) {
-        const propertyImages = images.map((img) =>
-          this.imageRepository.create({
-            ...img,
-            propertyId: id,
-          }),
-        );
-        await this.imageRepository.save(propertyImages);
+      if (images !== undefined) {
+        await manager.delete(PropertyImage, { propertyId: id });
+        if (images.length > 0) {
+          const propertyImages = images.map((img) =>
+            manager.create(PropertyImage, { ...img, propertyId: id }),
+          );
+          await manager.save(PropertyImage, propertyImages);
+        }
       }
-    }
 
-    if (amenities !== undefined) {
-      await this.amenityRepository.delete({ propertyId: id });
-      if (amenities.length > 0) {
-        const propertyAmenities = amenities.map((amenity) =>
-          this.amenityRepository.create({
-            ...amenity,
-            propertyId: id,
-          }),
-        );
-        await this.amenityRepository.save(propertyAmenities);
+      if (amenities !== undefined) {
+        await manager.delete(PropertyAmenity, { propertyId: id });
+        if (amenities.length > 0) {
+          const propertyAmenities = amenities.map((amenity) =>
+            manager.create(PropertyAmenity, { ...amenity, propertyId: id }),
+          );
+          await manager.save(PropertyAmenity, propertyAmenities);
+        }
       }
-    }
 
-    if (rentalUnits !== undefined) {
-      await this.rentalUnitRepository.delete({ propertyId: id });
-      if (rentalUnits.length > 0) {
-        const propertyUnits = rentalUnits.map((unit) =>
-          this.rentalUnitRepository.create({
-            ...unit,
-            propertyId: id,
-          }),
-        );
-        await this.rentalUnitRepository.save(propertyUnits);
+      if (rentalUnits !== undefined) {
+        await manager.delete(RentalUnit, { propertyId: id });
+        if (rentalUnits.length > 0) {
+          const propertyUnits = rentalUnits.map((unit) =>
+            manager.create(RentalUnit, { ...unit, propertyId: id }),
+          );
+          await manager.save(RentalUnit, propertyUnits);
+        }
       }
-    }
+
+      const refreshed = await manager.findOne(Property, {
+        where: { id },
+        relations: ['amenities'],
+      });
+      if (refreshed) {
+        await this.searchOutboxService.enqueueIndex(manager, refreshed);
+      }
+    });
 
     await this.cacheService.invalidatePropertyDomainCaches(id);
     return this.findOne(id);
@@ -289,7 +293,16 @@ export class PropertiesService {
   async remove(id: string, user: User): Promise<void> {
     const property = await this.findOne(id);
     this.verifyOwnership(property, user);
-    await this.propertyRepository.remove(property);
+
+    await this.dataSource.transaction(async (manager) => {
+      await this.searchOutboxService.enqueueDelete(
+        manager,
+        property.id,
+        property.ownerId,
+      );
+      await manager.remove(Property, property);
+    });
+
     await this.cacheService.invalidatePropertyDomainCaches(id);
   }
 
@@ -317,8 +330,20 @@ export class PropertiesService {
       );
     }
 
-    property.status = ListingStatus.PUBLISHED;
-    const saved = await this.propertyRepository.save(property);
+    const saved = await this.dataSource.transaction(async (manager) => {
+      property.status = ListingStatus.PUBLISHED;
+      const updated = await manager.save(Property, property);
+      const withAmenities = await manager.findOne(Property, {
+        where: { id },
+        relations: ['amenities'],
+      });
+      await this.searchOutboxService.enqueueIndex(
+        manager,
+        withAmenities ?? updated,
+      );
+      return updated;
+    });
+
     await this.cacheService.invalidatePropertyDomainCaches(id);
     return saved;
   }
@@ -326,8 +351,21 @@ export class PropertiesService {
   async archive(id: string, user: User): Promise<Property> {
     const property = await this.findOne(id);
     this.verifyOwnership(property, user);
-    property.status = ListingStatus.ARCHIVED;
-    const saved = await this.propertyRepository.save(property);
+
+    const saved = await this.dataSource.transaction(async (manager) => {
+      property.status = ListingStatus.ARCHIVED;
+      const updated = await manager.save(Property, property);
+      const withAmenities = await manager.findOne(Property, {
+        where: { id },
+        relations: ['amenities'],
+      });
+      await this.searchOutboxService.enqueueIndex(
+        manager,
+        withAmenities ?? updated,
+      );
+      return updated;
+    });
+
     await this.cacheService.invalidatePropertyDomainCaches(id);
     return saved;
   }
@@ -335,8 +373,21 @@ export class PropertiesService {
   async markAsRented(id: string, user: User): Promise<Property> {
     const property = await this.findOne(id);
     this.verifyOwnership(property, user);
-    property.status = ListingStatus.RENTED;
-    const saved = await this.propertyRepository.save(property);
+
+    const saved = await this.dataSource.transaction(async (manager) => {
+      property.status = ListingStatus.RENTED;
+      const updated = await manager.save(Property, property);
+      const withAmenities = await manager.findOne(Property, {
+        where: { id },
+        relations: ['amenities'],
+      });
+      await this.searchOutboxService.enqueueIndex(
+        manager,
+        withAmenities ?? updated,
+      );
+      return updated;
+    });
+
     await this.cacheService.invalidatePropertyDomainCaches(id);
     return saved;
   }

@@ -1,8 +1,13 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { SearchVisibility } from './search-visibility';
+import { TenantContext } from './tenant-context';
+import { SearchScopeError } from './search-scope.error';
 
 export interface PropertySearchDocument {
   id: string;
+  tenant_id: string;
+  visibility: SearchVisibility | string;
   title: string;
   description: string;
   type: string;
@@ -18,11 +23,13 @@ export interface PropertySearchDocument {
     lat: number;
     lon: number;
   };
+  status?: string;
+  checksum?: string;
   createdAt: string;
   updatedAt: string;
 }
 
-export interface SearchFilters {
+export interface EsSearchFilters {
   query?: string;
   city?: string;
   state?: string;
@@ -44,26 +51,39 @@ export interface SearchFilters {
   sortOrder?: 'asc' | 'desc';
 }
 
-export interface SearchResult<T> {
+export interface EsSearchResult<T> {
   hits: T[];
   total: number;
   page: number;
   limit: number;
   facets: Record<string, Array<{ key: string; count: number }>>;
+  /** Exposed for tests / PR attachments — the ES body that was sent. */
+  searchBody?: Record<string, unknown>;
 }
 
 @Injectable()
 export class ElasticsearchService implements OnModuleInit {
   private readonly logger = new Logger(ElasticsearchService.name);
   private readonly esUrl: string;
-  private readonly indexName = 'properties';
+  private readonly indexPrefix: string;
   private enabled = false;
 
   constructor(private configService: ConfigService) {
     this.esUrl = this.configService.get<string>(
-      'ELASTICSEARCH_URL',
-      'http://localhost:9200',
+      'ELASTICSEARCH_NODE',
+      this.configService.get<string>(
+        'ELASTICSEARCH_URL',
+        'http://localhost:9200',
+      )!,
     );
+    this.indexPrefix = this.configService.get<string>(
+      'SEARCH_INDEX_PREFIX',
+      'vespera',
+    );
+  }
+
+  get indexName(): string {
+    return `${this.indexPrefix}-properties`;
   }
 
   async onModuleInit(): Promise<void> {
@@ -83,6 +103,11 @@ export class ElasticsearchService implements OnModuleInit {
 
   isEnabled(): boolean {
     return this.enabled;
+  }
+
+  /** Test helper to force enable/disable without a live cluster. */
+  setEnabledForTests(enabled: boolean): void {
+    this.enabled = enabled;
   }
 
   private async ensureIndex(): Promise<void> {
@@ -110,6 +135,10 @@ export class ElasticsearchService implements OnModuleInit {
       mappings: {
         properties: {
           id: { type: 'keyword' },
+          tenant_id: { type: 'keyword' },
+          visibility: { type: 'keyword' },
+          status: { type: 'keyword' },
+          checksum: { type: 'keyword' },
           title: {
             type: 'text',
             analyzer: 'property_analyzer',
@@ -146,22 +175,59 @@ export class ElasticsearchService implements OnModuleInit {
     }
   }
 
-  async indexProperty(doc: PropertySearchDocument): Promise<void> {
-    if (!this.enabled) return;
+  async indexProperty(
+    doc: PropertySearchDocument,
+    idempotencyKey?: string,
+  ): Promise<void> {
+    if (!this.enabled) {
+      throw new Error('Elasticsearch is not enabled');
+    }
 
-    await fetch(`${this.esUrl}/${this.indexName}/_doc/${doc.id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(doc),
-    });
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (idempotencyKey) {
+      headers['Idempotency-Key'] = idempotencyKey;
+    }
+
+    const response = await fetch(
+      `${this.esUrl}/${this.indexName}/_doc/${doc.id}`,
+      {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify(doc),
+      },
+    );
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`ES index failed: ${response.status} ${text}`);
+    }
   }
 
-  async removeProperty(id: string): Promise<void> {
-    if (!this.enabled) return;
+  async removeProperty(id: string, idempotencyKey?: string): Promise<void> {
+    if (!this.enabled) {
+      throw new Error('Elasticsearch is not enabled');
+    }
 
-    await fetch(`${this.esUrl}/${this.indexName}/_doc/${id}`, {
-      method: 'DELETE',
-    });
+    const headers: Record<string, string> = {};
+    if (idempotencyKey) {
+      headers['Idempotency-Key'] = idempotencyKey;
+    }
+
+    const response = await fetch(
+      `${this.esUrl}/${this.indexName}/_doc/${id}`,
+      {
+        method: 'DELETE',
+        headers,
+      },
+    );
+
+    // 404 is idempotent success for deletes
+    if (!response.ok && response.status !== 404) {
+      const text = await response.text();
+      throw new Error(`ES delete failed: ${response.status} ${text}`);
+    }
   }
 
   async bulkIndex(docs: PropertySearchDocument[]): Promise<void> {
@@ -182,25 +248,36 @@ export class ElasticsearchService implements OnModuleInit {
     });
 
     if (!response.ok) {
-      this.logger.error('Bulk indexing failed');
+      throw new Error('Bulk indexing failed');
     }
   }
 
-  async search(
-    filters: SearchFilters,
-  ): Promise<SearchResult<PropertySearchDocument>> {
-    if (!this.enabled) {
-      return { hits: [], total: 0, page: 1, limit: 20, facets: {} };
+  /**
+   * Build a scoped ES search body. Always includes non-removable tenant_id
+   * and visibility filters derived from TenantContext.
+   */
+  buildScopedSearchBody(
+    tenant: TenantContext,
+    filters: EsSearchFilters,
+  ): Record<string, unknown> {
+    if (!tenant?.tenantId) {
+      throw new SearchScopeError('tenant_id is required for search');
+    }
+    if (!tenant.allowedVisibilities?.length) {
+      throw new SearchScopeError('visibility scope is required for search');
     }
 
     const page = filters.page || 1;
     const limit = filters.limit || 20;
     const from = (page - 1) * limit;
 
-    const must: any[] = [];
-    const filterClauses: any[] = [];
+    const must: Record<string, unknown>[] = [];
+    // Mandatory, non-removable scope filters — never accept from caller.
+    const filterClauses: Record<string, unknown>[] = [
+      { term: { tenant_id: tenant.tenantId } },
+      { terms: { visibility: tenant.allowedVisibilities } },
+    ];
 
-    // Full-text search
     if (filters.query) {
       must.push({
         multi_match: {
@@ -211,7 +288,6 @@ export class ElasticsearchService implements OnModuleInit {
       });
     }
 
-    // Keyword filters
     if (filters.city) filterClauses.push({ term: { city: filters.city } });
     if (filters.state) filterClauses.push({ term: { state: filters.state } });
     if (filters.country)
@@ -222,20 +298,17 @@ export class ElasticsearchService implements OnModuleInit {
     if (filters.bathrooms)
       filterClauses.push({ term: { bathrooms: filters.bathrooms } });
 
-    // Price range
     if (filters.minPrice || filters.maxPrice) {
-      const range: any = {};
+      const range: Record<string, number> = {};
       if (filters.minPrice) range.gte = filters.minPrice;
       if (filters.maxPrice) range.lte = filters.maxPrice;
       filterClauses.push({ range: { price: range } });
     }
 
-    // Amenities
     if (filters.amenities && filters.amenities.length > 0) {
       filterClauses.push({ terms: { amenities: filters.amenities } });
     }
 
-    // Geolocation
     if (filters.location) {
       filterClauses.push({
         geo_distance: {
@@ -248,15 +321,13 @@ export class ElasticsearchService implements OnModuleInit {
       });
     }
 
-    // Sort
-    const sort: any[] = [];
+    const sort: Record<string, unknown>[] = [];
     if (filters.sortBy) {
       sort.push({ [filters.sortBy]: { order: filters.sortOrder || 'desc' } });
     } else {
       sort.push({ _score: { order: 'desc' } });
     }
 
-    // Aggregations for faceted search
     const aggs = {
       types: { terms: { field: 'type', size: 20 } },
       cities: { terms: { field: 'city', size: 50 } },
@@ -275,7 +346,7 @@ export class ElasticsearchService implements OnModuleInit {
       amenities: { terms: { field: 'amenities', size: 30 } },
     };
 
-    const searchBody = {
+    return {
       from,
       size: limit,
       query: {
@@ -287,6 +358,19 @@ export class ElasticsearchService implements OnModuleInit {
       sort,
       aggs,
     };
+  }
+
+  async search(
+    tenant: TenantContext,
+    filters: EsSearchFilters,
+  ): Promise<EsSearchResult<PropertySearchDocument>> {
+    const page = filters.page || 1;
+    const limit = filters.limit || 20;
+    const searchBody = this.buildScopedSearchBody(tenant, filters);
+
+    if (!this.enabled) {
+      return { hits: [], total: 0, page, limit, facets: {}, searchBody };
+    }
 
     const response = await fetch(`${this.esUrl}/${this.indexName}/_search`, {
       method: 'POST',
@@ -296,13 +380,13 @@ export class ElasticsearchService implements OnModuleInit {
 
     if (!response.ok) {
       this.logger.error('Search query failed');
-      return { hits: [], total: 0, page, limit, facets: {} };
+      return { hits: [], total: 0, page, limit, facets: {}, searchBody };
     }
 
     const data = await response.json();
 
     const hits = (data.hits?.hits || []).map(
-      (hit: any) => hit._source as PropertySearchDocument,
+      (hit: { _source: PropertySearchDocument }) => hit._source,
     );
     const total =
       typeof data.hits?.total === 'object'
@@ -312,15 +396,42 @@ export class ElasticsearchService implements OnModuleInit {
     const facets: Record<string, Array<{ key: string; count: number }>> = {};
     if (data.aggregations) {
       for (const [name, agg] of Object.entries(
-        data.aggregations as Record<string, any>,
+        data.aggregations as Record<string, { buckets?: Array<{ key: string; doc_count: number }> }>,
       )) {
-        facets[name] = (agg.buckets || []).map((b: any) => ({
+        facets[name] = (agg.buckets || []).map((b) => ({
           key: b.key,
           count: b.doc_count,
         }));
       }
     }
 
-    return { hits, total, page, limit, facets };
+    return { hits, total, page, limit, facets, searchBody };
+  }
+
+  async getDocument(id: string): Promise<PropertySearchDocument | null> {
+    if (!this.enabled) return null;
+    const response = await fetch(
+      `${this.esUrl}/${this.indexName}/_doc/${id}`,
+    );
+    if (response.status === 404) return null;
+    if (!response.ok) return null;
+    const data = await response.json();
+    return (data._source as PropertySearchDocument) ?? null;
+  }
+
+  async scrollAllIds(): Promise<string[]> {
+    if (!this.enabled) return [];
+    const response = await fetch(`${this.esUrl}/${this.indexName}/_search`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        size: 1000,
+        _source: false,
+        query: { match_all: {} },
+      }),
+    });
+    if (!response.ok) return [];
+    const data = await response.json();
+    return (data.hits?.hits || []).map((h: { _id: string }) => h._id);
   }
 }

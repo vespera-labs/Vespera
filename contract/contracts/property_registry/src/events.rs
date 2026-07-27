@@ -19,6 +19,30 @@ pub struct PropertyRegistered {
     pub metadata_hash: String,
 }
 
+/// Event emitted when a property is listed for discovery.
+/// Topics: ["prop_listed", landlord: Address, property_id: String]
+/// `visibility` is the discovery discriminator consumed by the backend indexer
+/// (`listed` | `unlisted` | `draft` | `rented`).
+#[contractevent(topics = ["prop_listed"])]
+pub struct PropertyListed {
+    #[topic]
+    pub landlord: Address,
+    #[topic]
+    pub property_id: String,
+    pub visibility: String,
+}
+
+/// Event emitted when a property is withdrawn from discovery.
+/// Topics: ["prop_unlisted", landlord: Address, property_id: String]
+#[contractevent(topics = ["prop_unlisted"])]
+pub struct PropertyUnlisted {
+    #[topic]
+    pub landlord: Address,
+    #[topic]
+    pub property_id: String,
+    pub visibility: String,
+}
+
 /// Event emitted when a property is verified
 /// Topics: ["prop_ver", admin: Address, property_id: String]
 #[contractevent(topics = ["prop_ver"])]
@@ -72,6 +96,36 @@ pub(crate) fn property_registered(
         landlord,
         property_id,
         metadata_hash,
+    }
+    .publish(env);
+}
+
+/// Helper function to emit property listed event (visibility discriminator for indexer)
+pub(crate) fn property_listed(
+    env: &Env,
+    property_id: String,
+    landlord: Address,
+    visibility: String,
+) {
+    PropertyListed {
+        landlord,
+        property_id,
+        visibility,
+    }
+    .publish(env);
+}
+
+/// Helper function to emit property unlisted event
+pub(crate) fn property_unlisted(
+    env: &Env,
+    property_id: String,
+    landlord: Address,
+    visibility: String,
+) {
+    PropertyUnlisted {
+        landlord,
+        property_id,
+        visibility,
     }
     .publish(env);
 }

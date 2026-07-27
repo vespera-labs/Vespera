@@ -20,6 +20,11 @@ services:
       - STELLAR_NETWORK=${STELLAR_NETWORK:-mainnet}
       - SOROBAN_RPC_URL=${SOROBAN_RPC_URL}
       - SENTRY_DSN=${SENTRY_DSN}
+      - ELASTICSEARCH_NODE=${ELASTICSEARCH_NODE:-http://elasticsearch:9200}
+      - SEARCH_INDEX_PREFIX=${SEARCH_INDEX_PREFIX:-vespera}
+      - SEARCH_OUTBOX_POLL_INTERVAL_MS=${SEARCH_OUTBOX_POLL_INTERVAL_MS:-5000}
+      - SEARCH_OUTBOX_MAX_ATTEMPTS=${SEARCH_OUTBOX_MAX_ATTEMPTS:-5}
+      - SEARCH_RECONCILE_CRON=${SEARCH_RECONCILE_CRON:-0 */15 * * * *}
     networks:
       - chioma-network
     healthcheck:
@@ -28,6 +33,13 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
     logging:
       driver: "json-file"
       options:
@@ -67,6 +79,25 @@ services:
       timeout: 3s
       retries: 3
 
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.15.0
+    container_name: chioma-elasticsearch-${ENVIRONMENT:-production}
+    restart: unless-stopped
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+      - cluster.name=vespera-search
+    volumes:
+      - elasticsearch-data:/usr/share/elasticsearch/data
+    networks:
+      - chioma-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9200 >/dev/null"]
+      interval: 10s
+      timeout: 10s
+      retries: 20
+
 networks:
   chioma-network:
     driver: bridge
@@ -74,3 +105,4 @@ networks:
 volumes:
   postgres-data:
   redis-data:
+  elasticsearch-data:
