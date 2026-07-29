@@ -105,10 +105,11 @@ impl DisputeHandler {
 
         // EFFECTS: Update status based on release target and clear dispute
         // If funds go to beneficiary, set Released; if to depositor, set Refunded
-        escrow.status = if release_to == escrow.beneficiary {
-            EscrowStatus::Released
-        } else {
+        let refunded = release_to != escrow.beneficiary;
+        escrow.status = if refunded {
             EscrowStatus::Refunded
+        } else {
+            EscrowStatus::Released
         };
         escrow.disputed_at = None;
         escrow.dispute_reason = None;
@@ -120,6 +121,8 @@ impl DisputeHandler {
         // INTERACTIONS: Token transfer from escrow contract to release target
         let token_client = token::Client::new(&env, &escrow.token);
         token_client.transfer(&env.current_contract_address(), &release_to, &escrow.amount);
+
+        events::dispute_resolved(&env, escrow_id, caller, release_to, escrow.amount, refunded);
 
         Ok(())
     }
