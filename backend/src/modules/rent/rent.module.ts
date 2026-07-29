@@ -7,11 +7,13 @@ import { RentService } from './rent.service';
 import { RentReminderService } from './rent-reminder.service';
 import { RentController } from './rent.controller';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { KycModule } from '../kyc/kyc.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([RentAgreement, Payment, RentReminder]),
     NotificationsModule,
+    KycModule,
   ],
   providers: [RentService, RentReminderService],
   controllers: [RentController],

@@ -12,4 +12,7 @@ pub enum DataKey {
 
     /// Contract initialization flag
     Initialized,
+
+    /// KYC authority address (can set KYC and screening statuses)
+    KycAuthority,
 }

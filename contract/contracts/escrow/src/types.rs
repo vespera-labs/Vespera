@@ -1,5 +1,5 @@
 //! Data structures and enums for the Escrow contract.
-use soroban_sdk::{contracttype, Address, BytesN, String};
+use soroban_sdk::{contracttype, Address, Bytes, BytesN, String};
 
 /// Status of an escrow throughout its lifecycle.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -142,6 +142,8 @@ pub enum DataKey {
     PauseState,
     /// Pending admin for two-step transfer
     PendingAdmin,
+    /// User profile contract ID for KYC/screening checks
+    UserProfileContractId,
 }
 
 /// Contract state tracking admin and initialization.
@@ -160,4 +162,48 @@ pub struct PauseState {
     pub paused_at: u64,
     pub paused_by: Address,
     pub pause_reason: String,
+}
+
+// ─── Cross-contract types (must match user_profile contract) ─────────────────
+
+/// KYC verification status — mirrors user_profile::KycStatus
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum KycStatus {
+    Unverified = 0,
+    Pending = 1,
+    Verified = 2,
+    Rejected = 3,
+}
+
+/// Screening status — mirrors user_profile::ScreeningStatus
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum ScreeningStatus {
+    Clear = 0,
+    Flagged = 1,
+    Blocked = 2,
+}
+
+/// Account type — mirrors user_profile::AccountType
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum AccountType {
+    Tenant = 0,
+    Landlord = 1,
+    Agent = 2,
+}
+
+/// User profile — mirrors user_profile::UserProfile for cross-contract deserialization
+#[contracttype]
+#[derive(Clone, Debug)]
+pub struct UserProfile {
+    pub account_id: Address,
+    pub version: String,
+    pub account_type: AccountType,
+    pub last_updated: u64,
+    pub data_hash: Bytes,
+    pub is_verified: bool,
+    pub kyc_status: KycStatus,
+    pub screening_status: ScreeningStatus,
 }
