@@ -12,6 +12,13 @@ const MIN_DELAY_UPDATE_RATES: u64 = 2 * 24 * 60 * 60;
 const MIN_DELAY_PAUSE: u64 = 24 * 60 * 60;
 const MIN_DELAY_UNPAUSE: u64 = 60 * 60;
 
+/// Encode a `TimelockActionType::UpdateConfig` payload: `[fee_bps: u32 BE][paused: u8]`.
+fn config_payload(env: &Env, fee_bps: u32, paused: bool) -> Bytes {
+    let mut data = Bytes::from_array(env, &fee_bps.to_be_bytes());
+    data.push_back(if paused { 1 } else { 0 });
+    data
+}
+
 fn setup() -> (Env, ContractClient<'static>, Address) {
     let env = Env::default();
     env.mock_all_auths();
@@ -174,13 +181,13 @@ fn test_execute_before_eta_fails() {
 fn test_execute_after_eta_succeeds() {
     let (env, client, admin) = setup();
 
-    let target = Address::generate(&env);
-    let data = Bytes::new(&env);
+    let new_fee_collector = Address::generate(&env);
+    let data = config_payload(&env, 250, false);
 
     let action_id = client.queue_timelock_action(
         &admin,
         &TimelockActionType::UpdateConfig,
-        &target,
+        &new_fee_collector,
         &data,
         &MIN_DELAY_UPDATE_CONFIG,
     );
@@ -197,6 +204,11 @@ fn test_execute_after_eta_succeeds() {
     let action = client.get_timelock_action(&action_id);
     assert!(action.executed);
     assert!(!action.cancelled);
+
+    // The queued config change was actually applied, not just recorded.
+    let state = client.get_state().unwrap();
+    assert_eq!(state.config.fee_bps, 250);
+    assert_eq!(state.config.fee_collector, new_fee_collector);
 }
 
 #[test]
@@ -204,7 +216,7 @@ fn test_execute_already_executed_fails() {
     let (env, client, admin) = setup();
 
     let target = Address::generate(&env);
-    let data = Bytes::new(&env);
+    let data = config_payload(&env, 250, false);
 
     let action_id = client.queue_timelock_action(
         &admin,
@@ -223,6 +235,85 @@ fn test_execute_already_executed_fails() {
     // Attempt to execute a second time
     let result = client.try_execute_timelock_action(&admin, &action_id);
     assert_eq!(result, Err(Ok(RentalError::TimelockAlreadyExecuted)));
+}
+
+#[test]
+fn test_execute_update_config_malformed_data_fails() {
+    let (env, client, admin) = setup();
+
+    let target = Address::generate(&env);
+    // Too short to hold [fee_bps: u32][paused: u8].
+    let data = Bytes::from_array(&env, &[1, 2, 3]);
+
+    let action_id = client.queue_timelock_action(
+        &admin,
+        &TimelockActionType::UpdateConfig,
+        &target,
+        &data,
+        &MIN_DELAY_UPDATE_CONFIG,
+    );
+
+    env.ledger().with_mut(|li| {
+        li.timestamp += MIN_DELAY_UPDATE_CONFIG + 1;
+    });
+
+    let result = client.try_execute_timelock_action(&admin, &action_id);
+    assert_eq!(result, Err(Ok(RentalError::InvalidInput)));
+
+    // The malformed action is not silently marked executed.
+    let action = client.get_timelock_action(&action_id);
+    assert!(!action.executed);
+}
+
+#[test]
+fn test_execute_pause_contract_actually_pauses() {
+    let (env, client, admin) = setup();
+
+    let target = Address::generate(&env);
+    let data = Bytes::new(&env);
+
+    assert!(!client.is_paused());
+
+    let action_id = client.queue_timelock_action(
+        &admin,
+        &TimelockActionType::PauseContract,
+        &target,
+        &data,
+        &MIN_DELAY_PAUSE,
+    );
+
+    env.ledger().with_mut(|li| {
+        li.timestamp += MIN_DELAY_PAUSE + 1;
+    });
+
+    client.execute_timelock_action(&admin, &action_id);
+
+    assert!(client.is_paused());
+}
+
+#[test]
+fn test_execute_update_admin_actually_changes_admin() {
+    let (env, client, admin) = setup();
+
+    let new_admin = Address::generate(&env);
+    let data = Bytes::new(&env);
+
+    let action_id = client.queue_timelock_action(
+        &admin,
+        &TimelockActionType::UpdateAdmin,
+        &new_admin,
+        &data,
+        &MIN_DELAY_UPDATE_ADMIN,
+    );
+
+    env.ledger().with_mut(|li| {
+        li.timestamp += MIN_DELAY_UPDATE_ADMIN + 1;
+    });
+
+    client.execute_timelock_action(&admin, &action_id);
+
+    let state = client.get_state().unwrap();
+    assert_eq!(state.admin, new_admin);
 }
 
 #[test]
