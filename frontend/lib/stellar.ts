@@ -78,6 +78,26 @@ export async function signRentPayment(input: {
     );
   }
 
+  // Check KYC clearance before building transaction
+  if (process.env.NEXT_PUBLIC_KYC_ENFORCED === "true") {
+    try {
+      const statusRes = await fetch("/api/v1/kyc/status");
+      if (statusRes.ok) {
+        const status = await statusRes.json();
+        const kyc = status.kycStatus ?? status.kyc ?? "UNVERIFIED";
+        const screening = status.screeningStatus ?? status.screening ?? "CLEAR";
+        if (kyc !== "VERIFIED" || screening !== "CLEAR") {
+          throw new Error("KYC_NOT_CLEARED: Identity verification required to make payments.");
+        }
+      }
+    } catch (err) {
+      if (err instanceof Error && err.message.startsWith("KYC_NOT_CLEARED")) {
+        throw err;
+      }
+      // If status check fails, allow the transaction (contract is the authority)
+    }
+  }
+
   const userAddress = await connectFreighter();
 
   // Load the real account from the network so the transaction has a valid

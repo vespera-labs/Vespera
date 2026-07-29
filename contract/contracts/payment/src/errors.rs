@@ -55,4 +55,8 @@ pub enum PaymentError {
     PaymentNotLate = 34,
     /// Caller is not the landlord
     NotLandlord = 35,
+    /// Caller's KYC status is not Verified
+    KycNotVerified = 36,
+    /// Caller's screening status is not Clear
+    ScreeningNotClear = 37,
 }

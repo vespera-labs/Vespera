@@ -33,10 +33,11 @@ import { RenewAgreementDto } from './dto/renew-agreement.dto';
 import { QueryAgreementFeesDto } from './dto/query-agreement-fees.dto';
 import { AuditLogInterceptor } from '../audit/interceptors/audit-log.interceptor';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { KycEnforcementGuard } from '../kyc/guards/kyc-enforcement.guard';
 
 @ApiTags('Rent Agreements')
 @ApiBearerAuth('JWT-auth')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, KycEnforcementGuard)
 @Controller('agreements')
 @UseInterceptors(AuditLogInterceptor)
 export class AgreementsController {

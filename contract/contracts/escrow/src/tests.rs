@@ -133,7 +133,7 @@ fn test_dispute_resolution_sets_correct_status() {
     env.mock_all_auths();
 
     // Test 1: Resolution in favor of depositor should set status to Refunded
-    let (client, depositor, beneficiary, arbiter, token_address) = setup_test(&env);
+    let (client, _admin, depositor, beneficiary, arbiter, token_address) = setup_test(&env);
     let amount = 1000i128;
 
     let escrow_id = client.create(&depositor, &beneficiary, &arbiter, &amount, &token_address);
@@ -158,7 +158,7 @@ fn test_dispute_resolution_sets_correct_status() {
     assert_eq!(token_client.balance(&depositor), amount);
 
     // Test 2: Resolution in favor of beneficiary should set status to Released
-    let (client2, depositor2, beneficiary2, arbiter2, token_address2) = setup_test(&env);
+    let (client2, _admin2, depositor2, beneficiary2, arbiter2, token_address2) = setup_test(&env);
     let amount2 = 2000i128;
 
     let escrow_id2 = client2.create(
@@ -194,7 +194,7 @@ fn test_dispute_resolution_terminal_status_enforced() {
     let env = Env::default();
     env.mock_all_auths();
 
-    let (client, depositor, beneficiary, arbiter, token_address) = setup_test(&env);
+    let (client, _admin, depositor, beneficiary, arbiter, token_address) = setup_test(&env);
     let amount = 1000i128;
 
     let escrow_id = client.create(&depositor, &beneficiary, &arbiter, &amount, &token_address);
@@ -831,7 +831,7 @@ fn test_partial_release_rejects_non_party_caller() {
     let env = Env::default();
     env.mock_all_auths();
 
-    let (client, depositor, beneficiary, arbiter, token_address) = setup_test(&env);
+    let (client, _admin, depositor, beneficiary, arbiter, token_address) = setup_test(&env);
     let amount = 1000i128;
     let partial_amount = 300i128;
 
@@ -866,7 +866,7 @@ fn test_deduction_rejects_non_party_caller() {
     let env = Env::default();
     env.mock_all_auths();
 
-    let (client, depositor, beneficiary, arbiter, token_address) = setup_test(&env);
+    let (client, _admin, depositor, beneficiary, arbiter, token_address) = setup_test(&env);
     let amount = 1000i128;
     let damage_amount = 200i128;
 
@@ -896,7 +896,7 @@ fn test_deduction_cannot_redirect_depositor_approvals_to_beneficiary() {
     let env = Env::default();
     env.mock_all_auths();
 
-    let (client, depositor, beneficiary, arbiter, token_address) = setup_test(&env);
+    let (client, _admin, depositor, beneficiary, arbiter, token_address) = setup_test(&env);
     let amount = 1000i128;
     let damage_amount = 200i128;
 
@@ -927,7 +927,7 @@ fn test_partial_release_amount_binding_enforced() {
     let env = Env::default();
     env.mock_all_auths();
 
-    let (client, depositor, beneficiary, arbiter, token_address) = setup_test(&env);
+    let (client, _admin, depositor, beneficiary, arbiter, token_address) = setup_test(&env);
     let amount = 1000i128;
 
     let escrow_id = client.create(&depositor, &beneficiary, &arbiter, &amount, &token_address);
@@ -958,7 +958,7 @@ fn test_cross_escrow_isolation() {
     let env = Env::default();
     env.mock_all_auths();
 
-    let (client, depositor, beneficiary, arbiter, token_address) = setup_test(&env);
+    let (client, _admin, depositor, beneficiary, arbiter, token_address) = setup_test(&env);
     let beneficiary2 = Address::generate(&env);
     let amount_a = 1000i128;
     let amount_b = 500i128;

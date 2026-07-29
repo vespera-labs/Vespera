@@ -1,6 +1,6 @@
 #![no_std]
 
-use soroban_sdk::{contract, contractimpl, Address, Env, String, Vec};
+use soroban_sdk::{contract, contractimpl, Address, Env, String, Symbol, Vec};
 
 mod errors;
 mod events;
@@ -24,6 +24,65 @@ impl TokenizedRentObligationContract {
             || reason == &String::from_str(env, "AgreementTerminated")
             || reason == &String::from_str(env, "DisputeResolved")
             || reason == &String::from_str(env, "UserRequested")
+    }
+
+    /// Set the user profile contract address for KYC/screening enforcement.
+    pub fn set_user_profile_contract(
+        env: Env,
+        caller: Address,
+        contract_id: Address,
+    ) -> Result<(), ObligationError> {
+        caller.require_auth();
+        // Only allow setting once (no admin pattern in this contract)
+        if env
+            .storage()
+            .persistent()
+            .has(&DataKey::UserProfileContractId)
+        {
+            return Err(ObligationError::AlreadyInitialized);
+        }
+        env.storage()
+            .persistent()
+            .set(&DataKey::UserProfileContractId, &contract_id);
+        env.storage()
+            .persistent()
+            .extend_ttl(&DataKey::UserProfileContractId, 500000, 500000);
+        Ok(())
+    }
+
+    /// Assert that a party is KYC Verified and Screening Clear by reading
+    /// the user_profile contract. Returns typed errors on failure.
+    /// Skips check if no user_profile contract is configured.
+    fn assert_cleared_for_party(env: &Env, party: &Address) -> Result<(), ObligationError> {
+        let user_profile_contract_id: Address = match env
+            .storage()
+            .persistent()
+            .get(&DataKey::UserProfileContractId)
+        {
+            Some(id) => id,
+            None => return Ok(()), // No enforcement configured — skip
+        };
+
+        let result: Option<types::UserProfile> = env.invoke_contract(
+            &user_profile_contract_id,
+            &Symbol::new(env, "get_profile"),
+            Vec::from_array(env, [party.to_val()]),
+        );
+
+        let profile = match result {
+            Some(p) => p,
+            None => return Err(ObligationError::ObligationNotFound),
+        };
+
+        if profile.kyc_status != types::KycStatus::Verified {
+            return Err(ObligationError::KycNotVerified);
+        }
+
+        if profile.screening_status != types::ScreeningStatus::Clear {
+            return Err(ObligationError::ScreeningNotClear);
+        }
+
+        Ok(())
     }
 
     /// Initialize the contract.
@@ -69,6 +128,9 @@ impl TokenizedRentObligationContract {
         }
 
         landlord.require_auth();
+
+        // KYC/Screening enforcement
+        Self::assert_cleared_for_party(&env, &landlord)?;
 
         let obligation_key = DataKey::Obligation(agreement_id.clone());
         let owner_key = DataKey::Owner(agreement_id.clone());
@@ -133,6 +195,9 @@ impl TokenizedRentObligationContract {
         }
 
         from.require_auth();
+
+        // KYC/Screening enforcement
+        Self::assert_cleared_for_party(&env, &from)?;
 
         let obligation_key = DataKey::Obligation(agreement_id.clone());
         let owner_key = DataKey::Owner(agreement_id.clone());
@@ -250,6 +315,9 @@ impl TokenizedRentObligationContract {
         }
 
         obligation.owner.require_auth();
+
+        // KYC/Screening enforcement
+        Self::assert_cleared_for_party(&env, &obligation.owner)?;
 
         let burn_record = BurnRecord {
             token_id: token_id.clone(),

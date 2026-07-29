@@ -33,6 +33,14 @@ export interface SearchListingsResult {
   limit: number;
 }
 
+export type KycStatus = "UNVERIFIED" | "PENDING" | "VERIFIED" | "REJECTED";
+export type ScreeningStatus = "CLEAR" | "FLAGGED" | "BLOCKED";
+
+export interface UserProfile {
+  kycStatus: KycStatus;
+  screeningStatus: ScreeningStatus;
+}
+
 export interface DashboardData {
   activeLeases: number;
   dueThisMonth: number;
@@ -112,6 +120,11 @@ const mockDashboard: DashboardData = {
   recent: mockPayments,
 };
 
+const mockUserProfile: UserProfile = {
+  kycStatus: "VERIFIED",
+  screeningStatus: "CLEAR",
+};
+
 function simulateFetch<T>(data: T, delayMs = 300): Promise<T> {
   return new Promise((resolve) => {
     setTimeout(() => resolve(data), delayMs);
@@ -166,4 +179,8 @@ export async function fetchSearchListings(filters: {
   }
 
   return simulateFetch({ hits, total: hits.length, page: 1, limit: 20 });
+}
+
+export async function fetchUserProfile(): Promise<UserProfile> {
+  return simulateFetch({ ...mockUserProfile });
 }
