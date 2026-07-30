@@ -1041,4 +1041,60 @@ export class StellarService {
       ),
     ]);
   }
+
+  /**
+   * Confirms that a completed anchor transaction is actually backed by an
+   * on-ledger payment before the caller is allowed to credit anything.
+   *
+   * Anchor `completed` callbacks are trusted input from a third party —
+   * they assert settlement happened but don't prove it. This looks up the
+   * transaction on Horizon by hash and requires at least one payment (or
+   * path-payment-strict-receive) operation whose destination and amount
+   * match what the anchor told us, within a small tolerance for rounding.
+   * Any lookup failure (not found, transient network error, mismatch)
+   * returns false rather than throwing, so the caller's default is to
+   * park the transaction as unconfirmed instead of crediting on a guess.
+   */
+  async verifySettlementPayment(params: {
+    stellarTransactionId: string;
+    destination: string;
+    amount: string | number;
+  }): Promise<boolean> {
+    const { stellarTransactionId, destination, amount } = params;
+
+    if (!stellarTransactionId || !destination) {
+      return false;
+    }
+
+    const expectedAmount = Number(amount);
+    if (!Number.isFinite(expectedAmount)) {
+      return false;
+    }
+
+    try {
+      const operations = await this.horizon
+        .operations()
+        .forTransaction(stellarTransactionId)
+        .call();
+
+      const AMOUNT_TOLERANCE = 0.0000001;
+
+      return operations.records.some((op: any) => {
+        const isPayment =
+          op.type === 'payment' || op.type === 'path_payment_strict_receive';
+        if (!isPayment) return false;
+        if (op.to !== destination) return false;
+
+        const opAmount = Number(op.amount);
+        if (!Number.isFinite(opAmount)) return false;
+
+        return Math.abs(opAmount - expectedAmount) <= AMOUNT_TOLERANCE;
+      });
+    } catch (error) {
+      this.logger.warn(
+        `Horizon reconciliation lookup failed for tx=${stellarTransactionId}: ${extractStellarErrorMessage(error)}`,
+      );
+      return false;
+    }
+  }
 }

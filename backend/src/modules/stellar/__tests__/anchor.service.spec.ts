@@ -5,18 +5,35 @@ import {
   BadRequestException,
   ServiceUnavailableException,
 } from '@nestjs/common';
+// The service builds its HTTP client via axios.create in the constructor;
+// mock the module so every test drives a controllable post/get stub. Since
+// AnchorService now also (transitively, via StellarService) pulls in
+// @stellar/stellar-sdk — which calls axios.create() at *import* time to
+// build its own internal Horizon client — the factory builds a
+// self-contained singleton instance rather than closing over an outer
+// const (which would still be in its TDZ the first time the hoisted
+// factory runs), so every caller gets a usable instance with .interceptors.
+jest.mock('axios', () => {
+  const instance = {
+    post: jest.fn(),
+    get: jest.fn(),
+    interceptors: {
+      request: { use: jest.fn(), eject: jest.fn() },
+      response: { use: jest.fn(), eject: jest.fn() },
+    },
+  };
+  return {
+    __esModule: true,
+    default: { create: jest.fn(() => instance) },
+    create: jest.fn(() => instance),
+  };
+});
+
 import axios from 'axios';
 import { AnchorService } from '../services/anchor.service';
+import { StellarService } from '../services/stellar.service';
 
-// The service builds its HTTP client via axios.create in the constructor;
-// mock the module so every test drives a controllable post/get stub.
-jest.mock('axios');
-
-const httpClient = {
-  post: jest.fn(),
-  get: jest.fn(),
-};
-(axios.create as jest.Mock).mockReturnValue(httpClient);
+const httpClient = (axios as unknown as { create: () => any }).create();
 import {
   AnchorTransaction,
   AnchorTransactionStatus,
@@ -77,6 +94,13 @@ describe('AnchorService', () => {
     }),
   };
 
+  // Defaults to "confirmed" so pre-existing status-transition tests that
+  // don't care about reconciliation keep passing; tests that exercise the
+  // Horizon gate override this per-case.
+  const mockStellarService = {
+    verifySettlementPayment: jest.fn().mockResolvedValue(true),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -93,6 +117,10 @@ describe('AnchorService', () => {
           provide: ConfigService,
           useValue: mockConfigService,
         },
+        {
+          provide: StellarService,
+          useValue: mockStellarService,
+        },
       ],
     }).compile();
 
@@ -105,6 +133,7 @@ describe('AnchorService', () => {
     // HTTP stubs fully so per-test transient sequences don't leak forward.
     httpClient.post.mockReset();
     httpClient.get.mockReset();
+    mockStellarService.verifySettlementPayment.mockResolvedValue(true);
   });
 
   describe('initiateDeposit', () => {
@@ -211,6 +240,38 @@ describe('AnchorService', () => {
           processedEventIds: ['evt-1'],
         }),
       );
+      expect(queryRunner.commitTransaction).toHaveBeenCalled();
+    });
+
+    it('parks an unconfirmed "completed" callback instead of crediting when Horizon shows no matching payment', async () => {
+      mockStellarService.verifySettlementPayment.mockResolvedValueOnce(false);
+
+      const payload = {
+        id: 'anchor-tx-123',
+        status: 'completed',
+        event_id: 'evt-unconfirmed',
+        stellar_transaction_id: 'stellar-tx-456',
+      };
+
+      const row = buildRow({ status: AnchorTransactionStatus.PROCESSING });
+      mockAnchorTransactionRepo.findOne.mockResolvedValue({ id: row.id });
+      txRepo.findOne.mockResolvedValue(row);
+      txRepo.save.mockImplementation((value) => value);
+
+      await service.handleWebhook(payload);
+
+      expect(mockStellarService.verifySettlementPayment).toHaveBeenCalledWith(
+        expect.objectContaining({ stellarTransactionId: 'stellar-tx-456' }),
+      );
+      expect(txRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          status: AnchorTransactionStatus.PROCESSING,
+          metadata: expect.objectContaining({ reconciliation_pending: true }),
+        }),
+      );
+      // Unconfirmed deliveries are not marked processed so a retry re-checks
+      // Horizon instead of being silently swallowed.
+      expect(row.processedEventIds).not.toContain('evt-unconfirmed');
       expect(queryRunner.commitTransaction).toHaveBeenCalled();
     });
 
