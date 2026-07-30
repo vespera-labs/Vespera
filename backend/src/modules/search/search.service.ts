@@ -13,6 +13,15 @@ import {
   TTL_SEARCH_RESULTS_MS,
   TTL_SUGGEST_MS,
 } from '../../common/cache/cache.constants';
+import {
+  ElasticsearchService,
+  EsSearchFilters,
+  EsSearchResult,
+  PropertySearchDocument,
+} from './elasticsearch.service';
+import { TenantContext } from './tenant-context';
+import { SearchScopeError } from './search-scope.error';
+import { visibilityToListingStatus } from './search-visibility';
 
 export interface SearchFilters {
   query?: string;
@@ -64,7 +73,118 @@ export class SearchService {
     @InjectRepository(Property)
     private readonly propertyRepo: Repository<Property>,
     private readonly cacheService: CacheService,
+    private readonly elasticsearch: ElasticsearchService,
   ) {}
+
+  /**
+   * Tenant-scoped Elasticsearch query.
+   * Invariant: every ES body includes non-removable tenant_id + visibility filters.
+   * Throws SearchScopeError when tenant context is missing.
+   */
+  async query(
+    tenant: TenantContext | null | undefined,
+    filters: EsSearchFilters = {},
+  ): Promise<EsSearchResult<PropertySearchDocument>> {
+    if (!tenant?.tenantId) {
+      throw new SearchScopeError();
+    }
+    if (!tenant.allowedVisibilities?.length) {
+      throw new SearchScopeError('visibility scope is required for search');
+    }
+
+    // Prefer ES when available; fall back to scoped Postgres.
+    if (this.elasticsearch.isEnabled()) {
+      return this.elasticsearch.search(tenant, filters);
+    }
+
+    return this.queryPostgresFallback(tenant, filters);
+  }
+
+  private async queryPostgresFallback(
+    tenant: TenantContext,
+    filters: EsSearchFilters,
+  ): Promise<EsSearchResult<PropertySearchDocument>> {
+    const page = filters.page || 1;
+    const limit = filters.limit || 20;
+    const allowedStatuses = tenant.allowedVisibilities.map(
+      visibilityToListingStatus,
+    );
+
+    const qb = this.propertyRepo
+      .createQueryBuilder('property')
+      .leftJoinAndSelect('property.amenities', 'amenities')
+      .where('property.owner_id = :tenantId', { tenantId: tenant.tenantId })
+      .andWhere('property.status IN (:...statuses)', {
+        statuses: allowedStatuses,
+      });
+
+    if (filters.query) {
+      qb.andWhere(
+        `(to_tsvector('english', property.title || ' ' || COALESCE(property.description, '')) @@ plainto_tsquery('english', :query) OR property.address ILIKE :likeQuery)`,
+        { query: filters.query, likeQuery: `%${filters.query}%` },
+      );
+    }
+    if (filters.city) {
+      qb.andWhere('property.city ILIKE :city', { city: `%${filters.city}%` });
+    }
+    if (filters.minPrice !== undefined) {
+      qb.andWhere('property.price >= :minPrice', {
+        minPrice: filters.minPrice,
+      });
+    }
+    if (filters.maxPrice !== undefined) {
+      qb.andWhere('property.price <= :maxPrice', {
+        maxPrice: filters.maxPrice,
+      });
+    }
+    if (filters.bedrooms !== undefined) {
+      qb.andWhere('property.bedrooms >= :bedrooms', {
+        bedrooms: filters.bedrooms,
+      });
+    }
+
+    const searchBody = this.elasticsearch.buildScopedSearchBody(
+      tenant,
+      filters,
+    );
+
+    const [items, total] = await qb
+      .skip((page - 1) * limit)
+      .take(limit)
+      .orderBy('property.createdAt', 'DESC')
+      .getManyAndCount();
+
+    return {
+      hits: items.map((p) => ({
+        id: p.id,
+        tenant_id: p.ownerId,
+        visibility: tenant.allowedVisibilities[0],
+        title: p.title,
+        description: p.description ?? '',
+        type: p.type,
+        city: p.city ?? '',
+        state: p.state ?? '',
+        country: p.country ?? '',
+        price: Number(p.price),
+        bedrooms: p.bedrooms ?? 0,
+        bathrooms: p.bathrooms ?? 0,
+        area: Number(p.area ?? 0),
+        amenities: (p.amenities ?? []).map((a) => a.name),
+        location: {
+          lat: Number(p.latitude ?? 0),
+          lon: Number(p.longitude ?? 0),
+        },
+        status: p.status,
+        createdAt: p.createdAt?.toISOString?.() ?? '',
+        updatedAt: p.updatedAt?.toISOString?.() ?? '',
+      })),
+      total,
+      page,
+      limit,
+      facets: {},
+      searchBody,
+    };
+  }
 
   async searchProperties(
     filters: SearchFilters,
@@ -152,7 +272,6 @@ export class SearchService {
       .leftJoinAndSelect('property.images', 'images')
       .leftJoinAndSelect('property.amenities', 'amenities');
 
-    // Full-text search
     if (filters.query) {
       qb.andWhere(
         `(to_tsvector('english', property.title || ' ' || COALESCE(property.description, '')) @@ plainto_tsquery('english', :query) OR property.address ILIKE :likeQuery)`,

@@ -1,3 +1,5 @@
+export type ListingVisibility = "listed" | "unlisted" | "draft" | "rented";
+
 export interface Property {
   id: string;
   title: string;
@@ -5,7 +7,30 @@ export interface Property {
   rentPerMonth: number;
   deposit: number;
   leaseMonths: number;
+  /** Lease/dispute status for dashboard surfaces. */
   status: "active" | "disputed";
+  /** Discovery visibility — present on both mock and live search results. */
+  visibility: ListingVisibility;
+}
+
+export interface SearchListing {
+  id: string;
+  title: string;
+  city: string;
+  state?: string;
+  country?: string;
+  price: number;
+  bedrooms: number;
+  bathrooms: number;
+  visibility: ListingVisibility;
+  tenant_id?: string;
+}
+
+export interface SearchListingsResult {
+  hits: SearchListing[];
+  total: number;
+  page: number;
+  limit: number;
 }
 
 export type KycStatus = "UNVERIFIED" | "PENDING" | "VERIFIED" | "REJECTED";
@@ -40,6 +65,7 @@ export const mockProperties: Property[] = [
     deposit: 640,
     leaseMonths: 12,
     status: "active",
+    visibility: "listed",
   },
   {
     id: "p2",
@@ -49,6 +75,7 @@ export const mockProperties: Property[] = [
     deposit: 360,
     leaseMonths: 6,
     status: "disputed",
+    visibility: "listed",
   },
   {
     id: "p3",
@@ -58,6 +85,7 @@ export const mockProperties: Property[] = [
     deposit: 1080,
     leaseMonths: 12,
     status: "active",
+    visibility: "listed",
   },
 ];
 
@@ -113,6 +141,44 @@ export async function fetchProperties(): Promise<Property[]> {
 
 export async function fetchPayments(): Promise<Payment[]> {
   return simulateFetch([...mockPayments]);
+}
+
+/** Mock scoped search — only listed visibility is returned. */
+export async function fetchSearchListings(filters: {
+  q?: string;
+  city?: string;
+  minPrice?: number;
+  maxPrice?: number;
+  bedrooms?: number;
+}): Promise<SearchListingsResult> {
+  let hits: SearchListing[] = mockProperties
+    .filter((p) => p.visibility === "listed")
+    .map((p) => ({
+      id: p.id,
+      title: p.title,
+      city: p.location.split(",")[0]?.trim() ?? p.location,
+      price: p.rentPerMonth,
+      bedrooms: 2,
+      bathrooms: 1,
+      visibility: p.visibility,
+    }));
+
+  if (filters.q) {
+    const q = filters.q.toLowerCase();
+    hits = hits.filter((h) => h.title.toLowerCase().includes(q));
+  }
+  if (filters.city) {
+    const city = filters.city.toLowerCase();
+    hits = hits.filter((h) => h.city.toLowerCase().includes(city));
+  }
+  if (filters.minPrice !== undefined) {
+    hits = hits.filter((h) => h.price >= filters.minPrice!);
+  }
+  if (filters.maxPrice !== undefined) {
+    hits = hits.filter((h) => h.price <= filters.maxPrice!);
+  }
+
+  return simulateFetch({ hits, total: hits.length, page: 1, limit: 20 });
 }
 
 export async function fetchUserProfile(): Promise<UserProfile> {

@@ -17,6 +17,7 @@ import { PropertyListingDraft } from './entities/property-listing-draft.entity';
 import { PropertyAvailability } from './entities/property-availability.entity';
 import { AvailabilityService } from './availability.service';
 import { AvailabilityController } from './availability.controller';
+import { SearchModule } from '../search/search.module';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { AvailabilityController } from './availability.controller';
       PropertyListingDraft,
       PropertyAvailability,
     ]),
+    SearchModule,
   ],
   controllers: [
     PropertiesController,

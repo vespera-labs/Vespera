@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
+import { DataSource } from 'typeorm';
 import {
   NotFoundException,
   ForbiddenException,
@@ -20,6 +21,7 @@ import { RentalUnit } from './entities/rental-unit.entity';
 import { PropertyListingDraft } from './entities/property-listing-draft.entity';
 import { User, UserRole, AuthMethod } from '../users/entities/user.entity';
 import { KycStatus } from '../kyc/kyc-status.enum';
+import { SearchOutboxService } from '../search/search-outbox.service';
 
 describe('PropertiesService', () => {
   let service: PropertiesService;
@@ -217,6 +219,27 @@ describe('PropertiesService', () => {
         {
           provide: CacheService,
           useValue: mockCacheService,
+        },
+        {
+          provide: DataSource,
+          useValue: {
+            transaction: jest.fn(async (cb: (m: unknown) => Promise<unknown>) =>
+              cb({
+                save: jest.fn(async (_entity: unknown, value: unknown) => value),
+                delete: jest.fn(),
+                remove: jest.fn(),
+                create: jest.fn((_entity: unknown, value: unknown) => value),
+                findOne: jest.fn(async () => mockProperty),
+              }),
+            ),
+          },
+        },
+        {
+          provide: SearchOutboxService,
+          useValue: {
+            enqueueIndex: jest.fn().mockResolvedValue({}),
+            enqueueDelete: jest.fn().mockResolvedValue({}),
+          },
         },
       ],
     }).compile();
@@ -515,7 +538,7 @@ describe('PropertiesService', () => {
 
       await service.update('property-id', updateDto, mockOwner);
 
-      expect(mockPropertyRepository.save).toHaveBeenCalled();
+      expect(service['dataSource'].transaction).toHaveBeenCalled();
     });
 
     it('should update a property by admin', async () => {
@@ -543,7 +566,6 @@ describe('PropertiesService', () => {
     it('should strip verificationStatus for non-admin owners', async () => {
       const draft = { ...mockProperty, verificationStatus: null };
       mockPropertyRepository.findOne.mockResolvedValue(draft);
-      mockPropertyRepository.save.mockImplementation((p) => Promise.resolve(p));
 
       await service.update(
         'property-id',
@@ -551,18 +573,14 @@ describe('PropertiesService', () => {
         mockOwner,
       );
 
-      expect(mockPropertyRepository.save).toHaveBeenCalledWith(
-        expect.objectContaining({
-          verificationStatus: null,
-          title: 'T',
-        }),
-      );
+      expect(service['dataSource'].transaction).toHaveBeenCalled();
+      expect(draft.verificationStatus).toBeNull();
+      expect(draft.title).toBe('T');
     });
 
     it('should allow admin to set verificationStatus', async () => {
       const draft = { ...mockProperty, verificationStatus: null };
       mockPropertyRepository.findOne.mockResolvedValue(draft);
-      mockPropertyRepository.save.mockImplementation((p) => Promise.resolve(p));
 
       await service.update(
         'property-id',
@@ -570,9 +588,8 @@ describe('PropertiesService', () => {
         mockAdmin,
       );
 
-      expect(mockPropertyRepository.save).toHaveBeenCalledWith(
-        expect.objectContaining({ verificationStatus: 'verified' }),
-      );
+      expect(service['dataSource'].transaction).toHaveBeenCalled();
+      expect(draft.verificationStatus).toBe('verified');
     });
   });
 
@@ -583,7 +600,7 @@ describe('PropertiesService', () => {
 
       await service.remove('property-id', mockOwner);
 
-      expect(mockPropertyRepository.remove).toHaveBeenCalledWith(mockProperty);
+      expect(service['dataSource'].transaction).toHaveBeenCalled();
     });
 
     it('should throw ForbiddenException for non-owner', async () => {
@@ -598,17 +615,13 @@ describe('PropertiesService', () => {
   describe('publish', () => {
     it('should publish a draft property', async () => {
       const draftProperty = { ...mockProperty, status: ListingStatus.DRAFT };
-      const publishedProperty = {
-        ...draftProperty,
-        status: ListingStatus.PUBLISHED,
-      };
 
       mockPropertyRepository.findOne.mockResolvedValue(draftProperty);
-      mockPropertyRepository.save.mockResolvedValue(publishedProperty);
 
       const result = await service.publish('property-id', mockOwner);
 
       expect(result.status).toBe(ListingStatus.PUBLISHED);
+      expect(service['dataSource'].transaction).toHaveBeenCalled();
     });
 
     it('should throw BadRequestException if already published', async () => {
@@ -652,17 +665,15 @@ describe('PropertiesService', () => {
 
   describe('archive', () => {
     it('should archive a property', async () => {
-      const archivedProperty = {
+      mockPropertyRepository.findOne.mockResolvedValue({
         ...mockProperty,
-        status: ListingStatus.ARCHIVED,
-      };
-
-      mockPropertyRepository.findOne.mockResolvedValue(mockProperty);
-      mockPropertyRepository.save.mockResolvedValue(archivedProperty);
+        status: ListingStatus.PUBLISHED,
+      });
 
       const result = await service.archive('property-id', mockOwner);
 
       expect(result.status).toBe(ListingStatus.ARCHIVED);
+      expect(service['dataSource'].transaction).toHaveBeenCalled();
     });
 
     it('should throw ForbiddenException for non-owner', async () => {
@@ -676,14 +687,15 @@ describe('PropertiesService', () => {
 
   describe('markAsRented', () => {
     it('should mark a property as rented', async () => {
-      const rentedProperty = { ...mockProperty, status: ListingStatus.RENTED };
-
-      mockPropertyRepository.findOne.mockResolvedValue(mockProperty);
-      mockPropertyRepository.save.mockResolvedValue(rentedProperty);
+      mockPropertyRepository.findOne.mockResolvedValue({
+        ...mockProperty,
+        status: ListingStatus.PUBLISHED,
+      });
 
       const result = await service.markAsRented('property-id', mockOwner);
 
       expect(result.status).toBe(ListingStatus.RENTED);
+      expect(service['dataSource'].transaction).toHaveBeenCalled();
     });
   });
 
