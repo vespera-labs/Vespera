@@ -476,10 +476,18 @@ fn test_proposal_workflow_end_to_end() {
     // Initialize with 2 out of 3 signatures required
     let _ = client.try_initialize_multisig(&admins, &2).unwrap();
 
-    // Step 1: Admin1 proposes an action
-    let data = Bytes::new(&env);
+    // Step 1: Admin1 proposes a config update: new fee collector + fee_bps,
+    // encoded as [fee_bps: u32 BE][paused: u8] with the collector as target.
+    let new_fee_collector = Address::generate(&env);
+    let mut data = Bytes::from_array(&env, &250u32.to_be_bytes());
+    data.push_back(0);
     let proposal_id = client
-        .try_propose_action(&admin1, &ActionType::UpdateConfig, &None, &data)
+        .try_propose_action(
+            &admin1,
+            &ActionType::UpdateConfig,
+            &Some(new_fee_collector.clone()),
+            &data,
+        )
         .unwrap()
         .unwrap();
 
@@ -499,7 +507,12 @@ fn test_proposal_workflow_end_to_end() {
     let result = client.try_execute_action(&admin1, &proposal_id);
     assert!(result.is_ok());
 
-    // Verify execution
+    // Verify execution and that the config actually changed on-chain.
     let proposal = client.try_get_proposal(&proposal_id).unwrap().unwrap();
     assert!(proposal.executed);
+
+    let state = client.get_state().unwrap();
+    assert_eq!(state.config.fee_bps, 250);
+    assert_eq!(state.config.fee_collector, new_fee_collector);
+    assert!(!state.config.paused);
 }

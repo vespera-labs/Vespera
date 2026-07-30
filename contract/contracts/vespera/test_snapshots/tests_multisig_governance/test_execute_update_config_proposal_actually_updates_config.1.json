@@ -1,6 +1,6 @@
 {
   "generators": {
-    "address": 5,
+    "address": 6,
     "nonce": 0,
     "mux_id": 0
   },
@@ -97,13 +97,15 @@
                 {
                   "vec": [
                     {
-                      "symbol": "Pause"
+                      "symbol": "UpdateConfig"
                     }
                   ]
                 },
-                "void",
                 {
-                  "bytes": ""
+                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4"
+                },
+                {
+                  "bytes": "000001f400"
                 }
               ]
             }
@@ -212,7 +214,7 @@
                       "val": {
                         "vec": [
                           {
-                            "symbol": "Pause"
+                            "symbol": "UpdateConfig"
                           }
                         ]
                       }
@@ -253,7 +255,7 @@
                         "symbol": "data"
                       },
                       "val": {
-                        "bytes": ""
+                        "bytes": "000001f400"
                       }
                     },
                     {
@@ -292,7 +294,9 @@
                       "key": {
                         "symbol": "target"
                       },
-                      "val": "void"
+                      "val": {
+                        "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4"
+                      }
                     }
                   ]
                 }
@@ -425,51 +429,6 @@
                         "key": {
                           "vec": [
                             {
-                              "symbol": "PauseState"
-                            }
-                          ]
-                        },
-                        "val": {
-                          "map": [
-                            {
-                              "key": {
-                                "symbol": "is_paused"
-                              },
-                              "val": {
-                                "bool": true
-                              }
-                            },
-                            {
-                              "key": {
-                                "symbol": "pause_reason"
-                              },
-                              "val": {
-                                "string": "Paused via multi-sig governance"
-                              }
-                            },
-                            {
-                              "key": {
-                                "symbol": "paused_at"
-                              },
-                              "val": {
-                                "u64": "0"
-                              }
-                            },
-                            {
-                              "key": {
-                                "symbol": "paused_by"
-                              },
-                              "val": {
-                                "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4"
-                              }
-                            }
-                          ]
-                        }
-                      },
-                      {
-                        "key": {
-                          "vec": [
-                            {
                               "symbol": "ProposalCount"
                             }
                           ]
@@ -507,7 +466,7 @@
                                       "symbol": "fee_bps"
                                     },
                                     "val": {
-                                      "u32": 100
+                                      "u32": 500
                                     }
                                   },
                                   {
@@ -515,7 +474,7 @@
                                       "symbol": "fee_collector"
                                     },
                                     "val": {
-                                      "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M"
+                                      "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4"
                                     }
                                   },
                                   {
@@ -523,7 +482,7 @@
                                       "symbol": "paused"
                                     },
                                     "val": {
-                                      "bool": true
+                                      "bool": false
                                     }
                                   }
                                 ]

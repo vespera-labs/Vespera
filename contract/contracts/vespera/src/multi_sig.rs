@@ -1,8 +1,11 @@
 use crate::{
     errors::RentalError,
-    events,
+    events, multi_token, rate_limit,
     storage::DataKey,
-    types::{ActionType, AdminProposal, MultiSigConfig},
+    types::{
+        ActionType, AdminProposal, Config, ContractState, MultiSigConfig, PauseState,
+        RateLimitConfig,
+    },
 };
 use soroban_sdk::{Address, Bytes, Env, String, Vec};
 
@@ -264,7 +267,9 @@ pub fn execute_action(
         return Err(RentalError::InsufficientApprovals);
     }
 
-    // Execute governance action when it actually modifies admin config
+    // Execute the approved governance action. Every branch performs the
+    // corresponding state change before the proposal is marked executed, so
+    // a fully-approved proposal can never be a silent no-op (issue #66/#227).
     match proposal.action_type {
         ActionType::AddAdmin => {
             let new_admin = proposal.target.clone().ok_or(RentalError::InvalidInput)?;
@@ -278,8 +283,50 @@ pub fn execute_action(
             let new_required = parse_required_signatures(&proposal.data)?;
             update_required_signatures_internal(env, new_required)?;
         }
-        _ => {
-            // Other actions are managed elsewhere or are no-op in this module.
+        ActionType::Pause => {
+            let reason = String::from_str(env, "Paused via multi-sig governance");
+            pause_internal(env, executor.clone(), reason);
+        }
+        ActionType::Unpause => {
+            unpause_internal(env, executor.clone());
+        }
+        ActionType::UpdateConfig => {
+            let fee_collector = proposal.target.clone().ok_or(RentalError::InvalidInput)?;
+            let new_config = parse_config_payload(&proposal.data, fee_collector)?;
+            apply_config_internal(env, new_config)?;
+        }
+        ActionType::AddToken => {
+            let token_address = proposal.target.clone().ok_or(RentalError::InvalidInput)?;
+            let (symbol, decimals, min_amount, max_amount) =
+                parse_add_token_payload(&proposal.data)?;
+            multi_token::add_supported_token(
+                env.clone(),
+                token_address,
+                symbol,
+                decimals,
+                min_amount,
+                max_amount,
+            )?;
+        }
+        ActionType::RemoveToken => {
+            let token_address = proposal.target.clone().ok_or(RentalError::InvalidInput)?;
+            multi_token::remove_supported_token(env.clone(), token_address)?;
+        }
+        ActionType::SetRateLimit => {
+            let config = parse_rate_limit_payload(&proposal.data)?;
+            rate_limit::set_rate_limit_config(env, config.clone())?;
+            events::rate_limit_config_updated(
+                env,
+                config.max_calls_per_block,
+                config.max_calls_per_user_per_day,
+                config.cooldown_blocks,
+            );
+        }
+        ActionType::UpdateRate | ActionType::EmergencyAction => {
+            // These action types carry no corresponding contract state
+            // anywhere in the codebase today, so there is nothing to apply.
+            // Wiring them up would mean inventing new behavior, which is out
+            // of scope here (see issue #66/#227: "Adding new action types").
         }
     }
 
@@ -320,6 +367,156 @@ fn parse_required_signatures(data: &Bytes) -> Result<u32, RentalError> {
         *b = data.get(i as u32).ok_or(RentalError::InvalidInput)?;
     }
     Ok(u32::from_be_bytes(buf))
+}
+
+fn parse_u32_at(data: &Bytes, offset: u32) -> Result<u32, RentalError> {
+    let mut buf = [0u8; 4];
+    for (i, b) in buf.iter_mut().enumerate() {
+        *b = data
+            .get(offset + i as u32)
+            .ok_or(RentalError::InvalidInput)?;
+    }
+    Ok(u32::from_be_bytes(buf))
+}
+
+fn parse_i128_at(data: &Bytes, offset: u32) -> Result<i128, RentalError> {
+    let mut buf = [0u8; 16];
+    for (i, b) in buf.iter_mut().enumerate() {
+        *b = data
+            .get(offset + i as u32)
+            .ok_or(RentalError::InvalidInput)?;
+    }
+    Ok(i128::from_be_bytes(buf))
+}
+
+/// Decode an `ActionType::UpdateConfig` payload: `[fee_bps: u32 BE][paused: u8]`.
+/// `fee_collector` comes from the proposal's `target` field, not the payload.
+fn parse_config_payload(data: &Bytes, fee_collector: Address) -> Result<Config, RentalError> {
+    if data.len() != 5 {
+        return Err(RentalError::InvalidInput);
+    }
+    let fee_bps = parse_u32_at(data, 0)?;
+    let paused = match data.get_unchecked(4) {
+        0 => false,
+        1 => true,
+        _ => return Err(RentalError::InvalidInput),
+    };
+    if fee_bps > 10_000 {
+        return Err(RentalError::InvalidConfig);
+    }
+    Ok(Config {
+        fee_bps,
+        fee_collector,
+        paused,
+    })
+}
+
+/// Decode an `ActionType::AddToken` payload:
+/// `[symbol_len: u8][symbol bytes][decimals: u32 BE][min_amount: i128 BE][max_amount: i128 BE]`.
+/// The token address comes from the proposal's `target` field.
+fn parse_add_token_payload(data: &Bytes) -> Result<(String, u32, i128, i128), RentalError> {
+    let symbol_len = data.first().ok_or(RentalError::InvalidInput)? as u32;
+    if symbol_len == 0 || symbol_len > 32 {
+        return Err(RentalError::InvalidInput);
+    }
+    let expected_len = 1 + symbol_len + 4 + 16 + 16;
+    if data.len() != expected_len {
+        return Err(RentalError::InvalidInput);
+    }
+
+    let symbol = data.slice(1..1 + symbol_len).to_string();
+    let decimals = parse_u32_at(data, 1 + symbol_len)?;
+    let min_amount = parse_i128_at(data, 1 + symbol_len + 4)?;
+    let max_amount = parse_i128_at(data, 1 + symbol_len + 4 + 16)?;
+
+    Ok((symbol, decimals, min_amount, max_amount))
+}
+
+/// Decode an `ActionType::SetRateLimit` payload:
+/// `[max_calls_per_block: u32 BE][max_calls_per_user_per_day: u32 BE][cooldown_blocks: u32 BE]`.
+fn parse_rate_limit_payload(data: &Bytes) -> Result<RateLimitConfig, RentalError> {
+    if data.len() != 12 {
+        return Err(RentalError::InvalidInput);
+    }
+    Ok(RateLimitConfig {
+        max_calls_per_block: parse_u32_at(data, 0)?,
+        max_calls_per_user_per_day: parse_u32_at(data, 4)?,
+        cooldown_blocks: parse_u32_at(data, 8)?,
+    })
+}
+
+/// Idempotently mark the contract paused, mirroring `Contract::pause` but
+/// without re-requiring `state.admin`'s signature: multi-sig quorum (already
+/// checked by the caller) is the authority for this path.
+fn pause_internal(env: &Env, paused_by: Address, reason: String) {
+    let pause_state = PauseState {
+        is_paused: true,
+        paused_at: env.ledger().timestamp(),
+        paused_by: paused_by.clone(),
+        pause_reason: reason.clone(),
+    };
+    env.storage()
+        .instance()
+        .set(&DataKey::PauseState, &pause_state);
+    env.storage().instance().extend_ttl(500000, 500000);
+
+    if let Some(mut state) = env
+        .storage()
+        .instance()
+        .get::<DataKey, ContractState>(&DataKey::State)
+    {
+        if !state.config.paused {
+            state.config.paused = true;
+            env.storage().instance().set(&DataKey::State, &state);
+        }
+    }
+
+    events::paused(env, reason, paused_by);
+}
+
+/// Idempotently clear the paused state; see [`pause_internal`].
+fn unpause_internal(env: &Env, unpaused_by: Address) {
+    env.storage().instance().remove(&DataKey::PauseState);
+
+    if let Some(mut state) = env
+        .storage()
+        .instance()
+        .get::<DataKey, ContractState>(&DataKey::State)
+    {
+        if state.config.paused {
+            state.config.paused = false;
+            env.storage().instance().set(&DataKey::State, &state);
+        }
+    }
+
+    events::unpaused(env, unpaused_by);
+}
+
+/// Apply a governance-approved config change, mirroring `Contract::update_config`
+/// but authorized by multi-sig quorum instead of `state.admin`.
+fn apply_config_internal(env: &Env, new_config: Config) -> Result<(), RentalError> {
+    let mut state: ContractState = env
+        .storage()
+        .instance()
+        .get(&DataKey::State)
+        .ok_or(RentalError::InvalidState)?;
+
+    let was_paused = state.config.paused;
+    let old_config = state.config.clone();
+    state.config = new_config.clone();
+
+    env.storage().instance().set(&DataKey::State, &state);
+    env.storage().instance().extend_ttl(500000, 500000);
+
+    if new_config.paused && !was_paused {
+        let reason = String::from_str(env, "Paused via multi-sig governance");
+        pause_internal(env, state.admin.clone(), reason);
+    } else if !new_config.paused && was_paused {
+        unpause_internal(env, state.admin.clone());
+    }
+
+    events::config_updated(env, state.admin, old_config, new_config);
+    Ok(())
 }
 
 /// Reject/cancel a proposal (only proposer can do this before execution)

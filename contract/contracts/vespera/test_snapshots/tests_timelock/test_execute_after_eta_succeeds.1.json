@@ -76,7 +76,7 @@
                   "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4"
                 },
                 {
-                  "bytes": ""
+                  "bytes": "000000fa00"
                 },
                 {
                   "u64": "259200"
@@ -110,6 +110,7 @@
         }
       ]
     ],
+    [],
     []
   ],
   "ledger": {
@@ -223,7 +224,7 @@
                         "symbol": "data"
                       },
                       "val": {
-                        "bytes": ""
+                        "bytes": "000000fa00"
                       }
                     },
                     {
@@ -331,7 +332,7 @@
                                       "symbol": "fee_bps"
                                     },
                                     "val": {
-                                      "u32": 100
+                                      "u32": 250
                                     }
                                   },
                                   {
@@ -339,7 +340,7 @@
                                       "symbol": "fee_collector"
                                     },
                                     "val": {
-                                      "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M"
+                                      "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4"
                                     }
                                   },
                                   {
