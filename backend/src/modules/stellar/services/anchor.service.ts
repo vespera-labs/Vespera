@@ -28,6 +28,7 @@ import {
   isTransientStellarError,
   extractStellarErrorMessage,
 } from './stellar-transaction-resilience';
+import { StellarService } from './stellar.service';
 
 const TERMINAL_STATUSES: ReadonlySet<AnchorTransactionStatus> = new Set([
   AnchorTransactionStatus.COMPLETED,
@@ -101,6 +102,7 @@ export class AnchorService {
     @InjectRepository(SupportedCurrency)
     private supportedCurrencyRepo: Repository<SupportedCurrency>,
     private configService: ConfigService,
+    private stellarService: StellarService,
   ) {
     this.anchorApiUrl = this.configService.get<string>('ANCHOR_API_URL') || '';
     this.anchorApiKey = this.configService.get<string>('ANCHOR_API_KEY') || '';
@@ -591,7 +593,6 @@ export class AnchorService {
         return transaction;
       }
 
-      transaction.status = newStatus;
       if (payload.stellar_transaction_id) {
         transaction.stellarTransactionId = payload.stellar_transaction_id;
       }
@@ -599,6 +600,45 @@ export class AnchorService {
         ...(transaction.metadata ?? {}),
         ...this.extractKnownMetadata(payload),
       };
+
+      // The anchor's "completed" callback is an assertion, not proof —
+      // credit must never move on unverified say-so. Require Horizon to
+      // show a matching on-ledger payment before the row is allowed to
+      // reach COMPLETED (the state PaymentsModule/TransactionsModule use
+      // to trigger balance mutations). Deliberately do NOT record this
+      // event id as processed when unconfirmed: the anchor's own
+      // at-least-once retries (and the status poller) are what drive
+      // re-checks until Horizon confirms or the row times out elsewhere.
+      if (
+        newStatus === AnchorTransactionStatus.COMPLETED &&
+        transaction.status !== AnchorTransactionStatus.COMPLETED
+      ) {
+        const settled = await this.stellarService.verifySettlementPayment({
+          stellarTransactionId: transaction.stellarTransactionId ?? '',
+          destination: transaction.destination ?? transaction.walletAddress,
+          amount: payload.amount_out ?? transaction.amount,
+        });
+
+        if (!settled) {
+          this.logger.warn(
+            `Anchor tx=${transaction.id} reported completed but Horizon reconciliation found no matching on-ledger payment; leaving status=${transaction.status} (unconfirmed)`,
+          );
+          transaction.metadata = {
+            ...transaction.metadata,
+            reconciliation_pending: true,
+            reconciliation_attempts:
+              (Number(transaction.metadata?.reconciliation_attempts) || 0) + 1,
+          };
+          await repo.save(transaction);
+          await queryRunner.commitTransaction();
+          return transaction;
+        }
+
+        transaction.metadata.reconciliation_pending = false;
+        transaction.metadata.reconciled_at = new Date().toISOString();
+      }
+
+      transaction.status = newStatus;
       transaction.processedEventIds = this.trackEventId(
         transaction.processedEventIds,
         eventId,
