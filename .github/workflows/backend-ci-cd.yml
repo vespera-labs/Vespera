@@ -95,6 +95,30 @@ jobs:
           --health-timeout 5s
           --health-retries 5
 
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      elasticsearch:
+        image: docker.elastic.co/elasticsearch/elasticsearch:8.15.0
+        env:
+          discovery.type: single-node
+          xpack.security.enabled: 'false'
+          ES_JAVA_OPTS: -Xms256m -Xmx256m
+        ports:
+          - 9200:9200
+        options: >-
+          --health-cmd "curl -sf http://localhost:9200 >/dev/null"
+          --health-interval 10s
+          --health-timeout 10s
+          --health-retries 20
+
     env:
       NODE_ENV: test
       DB_TYPE: postgres
@@ -112,6 +136,13 @@ jobs:
       RATE_LIMIT_AUTH_MAX: 5
       RATE_LIMIT_STRICT_TTL: 60000
       RATE_LIMIT_STRICT_MAX: 10
+      REDIS_HOST: localhost
+      REDIS_PORT: 6379
+      ELASTICSEARCH_NODE: http://localhost:9200
+      SEARCH_INDEX_PREFIX: vespera_test
+      SEARCH_OUTBOX_POLL_INTERVAL_MS: 1000
+      SEARCH_OUTBOX_MAX_ATTEMPTS: 3
+      SEARCH_RECONCILE_CRON: '0 */15 * * * *'
       CHIOMA_CONTRACT_ID: CA3D5KRYM6CB7OWQ6TWYRR3Z4T7GNZLKERYNZGGA5SOAOPIFY6YQGAXE
       ESCROW_CONTRACT_ID: CA3D5KRYM6CB7OWQ6TWYRR3Z4T7GNZLKERYNZGGA5SOAOPIFY6YQGAXE
       DISPUTE_CONTRACT_ID: CA3D5KRYM6CB7OWQ6TWYRR3Z4T7GNZLKERYNZGGA5SOAOPIFY6YQGAXE

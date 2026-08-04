@@ -5,6 +5,8 @@ use soroban_sdk::{contracttype, String};
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum DataKey {
+    /// Contract admin address
+    Admin,
     /// Store payment by ID
     Payment(String),
     /// Store payment record by agreement ID and payment number
@@ -33,4 +35,6 @@ pub enum DataKey {
     LateFeeConfig(String),
     /// Late fee record per payment
     LateFeeRecord(String),
+    /// User profile contract ID for KYC/screening checks
+    UserProfileContractId,
 }

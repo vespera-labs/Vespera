@@ -27,6 +27,7 @@ export class QueueManagementService {
     @InjectQueue('documents') private documentsQueue: Queue,
     @InjectQueue('blockchain') private blockchainQueue: Queue,
     @InjectQueue('data-sync') private dataSyncQueue: Queue,
+    @InjectQueue('search-index') private searchIndexQueue: Queue,
   ) {}
 
   /**
@@ -105,6 +106,27 @@ export class QueueManagementService {
   }
 
   /**
+   * Add search-index relay/reconcile job
+   */
+  async addSearchIndexJob(
+    data: JobData,
+    options?: QueueJobOptions,
+  ): Promise<Job> {
+    const defaultOptions = {
+      attempts: 3,
+      backoff: {
+        type: 'exponential' as const,
+        delay: 2000,
+      },
+      removeOnComplete: true,
+      ...options,
+    };
+
+    this.logger.debug(`Adding search-index job: ${JSON.stringify(data)}`);
+    return this.searchIndexQueue.add(data, defaultOptions);
+  }
+
+  /**
    * Get queue statistics
    */
   async getQueueStats(queueName: string): Promise<any> {
@@ -126,7 +148,13 @@ export class QueueManagementService {
    * Get all queue statistics
    */
   async getAllQueueStats(): Promise<any[]> {
-    const queues = ['email', 'documents', 'blockchain', 'data-sync'];
+    const queues = [
+      'email',
+      'documents',
+      'blockchain',
+      'data-sync',
+      'search-index',
+    ];
     return Promise.all(queues.map((q) => this.getQueueStats(q)));
   }
 
@@ -233,6 +261,8 @@ export class QueueManagementService {
         return this.blockchainQueue;
       case 'data-sync':
         return this.dataSyncQueue;
+      case 'search-index':
+        return this.searchIndexQueue;
       default:
         throw new Error(`Unknown queue: ${queueName}`);
     }

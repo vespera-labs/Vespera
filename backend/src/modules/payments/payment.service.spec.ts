@@ -28,6 +28,10 @@ import { StellarService } from '../stellar/services/stellar.service';
 import * as StellarSdk from '@stellar/stellar-sdk';
 import { LockService } from '../../common/lock';
 import { IdempotencyService } from '../../common/idempotency';
+import {
+  AgreementStatus,
+  RentAgreement,
+} from '../rent/entities/rent-contract.entity';
 
 const mockPaymentRepository = () => ({
   findOne: jest.fn(),
@@ -108,11 +112,15 @@ const mockEntityManager = {
   findOne: jest.fn(),
   save: jest.fn(),
 };
+const mockRentAgreementRepository = {
+  findOne: jest.fn(),
+};
 const mockDataSource = {
   transaction: jest.fn(
     (cb: (em: typeof mockEntityManager) => Promise<unknown>) =>
       cb(mockEntityManager),
   ),
+  getRepository: jest.fn(() => mockRentAgreementRepository),
 };
 
 describe('PaymentService', () => {
@@ -122,6 +130,11 @@ describe('PaymentService', () => {
   let paymentScheduleRepository: Repository<PaymentSchedule>;
 
   beforeEach(async () => {
+    mockRentAgreementRepository.findOne.mockResolvedValue({
+      id: 'agreement_1',
+      status: AgreementStatus.ACTIVE,
+    } as RentAgreement);
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         PaymentService,
@@ -252,6 +265,26 @@ describe('PaymentService', () => {
         expect.stringContaining('100'),
         'PAYMENT_RECEIVED',
       );
+    });
+
+    it('rejects payments for disputed agreements before gateway work starts', async () => {
+      mockRentAgreementRepository.findOne.mockResolvedValueOnce({
+        id: 'agreement_1',
+        status: AgreementStatus.DISPUTED,
+      } as RentAgreement);
+
+      const dto: CreatePaymentRecordDto = {
+        agreementId: 'agreement_1',
+        amount: 100,
+        paymentMethodId: '1',
+      };
+
+      await expect(service.recordPayment(dto, 'user_1')).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
+
+      expect(paymentMethodRepository.findOne).not.toHaveBeenCalled();
+      expect(mockPaymentGateway.chargePayment).not.toHaveBeenCalled();
     });
 
     it('throws when gateway fails and records failed payment', async () => {
@@ -758,6 +791,26 @@ describe('PaymentService', () => {
       expect((createdSchedule as Partial<PaymentSchedule>)?.status).toBe(
         PaymentScheduleStatus.ACTIVE,
       );
+    });
+
+    it('rejects schedules for disputed agreements', async () => {
+      mockRentAgreementRepository.findOne.mockResolvedValueOnce({
+        id: 'agreement_1',
+        status: AgreementStatus.DISPUTED,
+      } as RentAgreement);
+
+      const dto: CreatePaymentScheduleDto = {
+        agreementId: 'agreement_1',
+        paymentMethodId: '1',
+        amount: 100,
+        interval: PaymentInterval.MONTHLY,
+      };
+
+      await expect(service.createPaymentSchedule(dto, 'user_1')).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
+
+      expect(paymentMethodRepository.findOne).not.toHaveBeenCalled();
     });
   });
 

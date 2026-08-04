@@ -5,12 +5,17 @@ import { EmailQueueProcessor } from './processors/email.processor';
 import { DocumentQueueProcessor } from './processors/document.processor';
 import { BlockchainQueueProcessor } from './processors/blockchain.processor';
 import { DataSyncQueueProcessor } from './processors/data-sync.processor';
+import {
+  SearchIndexProcessor,
+  SEARCH_INDEX_QUEUE,
+} from './processors/search-index.processor';
 import { QueueMonitoringService } from './services/queue-monitoring.service';
 import { QueueManagementService } from './services/queue-management.service';
 import { QueuesController } from './controllers/queues.controller';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { StorageModule } from '../storage/storage.module';
 import { StellarModule } from '../stellar/stellar.module';
+import { SearchModule } from '../search/search.module';
 
 @Module({
   imports: [
@@ -47,16 +52,19 @@ import { StellarModule } from '../stellar/stellar.module';
       { name: 'documents' },
       { name: 'blockchain' },
       { name: 'data-sync' },
+      { name: SEARCH_INDEX_QUEUE },
     ),
     NotificationsModule,
     StorageModule,
     StellarModule,
+    SearchModule,
   ],
   providers: [
     EmailQueueProcessor,
     DocumentQueueProcessor,
     BlockchainQueueProcessor,
     DataSyncQueueProcessor,
+    SearchIndexProcessor,
     QueueMonitoringService,
     QueueManagementService,
   ],

@@ -15,6 +15,8 @@ export enum DisputeEventType {
   APPEAL_FILED = 'appeal_filed',
   APPEAL_RESOLVED = 'appeal_resolved',
   TIMEOUT_TRIGGERED = 'timeout_triggered',
+  CUSTODY_FROZEN = 'custody_frozen',
+  CUSTODY_RELEASED = 'custody_released',
 }
 
 @Entity('dispute_events')

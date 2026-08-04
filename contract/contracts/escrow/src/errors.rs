@@ -56,4 +56,8 @@ pub enum EscrowError {
     NotPendingAdmin = 24,
     /// Unauthorized operation
     Unauthorized = 25,
+    /// Caller's KYC status is not Verified
+    KycNotVerified = 26,
+    /// Caller's screening status is not Clear
+    ScreeningNotClear = 27,
 }

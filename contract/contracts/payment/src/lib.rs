@@ -6,7 +6,7 @@
 //! Handles rent payment processing with automatic commission splitting
 //! and payment record management.
 
-use soroban_sdk::{contract, contractimpl, Address, Env, String, Vec};
+use soroban_sdk::{contract, contractimpl, Address, Env, String, Symbol, Vec};
 
 pub mod errors;
 pub mod events;
@@ -40,6 +40,62 @@ pub struct PaymentContract;
 
 #[contractimpl]
 impl PaymentContract {
+    /// Set the user profile contract address for KYC/screening enforcement.
+    /// Must be called during initialization.
+    pub fn set_user_profile_contract(env: Env, caller: Address, contract_id: Address) {
+        caller.require_auth();
+        let admin: Address = env
+            .storage()
+            .instance()
+            .get(&StorageKey::Admin)
+            .unwrap_or_else(|| panic!("Admin not configured"));
+        if caller != admin {
+            panic!("Unauthorized");
+        }
+        env.storage()
+            .instance()
+            .set(&StorageKey::UserProfileContractId, &contract_id);
+        env.storage().instance().extend_ttl(500000, 500000);
+    }
+
+    /// Assert that a party is KYC Verified and Screening Clear by reading
+    /// the user_profile contract. Returns typed errors on failure.
+    /// Skips check if no user_profile contract is configured.
+    fn assert_cleared_for_party(env: &Env, party: &Address) -> Result<(), Error> {
+        let user_profile_contract_id: Address = match env
+            .storage()
+            .instance()
+            .get(&StorageKey::UserProfileContractId)
+        {
+            Some(id) => id,
+            None => return Ok(()), // No enforcement configured — skip
+        };
+
+        // Cross-contract call to user_profile.get_profile
+        let result: Option<crate::types::UserProfile> = env.invoke_contract(
+            &user_profile_contract_id,
+            &Symbol::new(env, "get_profile"),
+            Vec::from_array(env, [party.to_val()]),
+        );
+
+        let profile = match result {
+            Some(p) => p,
+            None => return Err(Error::PaymentFailed),
+        };
+
+        // Check KYC status: must be Verified (value 2)
+        if profile.kyc_status != crate::types::KycStatus::Verified {
+            return Err(Error::KycNotVerified);
+        }
+
+        // Check screening status: must be Clear (value 0)
+        if profile.screening_status != crate::types::ScreeningStatus::Clear {
+            return Err(Error::ScreeningNotClear);
+        }
+
+        Ok(())
+    }
+
     fn frequency_to_seconds(frequency: &PaymentFrequency) -> u64 {
         match frequency {
             PaymentFrequency::Daily => 86_400,
@@ -252,6 +308,9 @@ impl PaymentContract {
 
         // Authorization
         from.require_auth();
+
+        // KYC/Screening enforcement
+        Self::assert_cleared_for_party(&env, &from)?;
 
         // Rate limiting check
         crate::rate_limit::check_rate_limit(&env, &from, "pay_rent")?;

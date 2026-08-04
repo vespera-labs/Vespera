@@ -53,6 +53,10 @@ import {
 import { RefundEscrowDto, ReleaseEscrowDto } from '../stellar/dto/escrow.dto';
 import { TransactionStatus } from '../stellar/entities/stellar-transaction.entity';
 import { Idempotent, IdempotencyService } from '../../common/idempotency';
+import {
+  AgreementStatus,
+  RentAgreement,
+} from '../rent/entities/rent-contract.entity';
 
 @Injectable()
 export class PaymentService {
@@ -90,6 +94,30 @@ export class PaymentService {
     return { secret: tenantSecret, scrubbed };
   }
 
+  private async ensureAgreementIsNotDisputed(
+    agreementId?: string | null,
+  ): Promise<void> {
+    if (!agreementId) {
+      return;
+    }
+
+    const agreement = await this.dataSource.getRepository(RentAgreement).findOne(
+      {
+        where: { id: agreementId },
+      },
+    );
+
+    if (!agreement) {
+      throw new NotFoundException('Rent agreement not found');
+    }
+
+    if (agreement.status === AgreementStatus.DISPUTED) {
+      throw new BadRequestException(
+        'Rent agreement is disputed; settlement is frozen',
+      );
+    }
+  }
+
   @Locked({
     key: (dto: CreatePaymentRecordDto) =>
       `payment:record:${dto.paymentMethodId ?? 'unknown'}`,
@@ -119,6 +147,8 @@ export class PaymentService {
         return existingPayment;
       }
     }
+
+    await this.ensureAgreementIsNotDisputed(dto.agreementId ?? null);
 
     // Validate payment method exists and belongs to user
     const paymentMethod = await this.paymentMethodRepository.findOne({
@@ -490,6 +520,8 @@ export class PaymentService {
     userId: string,
   ): Promise<PaymentSchedule> {
     ensureUserId(userId);
+
+    await this.ensureAgreementIsNotDisputed(dto.agreementId ?? null);
 
     const paymentMethod = await this.paymentMethodRepository.findOne({
       where: { id: parseInt(dto.paymentMethodId), userId },

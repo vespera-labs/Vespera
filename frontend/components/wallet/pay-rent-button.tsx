@@ -6,9 +6,13 @@ import { signRentPayment, isRentPaymentConfigured } from "@/lib/stellar";
 export function PayRentButton({
   propertyId,
   amount,
+  disabled = false,
+  disabledReason,
 }: {
   propertyId: string;
   amount: number;
+  disabled?: boolean;
+  disabledReason?: string;
 }) {
   const [status, setStatus] = useState<"idle" | "signing" | "ok" | "error">(
     "idle",
@@ -42,12 +46,19 @@ export function PayRentButton({
           NEXT_PUBLIC_RENTAL_CONTRACT_ID in your environment.
         </p>
       )}
+      {disabled && disabledReason && (
+        <p className="text-sm text-amber-700">{disabledReason}</p>
+      )}
       <button
         onClick={handlePay}
-        disabled={status === "signing"}
+        disabled={disabled || status === "signing"}
         className="inline-flex items-center gap-2 rounded-full bg-brand px-6 py-3 text-white hover:bg-brand-600 disabled:opacity-50"
       >
-        {status === "signing" ? "Signing\u2026" : "Pay rent"}
+        {disabled
+          ? "Payments frozen"
+          : status === "signing"
+            ? "Signing\u2026"
+            : "Pay rent"}
       </button>
       {status === "ok" && tx && (
         <p className="text-sm text-ink-muted">

@@ -16,6 +16,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
 import { UsersModule } from '../users/users.module';
 import { StellarModule } from '../stellar/stellar.module';
 import { WebhooksModule } from '../webhooks/webhooks.module';
+import { KycModule } from '../kyc/kyc.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { WebhooksModule } from '../webhooks/webhooks.module';
     UsersModule,
     StellarModule,
     WebhooksModule,
+    KycModule,
   ],
   controllers: [
     PaymentController,

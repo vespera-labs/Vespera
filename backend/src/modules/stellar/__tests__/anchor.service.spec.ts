@@ -5,18 +5,35 @@ import {
   BadRequestException,
   ServiceUnavailableException,
 } from '@nestjs/common';
+// The service builds its HTTP client via axios.create in the constructor;
+// mock the module so every test drives a controllable post/get stub. Since
+// AnchorService now also (transitively, via StellarService) pulls in
+// @stellar/stellar-sdk — which calls axios.create() at *import* time to
+// build its own internal Horizon client — the factory builds a
+// self-contained singleton instance rather than closing over an outer
+// const (which would still be in its TDZ the first time the hoisted
+// factory runs), so every caller gets a usable instance with .interceptors.
+jest.mock('axios', () => {
+  const instance = {
+    post: jest.fn(),
+    get: jest.fn(),
+    interceptors: {
+      request: { use: jest.fn(), eject: jest.fn() },
+      response: { use: jest.fn(), eject: jest.fn() },
+    },
+  };
+  return {
+    __esModule: true,
+    default: { create: jest.fn(() => instance) },
+    create: jest.fn(() => instance),
+  };
+});
+
 import axios from 'axios';
 import { AnchorService } from '../services/anchor.service';
+import { StellarService } from '../services/stellar.service';
 
-// The service builds its HTTP client via axios.create in the constructor;
-// mock the module so every test drives a controllable post/get stub.
-jest.mock('axios');
-
-const httpClient = {
-  post: jest.fn(),
-  get: jest.fn(),
-};
-(axios.create as jest.Mock).mockReturnValue(httpClient);
+const httpClient = (axios as unknown as { create: () => any }).create();
 import {
   AnchorTransaction,
   AnchorTransactionStatus,
@@ -77,6 +94,13 @@ describe('AnchorService', () => {
     }),
   };
 
+  // Defaults to "confirmed" so pre-existing status-transition tests that
+  // don't care about reconciliation keep passing; tests that exercise the
+  // Horizon gate override this per-case.
+  const mockStellarService = {
+    verifySettlementPayment: jest.fn().mockResolvedValue(true),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -93,6 +117,10 @@ describe('AnchorService', () => {
           provide: ConfigService,
           useValue: mockConfigService,
         },
+        {
+          provide: StellarService,
+          useValue: mockStellarService,
+        },
       ],
     }).compile();
 
@@ -105,6 +133,7 @@ describe('AnchorService', () => {
     // HTTP stubs fully so per-test transient sequences don't leak forward.
     httpClient.post.mockReset();
     httpClient.get.mockReset();
+    mockStellarService.verifySettlementPayment.mockResolvedValue(true);
   });
 
   describe('initiateDeposit', () => {
@@ -211,6 +240,38 @@ describe('AnchorService', () => {
           processedEventIds: ['evt-1'],
         }),
       );
+      expect(queryRunner.commitTransaction).toHaveBeenCalled();
+    });
+
+    it('parks an unconfirmed "completed" callback instead of crediting when Horizon shows no matching payment', async () => {
+      mockStellarService.verifySettlementPayment.mockResolvedValueOnce(false);
+
+      const payload = {
+        id: 'anchor-tx-123',
+        status: 'completed',
+        event_id: 'evt-unconfirmed',
+        stellar_transaction_id: 'stellar-tx-456',
+      };
+
+      const row = buildRow({ status: AnchorTransactionStatus.PROCESSING });
+      mockAnchorTransactionRepo.findOne.mockResolvedValue({ id: row.id });
+      txRepo.findOne.mockResolvedValue(row);
+      txRepo.save.mockImplementation((value) => value);
+
+      await service.handleWebhook(payload);
+
+      expect(mockStellarService.verifySettlementPayment).toHaveBeenCalledWith(
+        expect.objectContaining({ stellarTransactionId: 'stellar-tx-456' }),
+      );
+      expect(txRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          status: AnchorTransactionStatus.PROCESSING,
+          metadata: expect.objectContaining({ reconciliation_pending: true }),
+        }),
+      );
+      // Unconfirmed deliveries are not marked processed so a retry re-checks
+      // Horizon instead of being silently swallowed.
+      expect(row.processedEventIds).not.toContain('evt-unconfirmed');
       expect(queryRunner.commitTransaction).toHaveBeenCalled();
     });
 
@@ -574,6 +635,199 @@ describe('AnchorService', () => {
 
       expect(httpClient.get).toHaveBeenCalledTimes(2);
       expect(result.status).toBe(AnchorTransactionStatus.COMPLETED);
+    });
+  });
+
+  describe('initiateWithdrawal failure paths', () => {
+    const withdrawalDto = {
+      amount: 50,
+      currency: 'USD',
+      destination: 'bank-account',
+      walletAddress: 'GTEST...',
+    };
+
+    const armWithdrawalRepos = () => {
+      mockSupportedCurrencyRepo.findOne.mockResolvedValue({
+        code: 'USD',
+        isActive: true,
+      });
+      const row: any = {
+        id: 'wd-1',
+        status: AnchorTransactionStatus.PENDING,
+      };
+      mockAnchorTransactionRepo.create.mockReturnValue(row);
+      mockAnchorTransactionRepo.save.mockImplementation(async (v) => v);
+      return row;
+    };
+
+    const transient5xx = () =>
+      Object.assign(new Error('Service Unavailable'), {
+        response: { status: 503 },
+      });
+    const timeoutErr = () => new Error('socket hang up: network timeout');
+    const deterministic4xx = () =>
+      Object.assign(new Error('Bad Request'), {
+        response: { status: 400 },
+      });
+
+    it('keeps the withdrawal PENDING and throws 503 when transient errors exhaust retries', async () => {
+      const row = armWithdrawalRepos();
+      httpClient.post.mockRejectedValue(timeoutErr());
+
+      await expect(
+        service.initiateWithdrawal(withdrawalDto),
+      ).rejects.toBeInstanceOf(ServiceUnavailableException);
+
+      expect(httpClient.post).toHaveBeenCalledTimes(3);
+      expect(row.status).not.toBe(AnchorTransactionStatus.FAILED);
+    });
+
+    it('fails fast and marks FAILED on a deterministic 4xx without retrying', async () => {
+      const row = armWithdrawalRepos();
+      httpClient.post.mockRejectedValue(deterministic4xx());
+
+      await expect(
+        service.initiateWithdrawal(withdrawalDto),
+      ).rejects.toBeInstanceOf(BadRequestException);
+
+      expect(httpClient.post).toHaveBeenCalledTimes(1);
+      expect(row.status).toBe(AnchorTransactionStatus.FAILED);
+    });
+
+    it('retries a transient 5xx on withdrawal and then succeeds', async () => {
+      const row = armWithdrawalRepos();
+      httpClient.post
+        .mockRejectedValueOnce(transient5xx())
+        .mockResolvedValueOnce({
+          data: {
+            id: 'anchor-wd-1',
+            account_id: 'GDEST...',
+            memo_type: 'text',
+            memo: 'test-memo',
+          },
+        });
+
+      const result = await service.initiateWithdrawal(withdrawalDto);
+
+      expect(httpClient.post).toHaveBeenCalledTimes(2);
+      expect(result.anchorTransactionId).toBe('anchor-wd-1');
+      expect(row.status).toBe(AnchorTransactionStatus.PENDING);
+    });
+  });
+
+  describe('mapAnchorStatus', () => {
+    it('maps all known anchor statuses to internal statuses', async () => {
+      const mapping: Record<string, AnchorTransactionStatus> = {
+        pending_user_transfer_start: AnchorTransactionStatus.PENDING,
+        pending_anchor: AnchorTransactionStatus.PROCESSING,
+        pending_stellar: AnchorTransactionStatus.PROCESSING,
+        pending_external: AnchorTransactionStatus.PROCESSING,
+        pending_trust: AnchorTransactionStatus.PROCESSING,
+        pending_user: AnchorTransactionStatus.PROCESSING,
+        completed: AnchorTransactionStatus.COMPLETED,
+        refunded: AnchorTransactionStatus.REFUNDED,
+        expired: AnchorTransactionStatus.FAILED,
+        error: AnchorTransactionStatus.FAILED,
+      };
+
+      // Access the private method via (service as any) to test all mappings.
+      for (const [anchorStatus, expectedInternal] of Object.entries(mapping)) {
+        const result = (service as any).mapAnchorStatus(anchorStatus);
+        expect(result).toBe(expectedInternal);
+      }
+    });
+
+    it('falls back to PENDING for unknown anchor statuses', async () => {
+      const result = (service as any).mapAnchorStatus('totally_unknown_status');
+      expect(result).toBe(AnchorTransactionStatus.PENDING);
+    });
+  });
+
+  describe('handleWebhook edge cases', () => {
+    const buildRow = (
+      overrides: Partial<AnchorTransaction> = {},
+    ): AnchorTransaction =>
+      ({
+        id: 'local-tx-2',
+        anchorTransactionId: 'anchor-tx-456',
+        status: AnchorTransactionStatus.PENDING,
+        metadata: {},
+        processedEventIds: [],
+        version: 1,
+        ...overrides,
+      }) as AnchorTransaction;
+
+    it('generates a fallback event_id from status when no event_id or sequence is provided', async () => {
+      const payload = {
+        id: 'anchor-tx-456',
+        status: 'completed',
+      };
+
+      const row = buildRow();
+      mockAnchorTransactionRepo.findOne.mockResolvedValue({ id: row.id });
+      txRepo.findOne.mockResolvedValue(row);
+      txRepo.save.mockImplementation((value) => value);
+
+      await service.handleWebhook(payload);
+
+      expect(txRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          processedEventIds: ['anchor-tx-456:status:completed'],
+        }),
+      );
+    });
+
+    it('generates a sequence-based event_id when sequence is provided but no event_id', async () => {
+      const payload = {
+        id: 'anchor-tx-456',
+        status: 'pending_anchor',
+        sequence: 7,
+      };
+
+      const row = buildRow();
+      mockAnchorTransactionRepo.findOne.mockResolvedValue({ id: row.id });
+      txRepo.findOne.mockResolvedValue(row);
+      txRepo.save.mockImplementation((value) => value);
+
+      await service.handleWebhook(payload);
+
+      expect(txRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          processedEventIds: ['anchor-tx-456:seq:7'],
+        }),
+      );
+    });
+
+    it('propagates amount_in, amount_out, amount_fee, and external_transaction_id into metadata', async () => {
+      const payload = {
+        id: 'anchor-tx-456',
+        status: 'completed',
+        event_id: 'evt-full',
+        amount_in: '100.00',
+        amount_out: '98.50',
+        amount_fee: '1.50',
+        external_transaction_id: 'ext-tx-789',
+        message: 'All good',
+      };
+
+      const row = buildRow();
+      mockAnchorTransactionRepo.findOne.mockResolvedValue({ id: row.id });
+      txRepo.findOne.mockResolvedValue(row);
+      txRepo.save.mockImplementation((value) => value);
+
+      await service.handleWebhook(payload);
+
+      expect(txRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          metadata: expect.objectContaining({
+            amount_in: '100.00',
+            amount_out: '98.50',
+            amount_fee: '1.50',
+            external_transaction_id: 'ext-tx-789',
+            message: 'All good',
+          }),
+        }),
+      );
     });
   });
 });

@@ -425,6 +425,51 @@
                         "key": {
                           "vec": [
                             {
+                              "symbol": "PauseState"
+                            }
+                          ]
+                        },
+                        "val": {
+                          "map": [
+                            {
+                              "key": {
+                                "symbol": "is_paused"
+                              },
+                              "val": {
+                                "bool": true
+                              }
+                            },
+                            {
+                              "key": {
+                                "symbol": "pause_reason"
+                              },
+                              "val": {
+                                "string": "Paused via multi-sig governance"
+                              }
+                            },
+                            {
+                              "key": {
+                                "symbol": "paused_at"
+                              },
+                              "val": {
+                                "u64": "0"
+                              }
+                            },
+                            {
+                              "key": {
+                                "symbol": "paused_by"
+                              },
+                              "val": {
+                                "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4"
+                              }
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "key": {
+                          "vec": [
+                            {
                               "symbol": "ProposalCount"
                             }
                           ]
@@ -478,7 +523,7 @@
                                       "symbol": "paused"
                                     },
                                     "val": {
-                                      "bool": false
+                                      "bool": true
                                     }
                                   }
                                 ]

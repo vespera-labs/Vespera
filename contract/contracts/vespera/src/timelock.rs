@@ -2,7 +2,7 @@ use crate::{
     errors::RentalError,
     events,
     storage::DataKey,
-    types::{ContractState, TimelockAction, TimelockActionType},
+    types::{Config, ContractState, PauseState, TimelockAction, TimelockActionType},
 };
 use soroban_sdk::{Address, Bytes, Env, String, Vec};
 
@@ -189,6 +189,31 @@ pub fn execute_action(env: &Env, caller: Address, action_id: String) -> Result<(
         return Err(RentalError::TimelockEtaNotReached);
     }
 
+    // Apply the queued change before marking the action executed, so a
+    // matured action can never be a silent no-op (issue #66/#227).
+    match action.action_type {
+        TimelockActionType::UpdateAdmin => {
+            update_admin_internal(env, action.target.clone())?;
+        }
+        TimelockActionType::UpdateConfig => {
+            let new_config = parse_config_payload(&action.data, action.target.clone())?;
+            apply_config_internal(env, new_config)?;
+        }
+        TimelockActionType::UpdateRates => {
+            // No dedicated "rates" state exists in this contract separate
+            // from Config.fee_bps (already covered by UpdateConfig), so
+            // there is nothing to apply. Adding new state for this is out
+            // of scope here (see issue #66/#227: "Adding new action types").
+        }
+        TimelockActionType::PauseContract => {
+            let reason = String::from_str(env, "Paused via timelock governance");
+            pause_internal(env, caller.clone(), reason);
+        }
+        TimelockActionType::UnpauseContract => {
+            unpause_internal(env, caller.clone());
+        }
+    }
+
     action.executed = true;
     env.storage()
         .persistent()
@@ -197,6 +222,129 @@ pub fn execute_action(env: &Env, caller: Address, action_id: String) -> Result<(
     remove_from_active(env, &action_id);
 
     events::timelock_action_executed(env, action_id);
+
+    Ok(())
+}
+
+fn parse_u32_at(data: &Bytes, offset: u32) -> Result<u32, RentalError> {
+    let mut buf = [0u8; 4];
+    for (i, b) in buf.iter_mut().enumerate() {
+        *b = data
+            .get(offset + i as u32)
+            .ok_or(RentalError::InvalidInput)?;
+    }
+    Ok(u32::from_be_bytes(buf))
+}
+
+/// Decode a `TimelockActionType::UpdateConfig` payload:
+/// `[fee_bps: u32 BE][paused: u8]`. `fee_collector` comes from the queued
+/// action's `target` field, not the payload.
+fn parse_config_payload(data: &Bytes, fee_collector: Address) -> Result<Config, RentalError> {
+    if data.len() != 5 {
+        return Err(RentalError::InvalidInput);
+    }
+    let fee_bps = parse_u32_at(data, 0)?;
+    let paused = match data.get_unchecked(4) {
+        0 => false,
+        1 => true,
+        _ => return Err(RentalError::InvalidInput),
+    };
+    if fee_bps > 10_000 {
+        return Err(RentalError::InvalidConfig);
+    }
+    Ok(Config {
+        fee_bps,
+        fee_collector,
+        paused,
+    })
+}
+
+/// Idempotently mark the contract paused, mirroring `Contract::pause` but
+/// without requiring `state.admin`'s signature: a matured timelock action is
+/// itself the authority for this path.
+fn pause_internal(env: &Env, paused_by: Address, reason: String) {
+    let pause_state = PauseState {
+        is_paused: true,
+        paused_at: env.ledger().timestamp(),
+        paused_by: paused_by.clone(),
+        pause_reason: reason.clone(),
+    };
+    env.storage()
+        .instance()
+        .set(&DataKey::PauseState, &pause_state);
+    env.storage().instance().extend_ttl(500000, 500000);
+
+    if let Some(mut state) = env
+        .storage()
+        .instance()
+        .get::<DataKey, ContractState>(&DataKey::State)
+    {
+        if !state.config.paused {
+            state.config.paused = true;
+            env.storage().instance().set(&DataKey::State, &state);
+        }
+    }
+
+    events::paused(env, reason, paused_by);
+}
+
+/// Idempotently clear the paused state; see [`pause_internal`].
+fn unpause_internal(env: &Env, unpaused_by: Address) {
+    env.storage().instance().remove(&DataKey::PauseState);
+
+    if let Some(mut state) = env
+        .storage()
+        .instance()
+        .get::<DataKey, ContractState>(&DataKey::State)
+    {
+        if state.config.paused {
+            state.config.paused = false;
+            env.storage().instance().set(&DataKey::State, &state);
+        }
+    }
+
+    events::unpaused(env, unpaused_by);
+}
+
+/// Apply a matured `UpdateConfig` action, mirroring `Contract::update_config`
+/// but authorized by the timelock (already enforced by ETA + queue-time
+/// admin check) instead of a fresh `state.admin` signature.
+fn apply_config_internal(env: &Env, new_config: Config) -> Result<(), RentalError> {
+    let mut state: ContractState = env
+        .storage()
+        .instance()
+        .get(&DataKey::State)
+        .ok_or(RentalError::InvalidState)?;
+
+    let was_paused = state.config.paused;
+    let old_config = state.config.clone();
+    state.config = new_config.clone();
+
+    env.storage().instance().set(&DataKey::State, &state);
+    env.storage().instance().extend_ttl(500000, 500000);
+
+    if new_config.paused && !was_paused {
+        let reason = String::from_str(env, "Paused via timelock governance");
+        pause_internal(env, state.admin.clone(), reason);
+    } else if !new_config.paused && was_paused {
+        unpause_internal(env, state.admin.clone());
+    }
+
+    events::config_updated(env, state.admin, old_config, new_config);
+    Ok(())
+}
+
+/// Apply a matured `UpdateAdmin` action.
+fn update_admin_internal(env: &Env, new_admin: Address) -> Result<(), RentalError> {
+    let mut state: ContractState = env
+        .storage()
+        .instance()
+        .get(&DataKey::State)
+        .ok_or(RentalError::InvalidState)?;
+
+    state.admin = new_admin;
+    env.storage().instance().set(&DataKey::State, &state);
+    env.storage().instance().extend_ttl(500000, 500000);
 
     Ok(())
 }

@@ -20,6 +20,9 @@ import {
 import { Type } from 'class-transformer';
 import { RentService } from './rent.service';
 import { RentReminderService } from './rent-reminder.service';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { KycEnforcementGuard } from '../kyc/guards/kyc-enforcement.guard';
+import { UseGuards } from '@nestjs/common';
 
 // ─── DTOs ────────────────────────────────────────────────────────────────────
 
@@ -78,6 +81,7 @@ export class CreateRemindersDto {
 
 // ─── Controller ──────────────────────────────────────────────────────────────
 
+@UseGuards(JwtAuthGuard, KycEnforcementGuard)
 @Controller('rent')
 export class RentController {
   constructor(

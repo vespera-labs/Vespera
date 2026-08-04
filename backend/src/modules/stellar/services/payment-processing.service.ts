@@ -1,10 +1,16 @@
-import { Injectable, Logger } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Repository, DataSource } from 'typeorm';
 import * as StellarSdk from '@stellar/stellar-sdk';
 import { Contract, SorobanRpc, xdr } from '@stellar/stellar-sdk';
 import { StellarPayment } from '../entities/stellar-payment.entity';
 import { isTransientStellarError } from './stellar-transaction-resilience';
+import { AgreementStatus, RentAgreement } from '../../rent/entities/rent-contract.entity';
 
 /**
  * Thrown when a submitted transaction could not be confirmed within the
@@ -93,6 +99,24 @@ export class PaymentProcessingService {
     }
   }
 
+  private async ensureAgreementIsNotDisputed(agreementId: string): Promise<void> {
+    const agreement = await this.dataSource.getRepository(RentAgreement).findOne(
+      {
+        where: { id: agreementId },
+      },
+    );
+
+    if (!agreement) {
+      throw new NotFoundException('Rent agreement not found');
+    }
+
+    if (agreement.status === AgreementStatus.DISPUTED) {
+      throw new BadRequestException(
+        'Rent agreement is disputed; settlement is frozen',
+      );
+    }
+  }
+
   async processRentPayment(
     from: string,
     agreementId: string,
@@ -103,6 +127,8 @@ export class PaymentProcessingService {
       if (!this.isConfigured || !this.contract) {
         throw new Error('Contract not configured');
       }
+
+      await this.ensureAgreementIsNotDisputed(agreementId);
 
       const account = await this.server.getAccount(from);
 
