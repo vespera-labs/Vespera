@@ -308,7 +308,8 @@ fn test_rate_agent_success() {
     let agent_info = client.get_agent_info(&agent).unwrap();
     assert_eq!(agent_info.total_ratings, 1);
     assert_eq!(agent_info.total_score, 5);
-    assert_eq!(agent_info.average_rating(), 5);
+    // average_rating() is scaled by 100: 5.00 -> 500
+    assert_eq!(agent_info.average_rating(), 500);
 }
 
 #[test]
@@ -341,7 +342,8 @@ fn test_multiple_ratings_average() {
     let agent_info = client.get_agent_info(&agent).unwrap();
     assert_eq!(agent_info.total_ratings, 2);
     assert_eq!(agent_info.total_score, 8);
-    assert_eq!(agent_info.average_rating(), 4);
+    // average_rating() is scaled by 100: 4.00 -> 400
+    assert_eq!(agent_info.average_rating(), 400);
 }
 
 #[test]
