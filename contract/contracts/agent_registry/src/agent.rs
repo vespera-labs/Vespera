@@ -3,7 +3,7 @@ use soroban_sdk::{Address, Env, String, Vec};
 use crate::errors::AgentError;
 use crate::events;
 use crate::storage::DataKey;
-use crate::types::{AgentInfo, AgentTransaction, ContractState, PauseState};
+use crate::types::{AgentInfo, AgentTransaction, ContractState, PauseState, Rating};
 
 fn check_paused(env: &Env) -> Result<(), AgentError> {
     if env
@@ -165,7 +165,13 @@ pub fn rate_agent(
         return Err(AgentError::AlreadyRated);
     }
 
-    env.storage().persistent().set(&rating_key, &true);
+    let rating = Rating {
+        rater: rater.clone(),
+        agent: agent.clone(),
+        score,
+        rated_at: env.ledger().timestamp(),
+    };
+    env.storage().persistent().set(&rating_key, &rating);
     env.storage()
         .persistent()
         .extend_ttl(&rating_key, 500000, 500000);
@@ -193,6 +199,21 @@ pub fn get_agent_count(env: &Env) -> u32 {
         .persistent()
         .get(&DataKey::AgentCount)
         .unwrap_or(0)
+}
+
+/// Returns the average rating scaled by 100 (e.g. 450 = 4.5), or None if the agent is not found.
+pub fn get_agent_average_rating(env: &Env, agent: Address) -> Option<u32> {
+    let key = DataKey::Agent(agent);
+    env.storage()
+        .persistent()
+        .get::<DataKey, AgentInfo>(&key)
+        .map(|info| info.average_rating())
+}
+
+/// Returns the individual Rating left by a rater for an agent, if it exists.
+pub fn get_rating(env: &Env, agent: Address, rater: Address) -> Option<Rating> {
+    let rating_key = DataKey::AgentRating(agent, rater);
+    env.storage().persistent().get(&rating_key)
 }
 
 pub fn register_transaction(

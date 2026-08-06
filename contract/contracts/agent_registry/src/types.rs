@@ -14,9 +14,15 @@ pub struct AgentInfo {
 }
 
 impl AgentInfo {
+    /// Returns the average rating scaled by 100 (e.g. 450 = 4.5).
+    /// Returns 0 if there are no ratings.
     pub fn average_rating(&self) -> u32 {
+        if self.total_ratings == 0 {
+            return 0;
+        }
         self.total_score
-            .checked_div(self.total_ratings)
+            .checked_mul(100)
+            .and_then(|v| v.checked_div(self.total_ratings))
             .unwrap_or(0)
     }
 }
