@@ -177,6 +177,8 @@ export class StorageService {
       throw new NotFoundException('File not found or access denied');
     }
 
+    this.logger.log(`[storage-access] action=download ownerId=${ownerId} key=${key}`);
+
     // Return CDN URL for public assets if CDN is configured
     if (this.cdnBaseUrl) {
       return `${this.cdnBaseUrl}/${key}`;
@@ -203,6 +205,8 @@ export class StorageService {
     if (!file) {
       throw new NotFoundException('File not found or access denied');
     }
+
+    this.logger.log(`[storage-access] action=delete ownerId=${ownerId} key=${key}`);
 
     await this.s3.send(
       new DeleteObjectCommand({ Bucket: this.bucket, Key: key }),
